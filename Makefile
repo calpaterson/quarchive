@@ -4,7 +4,7 @@ web_ext := src/extension/node_modules/web-ext/bin/web-ext
 
 build: dist/quartermarker-0.1.zip dist/quartermarker-0.0.1.pex
 
-dist/quartermarker-0.0.1.pex: src/server | dist
+dist/quartermarker-0.0.1.pex: src/server src/server/quartermarker/__init__.py | dist
 	cd src/server; tox
 	mv src/server/dist/quartermarker-0.0.1.pex dist/
 

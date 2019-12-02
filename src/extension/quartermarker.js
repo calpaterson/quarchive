@@ -1,5 +1,11 @@
+const BASE_URL = "http://localhost:5000/"
+
 function changeListener(id, changeInfo) {
     console.log("changed: id: %s - %o", id, changeInfo);
+    const response = fetch(BASE_URL + "ok").then(async function (response) {
+        const json = await response.json();
+        console.log("got %o", json);
+    });
 };
 
 function createdListener(id, bookmark) {
