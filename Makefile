@@ -1,6 +1,14 @@
 web_ext := src/extension/node_modules/web-ext/bin/web-ext
 
-dist/quartermarker-0.1.zip: src/extension/manifest.json $(web_ext) src/extension/quartermarker.js | dist
+.PHONY: build
+
+build: dist/quartermarker-0.1.zip dist/quartermarker-0.0.1.pex
+
+dist/quartermarker-0.0.1.pex: src/server | dist
+	cd src/server; tox
+	mv src/server/dist/quartermarker-0.0.1.pex dist/
+
+dist/quartermarker-0.1.zip: src/extension/ $(web_ext) src/extension/quartermarker.js | dist
 	$(web_ext) build -a dist -s src/extension/ --overwrite-dest
 
 $(web_ext):
