@@ -1,0 +1,21 @@
+{
+  "name": "quartermarker",
+  "version": "0.0.1",
+  "description": "",
+  "main": "quartermarker.js",
+  "dependencies": {
+    "web-ext": "^3.2.1"
+  },
+  "devDependencies": {
+    "eslint": "^6.7.2"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "\t"
+  },
+  "author": "",
+  "license": "UNLICENSED"
+}
