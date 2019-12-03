@@ -3,8 +3,8 @@ const BASE_URL = "http://localhost:5000"
 class Bookmark {
     constructor(url){
         this.url = url;
-        // this.title = title;
-        // this.timestamp = timestamp;
+        this.title = title;
+        this.timestamp = timestamp;
         // this.tags = tags;
         // this.deleted = deleted;
         // this.unread = unread;
@@ -14,7 +14,7 @@ class Bookmark {
 async function lookupBookmark(id) {
     const treeNodes = await browser.bookmarks.get(id)
     const treeNode = treeNodes[0];
-    const bookmark = new Bookmark(url=treeNode.url);
+    const bookmark = new Bookmark(url=treeNode.url, title=treeNode.title, timestamp=treeNode.dateAdded);
     console.log("built %o", bookmark);
     return bookmark;
 }
@@ -23,6 +23,8 @@ async function syncBookmark(bookmark) {
     const sync_body = {
         "bookmarks": [{
             "url": bookmark.url,
+            "timestamp": bookmark.timestamp,
+            "title": bookmark.title,
         }]};
     console.log("syncing %o", sync_body);
     const response = await fetch(BASE_URL + "/sync", {
@@ -39,6 +41,8 @@ async function syncBookmark(bookmark) {
 async function changeListener(id, changeInfo) {
     console.log("changed: id: %s - %o", id, changeInfo);
     const bookmark = await lookupBookmark(id);
+    bookmark.timestamp = Date.now();
+    // FIXME: need to record this timestamp
     await syncBookmark(bookmark);
 }
 

@@ -11,13 +11,24 @@ log = logging.getLogger("quartermarker")
 @dataclass(frozen=True)
 class Bookmark:
     url: str
+    title: str
+    timestamp: int
 
     def merge(self, other):
         log.info("merging %s + %s -> %s", self, other, self)
-        return self
+        # Take the one with the latest timestamp
+        if self.timestamp != other.timestamp:
+            return max((self, other), key=lambda b: b.timestamp)
+        # If timestamps are equal, take the longest title
+        else:
+            return max((self, other), key=lambda b: b.title)
 
     def to_json(self) -> Mapping:
         return {"url": self.url}
+
+    @classmethod
+    def from_json(cls, mapping: Mapping) -> "Bookmark":
+        return cls(**mapping)
 
 
 app = flask.Flask("quartermarker")
@@ -35,7 +46,7 @@ def ok():
 def sync():
     body = flask.request.json
     recieved_bookmarks: Set[Bookmark] = set(
-        Bookmark(url=item["url"]) for item in body["bookmarks"]
+        Bookmark.from_json(item) for item in body["bookmarks"]
     )
     merged_bookmarks: Set[Bookmark] = set()
     new_bookmarks: Set[Bookmark] = set()
