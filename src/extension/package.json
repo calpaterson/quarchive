@@ -3,11 +3,10 @@
   "version": "0.0.1",
   "description": "",
   "main": "quartermarker.js",
-  "dependencies": {
-    "web-ext": "^3.2.1"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "eslint": "^6.7.2"
+    "eslint": "^6.7.2",
+    "web-ext": "^3.2.1"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
