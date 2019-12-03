@@ -39,10 +39,13 @@ def sync():
     new_bookmarks = set()
     for recieved in recieved_bookmarks:
         if recieved.url in DATA_STORE:
-            existing = DATA_STORE.get[recieved.url]
+            existing = DATA_STORE[recieved.url]
             merged = existing.merge(recieved)
-            merged_bookmarks.append(merged)
-            log.info("merged: %s + %s = %s", recieved, existing, merged)
+            if merged != existing:
+                merged_bookmarks.add(merged)
+                log.info("merged: %s + %s = %s", recieved, existing, merged)
+            else:
+                log.info("no change to %s", recieved)
         else:
             new_bookmarks.add(recieved)
             DATA_STORE[recieved.url] = recieved
