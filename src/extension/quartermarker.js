@@ -1,5 +1,16 @@
 const BASE_URL = "http://localhost:5000/"
 
+class Bookmark {
+    constructor(url, title, timestamp, tags, deleted){
+        this.url = url;
+        this.title = title;
+        this.timestamp = timestamp;
+        this.tags = tags;
+        this.deleted = deleted;
+        this.unread = unread;
+    }
+}
+
 function changeListener(id, changeInfo) {
     console.log("changed: id: %s - %o", id, changeInfo);
     const response = fetch(BASE_URL + "ok").then(async function (response) {
