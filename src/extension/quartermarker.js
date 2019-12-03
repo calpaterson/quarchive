@@ -1,20 +1,25 @@
 const BASE_URL = "http://localhost:5000"
 
-// class Bookmark {
-//     constructor(url, title, timestamp, tags, deleted){
-//         this.url = url;
-//         this.title = title;
-//         this.timestamp = timestamp;
-//         this.tags = tags;
-//         this.deleted = deleted;
-//         this.unread = unread;
-//     }
-// }
+class Bookmark {
+    constructor(url){
+        this.url = url;
+        // this.title = title;
+        // this.timestamp = timestamp;
+        // this.tags = tags;
+        // this.deleted = deleted;
+        // this.unread = unread;
+    }
+}
 
-async function changeListener(id, changeInfo) {
-    console.log("changed: id: %s - %o", id, changeInfo);
-    const bookmarks = await browser.bookmarks.get(id)
-    const bookmark = bookmarks[0];
+async function lookupBookmark(id) {
+    const treeNodes = await browser.bookmarks.get(id)
+    const treeNode = treeNodes[0];
+    const bookmark = new Bookmark(url=treeNode.url);
+    console.log("built %o", bookmark);
+    return bookmark;
+}
+
+async function syncBookmark(bookmark) {
     const sync_body = {
         "bookmarks": [{
             "url": bookmark.url,
@@ -31,16 +36,29 @@ async function changeListener(id, changeInfo) {
     console.log("got %o", json);
 }
 
-function createdListener(id, bookmark) {
-    console.log("created: id: %s - %o", id, bookmark);
+async function changeListener(id, changeInfo) {
+    console.log("changed: id: %s - %o", id, changeInfo);
+    const bookmark = await lookupBookmark(id);
+    await syncBookmark(bookmark);
 }
 
-function movedListener(id, moveInfo) {
+async function createdListener(id, treeNode) {
+    console.log("created: id: %s - %o", id, treeNode);
+    const bookmark = await lookupBookmark(id);
+    await syncBookmark(bookmark);
+}
+
+async function movedListener(id, moveInfo) {
     console.log("moved: id: %s - %o", id, moveInfo);
+    const bookmark = await lookupBookmark(id);
+    await syncBookmark(bookmark);
 }
 
-function removedListener(id, removeInfo) {
+async function removedListener(id, removeInfo) {
     console.log("removed id: %s - %o", id, removeInfo);
+    // Can't look up deleted bookmark
+    // const bookmark = await lookupBookmark(id);
+    // await syncBookmark(bookmark);
 }
 
 browser.bookmarks.onChanged.addListener(changeListener);
