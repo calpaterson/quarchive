@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import logging
-from typing import MutableMapping, Mapping
+from typing import MutableMapping, Mapping, Set
 
 import flask
 from flask_cors import CORS
@@ -34,9 +34,11 @@ def ok():
 @app.route("/sync", methods=["POST"])
 def sync():
     body = flask.request.json
-    recieved_bookmarks = set(Bookmark(url=item["url"]) for item in body["bookmarks"])
-    merged_bookmarks = set()
-    new_bookmarks = set()
+    recieved_bookmarks: Set[Bookmark] = set(
+        Bookmark(url=item["url"]) for item in body["bookmarks"]
+    )
+    merged_bookmarks: Set[Bookmark] = set()
+    new_bookmarks: Set[Bookmark] = set()
     for recieved in recieved_bookmarks:
         if recieved.url in DATA_STORE:
             existing = DATA_STORE[recieved.url]
