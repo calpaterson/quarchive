@@ -6,7 +6,7 @@ setup(
     packages=find_packages(),
     install_requires=["flask~=1.1.1", "flask-cors~=3.0.8"],
     extras_require={
-        "tests": ["pytest~=5.3.1",],
+        "tests": ["pytest~=5.3.1", "pytest-flask~=0.15.0"],
         "dev": ["black~=19.10b0", "mypy~=0.750"],
     },
     entry_points={"console_scripts": ["quartermarker=quartermarker:main",]},
