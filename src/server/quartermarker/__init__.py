@@ -18,7 +18,6 @@ class Bookmark:
     # FIXME: tags: Any
 
     def merge(self, other):
-        log.info("merging %s + %s -> %s", self, other, self)
         # Take the one with the latest timestamp
         if self.timestamp != other.timestamp:
             return max((self, other), key=lambda b: b.timestamp)
