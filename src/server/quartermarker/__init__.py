@@ -13,6 +13,9 @@ class Bookmark:
     url: str
     title: str
     timestamp: int
+    unread: bool
+    deleted: bool
+    # FIXME: tags: Any
 
     def merge(self, other):
         log.info("merging %s + %s -> %s", self, other, self)
@@ -22,6 +25,8 @@ class Bookmark:
         # If timestamps are equal, take the longest title
         else:
             return max((self, other), key=lambda b: b.title)
+        # FIXME: all other fields should also be considered in case they differ
+        # only in (eg unread)
 
     def to_json(self) -> Mapping:
         return dataclass_as_dict(self)
@@ -55,7 +60,12 @@ def sync():
             existing = DATA_STORE[recieved.url]
             merged = existing.merge(recieved)
             if merged != existing:
-                log.info("recieved bm merged, changing local: %s + %s = %s", recieved, existing, merged)
+                log.info(
+                    "recieved bm merged, changing local: %s + %s = %s",
+                    recieved,
+                    existing,
+                    merged,
+                )
             else:
                 log.info("no change to %s", recieved)
             if recieved != merged:

@@ -18,7 +18,13 @@ def ensure_clean_tables(app):
 
 
 def make_bookmark(**kwargs):
-    values = {"url": "http://example.com", "title": "Example", "timestamp": 0}
+    values = {
+        "url": "http://example.com",
+        "title": "Example",
+        "timestamp": 0,
+        "unread": False,
+        "deleted": False,
+    }
     values.update(kwargs)
     return sut.Bookmark(**values)
 
