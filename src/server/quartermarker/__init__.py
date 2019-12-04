@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict as dataclass_as_dict
 import logging
 from typing import MutableMapping, Mapping, Set
 
@@ -24,7 +24,7 @@ class Bookmark:
             return max((self, other), key=lambda b: b.title)
 
     def to_json(self) -> Mapping:
-        return {"url": self.url}
+        return dataclass_as_dict(self)
 
     @classmethod
     def from_json(cls, mapping: Mapping) -> "Bookmark":
@@ -48,22 +48,23 @@ def sync():
     recieved_bookmarks: Set[Bookmark] = set(
         Bookmark.from_json(item) for item in body["bookmarks"]
     )
-    merged_bookmarks: Set[Bookmark] = set()
+    changed_bookmarks: Set[Bookmark] = set()
     new_bookmarks: Set[Bookmark] = set()
     for recieved in recieved_bookmarks:
         if recieved.url in DATA_STORE:
             existing = DATA_STORE[recieved.url]
             merged = existing.merge(recieved)
             if merged != existing:
-                merged_bookmarks.add(merged)
-                log.info("merged: %s + %s = %s", recieved, existing, merged)
+                log.info("recieved bm merged, changing local: %s + %s = %s", recieved, existing, merged)
             else:
                 log.info("no change to %s", recieved)
+            if recieved != merged:
+                log.info("recieved bm changed by merge: %s -> %s", recieved, merged)
+                changed_bookmarks.add(merged)
         else:
             new_bookmarks.add(recieved)
             DATA_STORE[recieved.url] = recieved
             log.info("added: %s", recieved)
-    changed_bookmarks = merged_bookmarks.difference(recieved_bookmarks)
     return flask.json.jsonify({"bookmarks": [b.to_json() for b in changed_bookmarks]})
 
 
