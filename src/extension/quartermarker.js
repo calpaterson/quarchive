@@ -1,20 +1,33 @@
+"use strict";
+
 const BASE_URL = "http://localhost:5000"
 
+const SCHEMA_VERSION = 2;
+
+var db;
+
 class Bookmark {
-    constructor(url){
+    constructor(url, title, timestamp, deleted, unread){
         this.url = url;
         this.title = title;
         this.timestamp = timestamp;
+        this.deleted = deleted;
+        this.unread = unread;
         // this.tags = tags;
-        // this.deleted = deleted;
-        // this.unread = unread;
     }
 }
 
 async function lookupBookmark(id) {
+    // FIXME: this can fail, should check to make sure more than one treeNode
     const treeNodes = await browser.bookmarks.get(id)
     const treeNode = treeNodes[0];
-    const bookmark = new Bookmark(url=treeNode.url, title=treeNode.title, timestamp=treeNode.dateAdded);
+    const bookmark = new Bookmark(
+        treeNode.url,
+        treeNode.title,
+        treeNode.dateAdded,
+        false,
+        false
+    );
     console.log("built %o", bookmark);
     return bookmark;
 }
@@ -25,8 +38,11 @@ async function syncBookmark(bookmark) {
             "url": bookmark.url,
             "timestamp": bookmark.timestamp,
             "title": bookmark.title,
+            "unread": bookmark.unread,
+            "deleted": bookmark.deleted,
         }]};
     console.log("syncing %o", sync_body);
+    // FIXME: failure should be logged
     const response = await fetch(BASE_URL + "/sync", {
         method: "POST",
         headers: {
@@ -36,6 +52,27 @@ async function syncBookmark(bookmark) {
     });
     const json = await response.json();
     console.log("got %o", json);
+}
+
+function insertBookmarkIntoDB(bookmark){
+    var transaction = db.transaction(["bookmarks"], "readwrite");
+    transaction.oncomplete = function(event){
+        console.log("insertBookmarkIntoDB transaction complete: %o", event);
+    }
+    transaction.onerror = function(event){
+        console.warn("insertBookmarkIntoDB transaction failed: %o", event);
+    }
+    var objectStore = transaction.objectStore("bookmarks");
+    var request = objectStore.add(bookmark)
+    request.onsuccess = function(event){
+        console.log("insertBookmarkIntoDB request complete: %o", event);
+    }
+    request.onerror = function(event){
+        console.warn("insertBookmarkIntoDB request failed: %o, %o", bookmark, event);
+    }
+    transaction.commit()
+    console.log("commited %o", transaction);
+    // FIXME: handle failure
 }
 
 async function changeListener(id, changeInfo) {
@@ -49,6 +86,7 @@ async function changeListener(id, changeInfo) {
 async function createdListener(id, treeNode) {
     console.log("created: id: %s - %o", id, treeNode);
     const bookmark = await lookupBookmark(id);
+    insertBookmarkIntoDB(bookmark);
     await syncBookmark(bookmark);
 }
 
@@ -65,9 +103,27 @@ async function removedListener(id, removeInfo) {
     // await syncBookmark(bookmark);
 }
 
-browser.bookmarks.onChanged.addListener(changeListener);
-browser.bookmarks.onCreated.addListener(createdListener);
-browser.bookmarks.onMoved.addListener(movedListener);
-browser.bookmarks.onRemoved.addListener(removedListener);
+const dbOpenRequest = window.indexedDB.open("quartermarker", SCHEMA_VERSION);
+dbOpenRequest.onerror = function(event){
+    console.warn("unable to open database: %o", event);
+}
+dbOpenRequest.onupgradeneeded = function (event) {
+    console.log("upgrade needed: %o", event);
+    var db = event.target.result;
+    var objectStore = db.createObjectStore("bookmarks", {keyPath: "url"});
+    // objectStore.createIndex("browser_id", "id", {unique: true});
+    objectStore.transaction.oncomplete = function(event) {
+        console.log("upgrade transaction complete: %o", event);
+    }
+}
+dbOpenRequest.onsuccess = function(event){
+    console.log("opened database: %o, %o", event, dbOpenRequest.result);
+    db = dbOpenRequest.result;
+    browser.bookmarks.onChanged.addListener(changeListener);
+    browser.bookmarks.onCreated.addListener(createdListener);
+    browser.bookmarks.onMoved.addListener(movedListener);
+    browser.bookmarks.onRemoved.addListener(removedListener);
+};
+
 
 console.log("quartermarker loaded");
