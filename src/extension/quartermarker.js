@@ -41,23 +41,25 @@ function lookupBookmarkFromLocalDb(browserId) {
 }
 
 // Insert the bookmark into local db
-function insertBookmarkToLocalDb(bookmark){
-    // FIXME: convert this into a promise
-    var transaction = db.transaction(["bookmarks"], "readwrite");
-    transaction.oncomplete = function(event){
-        console.log("insertBookmarkToLocalDb transaction complete: %o", event);
-    }
-    transaction.onerror = function(event){
-        console.warn("insertBookmarkToLocalDb transaction failed: %o", event);
-    }
-    var objectStore = transaction.objectStore("bookmarks");
-    var request = objectStore.add(bookmark)
-    request.onsuccess = function(event){
-        console.log("insertBookmarkToLocalDb request complete: %o", event);
-    }
-    request.onerror = function(event){
-        console.warn("insertBookmarkToLocalDb request failed: %o, %o", bookmark, event);
-    }
+async function insertBookmarkToLocalDb(bookmark){
+    return new Promise(function(resolve, reject) {
+        var transaction = db.transaction(["bookmarks"], "readwrite");
+        transaction.oncomplete = function(event){
+            console.log("insertBookmarkToLocalDb transaction complete: %o", event);
+        }
+        transaction.onerror = function(event){
+            console.warn("insertBookmarkToLocalDb transaction failed: %o", event);
+        }
+        var objectStore = transaction.objectStore("bookmarks");
+        var request = objectStore.add(bookmark)
+        request.onsuccess = function(event){
+            console.log("insertBookmarkToLocalDb request complete: %o", event);
+            resolve();
+        }
+        request.onerror = function(event){
+            console.warn("insertBookmarkToLocalDb request failed: %o, %o", bookmark, event);
+            reject();
+        }});
 }
 
 function updateBookmarkInLocalDb(bookmark){
@@ -90,7 +92,7 @@ async function syncBookmark(bookmark) {
 async function createdListener(browserId, treeNode) {
     console.log("created: browserId: %s - %o", browserId, treeNode);
     const bookmark = await lookupBookmarkFromBrowser(browserId);
-    insertBookmarkToLocalDb(bookmark);
+    await insertBookmarkToLocalDb(bookmark);
     await syncBookmark(bookmark);
 }
 
