@@ -1,7 +1,7 @@
 # Quartermarker - social bookmarks in your browser
 
-Quartermarker is a mechanism for syncing your browser bookmarks with a
-third-party server (provided) for fun and profit.
+Quartermarker (a working title) is a mechanism for syncing your browser
+bookmarks with a third-party server (provided) for fun and profit.
 
 ## Building
 
