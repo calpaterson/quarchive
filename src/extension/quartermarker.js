@@ -7,52 +7,64 @@ const SCHEMA_VERSION = 2;
 var db;
 
 class Bookmark {
-    constructor(url, title, timestamp, deleted, unread){
+    constructor(url, title, timestamp, deleted, unread, browserId){
         this.url = url;
         this.title = title;
         this.timestamp = timestamp;
         this.deleted = deleted;
         this.unread = unread;
+        this.browserId = browserId;
         // this.tags = tags;
     }
 }
 
-async function lookupBookmark(id) {
+// Lookup the bookmark from browser.bookmarks
+async function lookupBookmarkFromBrowser(browserId) {
     // FIXME: this can fail, should check to make sure more than one treeNode
-    const treeNodes = await browser.bookmarks.get(id)
+    const treeNodes = await browser.bookmarks.get(browserId)
     const treeNode = treeNodes[0];
     const bookmark = new Bookmark(
         treeNode.url,
         treeNode.title,
         treeNode.dateAdded,
         false,
-        false
+        false,
+        browserId,
     );
     console.log("built %o", bookmark);
     return bookmark;
 }
 
-function insertBookmark(bookmark){
+// Lookup the bookmark from local db
+function lookupBookmarkFromLocalDb(browserId) {
+    throw new Error("not implemented");
+}
+
+// Insert the bookmark into local db
+function insertBookmarkToLocalDb(bookmark){
+    // FIXME: convert this into a promise
     var transaction = db.transaction(["bookmarks"], "readwrite");
     transaction.oncomplete = function(event){
-        console.log("insertBookmark transaction complete: %o", event);
+        console.log("insertBookmarkToLocalDb transaction complete: %o", event);
     }
     transaction.onerror = function(event){
-        console.warn("insertBookmark transaction failed: %o", event);
+        console.warn("insertBookmarkToLocalDb transaction failed: %o", event);
     }
     var objectStore = transaction.objectStore("bookmarks");
     var request = objectStore.add(bookmark)
     request.onsuccess = function(event){
-        console.log("insertBookmark request complete: %o", event);
+        console.log("insertBookmarkToLocalDb request complete: %o", event);
     }
     request.onerror = function(event){
-        console.warn("insertBookmark request failed: %o, %o", bookmark, event);
+        console.warn("insertBookmarkToLocalDb request failed: %o, %o", bookmark, event);
     }
-    transaction.commit()
-    console.log("commited %o", transaction);
-    // FIXME: handle failure
 }
 
+function updateBookmarkInLocalDb(bookmark){
+    throw new Error("not implemented");
+}
+
+// Syncs a bookmark with the API
 async function syncBookmark(bookmark) {
     const sync_body = {
         "bookmarks": [{
@@ -75,32 +87,33 @@ async function syncBookmark(bookmark) {
     console.log("got %o", json);
 }
 
-async function changeListener(id, changeInfo) {
-    console.log("changed: id: %s - %o", id, changeInfo);
-    const bookmark = await lookupBookmark(id);
+async function createdListener(browserId, treeNode) {
+    console.log("created: browserId: %s - %o", browserId, treeNode);
+    const bookmark = await lookupBookmarkFromBrowser(browserId);
+    insertBookmarkToLocalDb(bookmark);
+    await syncBookmark(bookmark);
+}
+
+async function changeListener(browserId, changeInfo) {
+    console.log("changed: browserId: %s - %o", browserId, changeInfo);
+    const bookmark = lookupBookmarkFromLocalDb(browserId);
     bookmark.timestamp = Date.now();
-    // FIXME: need to record this timestamp
+    updateBookmarkInLocalDb(bookmark);
     await syncBookmark(bookmark);
 }
 
-async function createdListener(id, treeNode) {
-    console.log("created: id: %s - %o", id, treeNode);
-    const bookmark = await lookupBookmark(id);
-    insertBookmark(bookmark);
+
+async function removedListener(browserId, removeInfo) {
+    console.log("removed browserId: %s - %o", browserId, removeInfo);
+    const bookmark = lookupBookmarkFromLocalDb(browserId)
+    bookmark.deleted = true;
+    updateBookmarkInLocalDb(bookmark);
     await syncBookmark(bookmark);
 }
 
-async function movedListener(id, moveInfo) {
-    console.log("moved: id: %s - %o", id, moveInfo);
-    const bookmark = await lookupBookmark(id);
-    await syncBookmark(bookmark);
-}
-
-async function removedListener(id, removeInfo) {
-    console.log("removed id: %s - %o", id, removeInfo);
-    // Can't look up deleted bookmark
-    // const bookmark = await lookupBookmark(id);
-    // await syncBookmark(bookmark);
+async function movedListener(browserId, moveInfo) {
+    console.log("moved: browserId: %s - %o", browserId, moveInfo);
+    // Nothing to do
 }
 
 const dbOpenRequest = window.indexedDB.open("quartermarker", SCHEMA_VERSION);
@@ -111,7 +124,7 @@ dbOpenRequest.onupgradeneeded = function (event) {
     console.log("upgrade needed: %o", event);
     var db = event.target.result;
     var objectStore = db.createObjectStore("bookmarks", {keyPath: "url"});
-    // objectStore.createIndex("browser_id", "id", {unique: true});
+    objectStore.createIndex("browserId", "browserId", {unique: true});
     objectStore.transaction.oncomplete = function(event) {
         console.log("upgrade transaction complete: %o", event);
     }
