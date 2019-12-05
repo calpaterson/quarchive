@@ -32,6 +32,27 @@ async function lookupBookmark(id) {
     return bookmark;
 }
 
+function insertBookmark(bookmark){
+    var transaction = db.transaction(["bookmarks"], "readwrite");
+    transaction.oncomplete = function(event){
+        console.log("insertBookmark transaction complete: %o", event);
+    }
+    transaction.onerror = function(event){
+        console.warn("insertBookmark transaction failed: %o", event);
+    }
+    var objectStore = transaction.objectStore("bookmarks");
+    var request = objectStore.add(bookmark)
+    request.onsuccess = function(event){
+        console.log("insertBookmark request complete: %o", event);
+    }
+    request.onerror = function(event){
+        console.warn("insertBookmark request failed: %o, %o", bookmark, event);
+    }
+    transaction.commit()
+    console.log("commited %o", transaction);
+    // FIXME: handle failure
+}
+
 async function syncBookmark(bookmark) {
     const sync_body = {
         "bookmarks": [{
@@ -54,27 +75,6 @@ async function syncBookmark(bookmark) {
     console.log("got %o", json);
 }
 
-function insertBookmarkIntoDB(bookmark){
-    var transaction = db.transaction(["bookmarks"], "readwrite");
-    transaction.oncomplete = function(event){
-        console.log("insertBookmarkIntoDB transaction complete: %o", event);
-    }
-    transaction.onerror = function(event){
-        console.warn("insertBookmarkIntoDB transaction failed: %o", event);
-    }
-    var objectStore = transaction.objectStore("bookmarks");
-    var request = objectStore.add(bookmark)
-    request.onsuccess = function(event){
-        console.log("insertBookmarkIntoDB request complete: %o", event);
-    }
-    request.onerror = function(event){
-        console.warn("insertBookmarkIntoDB request failed: %o, %o", bookmark, event);
-    }
-    transaction.commit()
-    console.log("commited %o", transaction);
-    // FIXME: handle failure
-}
-
 async function changeListener(id, changeInfo) {
     console.log("changed: id: %s - %o", id, changeInfo);
     const bookmark = await lookupBookmark(id);
@@ -86,7 +86,7 @@ async function changeListener(id, changeInfo) {
 async function createdListener(id, treeNode) {
     console.log("created: id: %s - %o", id, treeNode);
     const bookmark = await lookupBookmark(id);
-    insertBookmarkIntoDB(bookmark);
+    insertBookmark(bookmark);
     await syncBookmark(bookmark);
 }
 
