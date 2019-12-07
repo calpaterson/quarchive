@@ -36,8 +36,27 @@ async function lookupBookmarkFromBrowser(browserId) {
 }
 
 // Lookup the bookmark from local db
-function lookupBookmarkFromLocalDb(browserId) {
-    throw new Error("not implemented");
+async function lookupBookmarkFromLocalDb(browserId) {
+    return new Promise(function(resolve, reject) {
+        var transaction = db.transaction(["bookmarks"], "readonly");
+        transaction.oncomplete = function(event){
+            console.log("lookupBookmarkFromLocalDb transaction complete: %o", event);
+        }
+        transaction.onerror = function(event){
+            console.warn("lookupBookmarkFromLocalDb transaction failed: %o", event);
+        }
+        var objectStore = transaction.objectStore("bookmarks");
+        var index = objectStore.index("browserId");
+        var request = index.get(browserId);
+        request.onsuccess = function(event){
+            console.log("lookupBookmarkFromLocalDb request complete: %o", event);
+            resolve(request.result);
+        }
+        request.onerror = function(event){
+            console.warn("lookupBookmarkFromLocalDb request failed: %o", event);
+            reject();
+        }
+    });
 }
 
 // Insert the bookmark into local db
@@ -59,11 +78,30 @@ async function insertBookmarkToLocalDb(bookmark){
         request.onerror = function(event){
             console.warn("insertBookmarkToLocalDb request failed: %o, %o", bookmark, event);
             reject();
-        }});
+        }
+    });
 }
 
-function updateBookmarkInLocalDb(bookmark){
-    throw new Error("not implemented");
+async function updateBookmarkInLocalDb(bookmark){
+    return new Promise(function(resolve, reject) {
+        var transaction = db.transaction(["bookmarks"], "readwrite");
+        transaction.oncomplete = function(event){
+            console.log("updateBookmarkInLocalDb transaction complete: %o", event);
+        }
+        transaction.onerror = function(event){
+            console.warn("updateBookmarkInLocalDb transaction failed: %o", event);
+        }
+        var objectStore = transaction.objectStore("bookmarks");
+        var request = objectStore.put(bookmark)
+        request.onsuccess = function(event){
+            console.log("updateBookmarkInLocalDb request complete: %o", event);
+            resolve();
+        }
+        request.onerror = function(event){
+            console.warn("updateBookmarkInLocalDb request failed: %o, %o", bookmark, event);
+            reject();
+        }
+    });
 }
 
 // Syncs a bookmark with the API
@@ -98,18 +136,19 @@ async function createdListener(browserId, treeNode) {
 
 async function changeListener(browserId, changeInfo) {
     console.log("changed: browserId: %s - %o", browserId, changeInfo);
-    const bookmark = lookupBookmarkFromLocalDb(browserId);
+    const bookmark = await lookupBookmarkFromLocalDb(browserId);
+    // FIXME: update other fields
     bookmark.timestamp = Date.now();
-    updateBookmarkInLocalDb(bookmark);
+    await updateBookmarkInLocalDb(bookmark);
     await syncBookmark(bookmark);
 }
 
 
 async function removedListener(browserId, removeInfo) {
     console.log("removed browserId: %s - %o", browserId, removeInfo);
-    const bookmark = lookupBookmarkFromLocalDb(browserId)
+    const bookmark = await lookupBookmarkFromLocalDb(browserId)
     bookmark.deleted = true;
-    updateBookmarkInLocalDb(bookmark);
+    await updateBookmarkInLocalDb(bookmark);
     await syncBookmark(bookmark);
 }
 
