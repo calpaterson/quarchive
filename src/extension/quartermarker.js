@@ -136,11 +136,12 @@ async function createdListener(browserId, treeNode) {
 
 async function changeListener(browserId, changeInfo) {
     console.log("changed: browserId: %s - %o", browserId, changeInfo);
-    const bookmark = await lookupBookmarkFromLocalDb(browserId);
-    // FIXME: update other fields
-    bookmark.timestamp = Date.now();
-    await updateBookmarkInLocalDb(bookmark);
-    await syncBookmark(bookmark);
+    const bookmarkInBrowser = await lookupBookmarkFromBrowser(browserId);
+    const bookmarkInDb = await lookupBookmarkFromLocalDb(browserId);
+    bookmarkInDb.title = bookmarkInBrowser.title;
+    bookmarkInDb.timestamp = Date.now();
+    await updateBookmarkInLocalDb(bookmarkInDb);
+    await syncBookmark(bookmarkInDb);
 }
 
 
