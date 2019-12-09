@@ -1,20 +1,8 @@
-from dataclasses import dataclass, asdict as dataclass_as_dict
+from dataclasses import asdict as dataclass_as_dict
 
 import quartermarker as sut
 
 import pytest
-
-
-@pytest.fixture()
-def app():
-    a = sut.app
-    a.config["TESTING"] = True
-    return a
-
-
-@pytest.fixture(autouse=True)
-def ensure_clean_tables(app):
-    sut.DATA_STORE.clear()
 
 
 def make_bookmark(**kwargs):

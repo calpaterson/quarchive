@@ -13,6 +13,8 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: 3.7
+    - name: Install postgresql server
+      run: apt install -y postgresql-11 postgresql-server-dev-11
     - name: Install tox
       run: pip install tox
     - name: Make
