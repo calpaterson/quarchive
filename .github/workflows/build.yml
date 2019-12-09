@@ -14,7 +14,7 @@ jobs:
       with:
         python-version: 3.7
     - name: Install postgresql server
-      run: sudo apt install -y postgresql-11 postgresql-server-dev-11
+      run: sudo apt-get install -y postgresql-11 postgresql-server-dev-11
     - name: Install tox
       run: pip install tox
     - name: Make
