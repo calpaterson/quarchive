@@ -42,3 +42,8 @@ def test_syncing_bookmark_that_already_exists_but_has_changed(client):
     # Then send the old version
     response = client.post("/sync", json={"bookmarks": [bm_1]})
     assert response.json == {"bookmarks": [dataclass_as_dict(bm_2)]}
+
+
+@pytest.mark.xfail(reason="bug!")
+def test_syncing_bookmark_that_already_exists_but_is_old(client):
+    assert False

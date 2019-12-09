@@ -25,7 +25,6 @@ def ensure_clean_tables(app, sql_db):
     for table in reversed(sut.Base.metadata.sorted_tables):
         sut.db.session.execute("delete from %s;" % table.name)
     sut.db.session.commit()
-    sut.DATA_STORE.clear()
 
 
 @pytest.fixture()
