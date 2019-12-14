@@ -6,6 +6,7 @@ from typing import Mapping, Set, Any, Optional
 from os import environ
 from urllib.parse import urlsplit, urlunsplit
 
+from babel.dates import format_timedelta
 from sqlalchemy import Column, ForeignKey, types as satypes
 from sqlalchemy.orm import relationship, RelationshipProperty, Session
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, insert as pg_insert
@@ -186,7 +187,7 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> None:
 
 @blueprint.route("/")
 def index() -> flask.Response:
-    sqla_objs = db.session.query(SQLABookmark)
+    sqla_objs = db.session.query(SQLABookmark).order_by(SQLABookmark.updated.desc())
     bookmarks = []
     for sqla_obj in sqla_objs:
         url_obj: SQLAUrl = sqla_obj.url_obj
@@ -251,6 +252,13 @@ def init_app(db_uri: str) -> flask.Flask:
     db.init_app(app)
     cors.init_app(app)
     app.register_blueprint(blueprint)
+
+    @app.template_filter("relativetime")
+    def relativetime(dt: datetime):
+        now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        td = dt - now
+        return format_timedelta(td, add_direction=True, locale="en_GB")
+
     return app
 
 

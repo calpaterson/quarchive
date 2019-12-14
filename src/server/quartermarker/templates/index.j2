@@ -5,7 +5,7 @@
     {% for bookmark in bookmarks %}
         <p>
             <a href="{{bookmark.url}}">{{bookmark.title}}</a>,
-            {{bookmark.updated}}
+            {{bookmark.updated|relativetime}}
             {% if bookmark.unread %},<strong>unread</strong>{% endif %}
         </p>
     {% endfor %}

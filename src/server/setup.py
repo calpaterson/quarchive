@@ -10,6 +10,7 @@ setup(
         "flask-cors~=3.0.8",
         "sqlalchemy~=1.3.11",
         "psycopg2~=2.8.4",
+        "babel~=2.7.0",
     ],
     extras_require={
         "tests": [
