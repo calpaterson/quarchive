@@ -52,16 +52,15 @@ class Bookmark:
     url: str
     title: str
     # FIXME: Should have created timestamp
-    # FIXME: 'timestamp' should be 'updated'
-    timestamp: int
+    updated: datetime
     unread: bool
     deleted: bool
     # FIXME: tags: Any
 
     def merge(self, other):
         # Take the one with the latest timestamp
-        if self.timestamp != other.timestamp:
-            return max((self, other), key=lambda b: b.timestamp)
+        if self.updated != other.updated:
+            return max((self, other), key=lambda b: b.updated)
         # If timestamps are equal, take the longest title
         else:
             return max((self, other), key=lambda b: b.title)
@@ -69,11 +68,27 @@ class Bookmark:
         # only in (eg unread)
 
     def to_json(self) -> Mapping:
-        return dataclass_as_dict(self)
+        updated_millis = self.updated.timestamp() * 1000
+        return {
+            "url": self.url,
+            "title": self.title,
+            "timestamp": updated_millis,
+            "unread": self.unread,
+            "deleted": self.deleted,
+        }
 
     @classmethod
-    def from_json(cls, mapping: Mapping) -> "Bookmark":
-        return cls(**mapping)
+    def from_json(cls, mapping: Mapping[str, Any]) -> "Bookmark":
+        updated_dt = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(
+            milliseconds=mapping["timestamp"]
+        )
+        return cls(
+            url=mapping["url"],
+            title=mapping["title"],
+            updated=updated_dt,
+            unread=mapping["unread"],
+            deleted=mapping["deleted"],
+        )
 
 
 db = SQLAlchemy()
@@ -84,7 +99,7 @@ blueprint = flask.Blueprint("quartermarker", "quartermarker")
 def bookmark_from_sqla(url: str, sqla_obj: SQLABookmark) -> Bookmark:
     return Bookmark(
         url=url,
-        timestamp=int(sqla_obj.updated.timestamp() * 1000),
+        updated=sqla_obj.updated,
         unread=sqla_obj.unread,
         deleted=sqla_obj.deleted,
         title=sqla_obj.title,
@@ -150,12 +165,9 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> None:
         # If the update did happen, we know our proposed uuid was used
         url_uuid = proposed_uuid
 
-    dt = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(
-        milliseconds=bookmark.timestamp
-    )
     bookmark_insert_stmt = pg_insert(SQLABookmark.__table__).values(
         url=url_uuid,
-        updated=dt,
+        updated=bookmark.updated.replace(tzinfo=timezone.utc),
         unread=bookmark.unread,
         deleted=bookmark.deleted,
         title=bookmark.title,

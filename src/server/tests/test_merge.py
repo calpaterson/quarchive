@@ -2,14 +2,14 @@ import quartermarker as sut
 
 import pytest
 from hypothesis import given
-from hypothesis.strategies import text, integers, booleans
+from hypothesis.strategies import text, datetimes, booleans
 
 
-@given(title=text(), timestamp=integers(), deleted=booleans(), unread=booleans())
+@given(title=text(), timestamp=datetimes(), deleted=booleans(), unread=booleans())
 def test_merge_is_idempotent(title, timestamp, deleted, unread):
     url = "http://example.com"
     a = sut.Bookmark(
-        url=url, title=title, timestamp=timestamp, deleted=deleted, unread=unread
+        url=url, title=title, updated=timestamp, deleted=deleted, unread=unread
     )
     b = a.merge(a)
     assert a == b
@@ -17,9 +17,9 @@ def test_merge_is_idempotent(title, timestamp, deleted, unread):
 
 @given(
     title_a=text(),
-    timestamp_a=integers(),
+    timestamp_a=datetimes(),
     title_b=text(),
-    timestamp_b=integers(),
+    timestamp_b=datetimes(),
     deleted_a=booleans(),
     deleted_b=booleans(),
     unread_a=booleans(),
@@ -30,18 +30,10 @@ def test_merge_is_commutative(
 ):
     url = "http://example.com"
     a = sut.Bookmark(
-        url=url,
-        title=title_a,
-        timestamp=timestamp_a,
-        deleted=deleted_a,
-        unread=unread_a,
+        url=url, title=title_a, updated=timestamp_a, deleted=deleted_a, unread=unread_a,
     )
     b = sut.Bookmark(
-        url=url,
-        title=title_b,
-        timestamp=timestamp_b,
-        deleted=deleted_a,
-        unread=unread_a,
+        url=url, title=title_b, updated=timestamp_b, deleted=deleted_a, unread=unread_a,
     )
     c = a.merge(b)
     d = b.merge(a)
@@ -50,11 +42,11 @@ def test_merge_is_commutative(
 
 @given(
     title_a=text(),
-    timestamp_a=integers(),
+    timestamp_a=datetimes(),
     title_b=text(),
-    timestamp_b=integers(),
+    timestamp_b=datetimes(),
     title_c=text(),
-    timestamp_c=integers(),
+    timestamp_c=datetimes(),
     deleted_a=booleans(),
     deleted_b=booleans(),
     deleted_c=booleans(),
@@ -78,25 +70,13 @@ def test_merge_is_associative(
 ):
     url = "http://example.com"
     a = sut.Bookmark(
-        url=url,
-        title=title_a,
-        timestamp=timestamp_a,
-        unread=unread_a,
-        deleted=deleted_a,
+        url=url, title=title_a, updated=timestamp_a, unread=unread_a, deleted=deleted_a,
     )
     b = sut.Bookmark(
-        url=url,
-        title=title_b,
-        timestamp=timestamp_b,
-        unread=unread_b,
-        deleted=deleted_b,
+        url=url, title=title_b, updated=timestamp_b, unread=unread_b, deleted=deleted_b,
     )
     c = sut.Bookmark(
-        url=url,
-        title=title_c,
-        timestamp=timestamp_c,
-        unread=unread_c,
-        deleted=deleted_c,
+        url=url, title=title_c, updated=timestamp_c, unread=unread_c, deleted=deleted_c,
     )
     d = a.merge(b).merge(c)
     e = a.merge(b.merge(c))
