@@ -1,13 +1,13 @@
 from dataclasses import dataclass, asdict as dataclass_as_dict
 from datetime import datetime, timezone, timedelta
 import logging
-from uuid import uuid4
+from uuid import uuid4, UUID
 from typing import Mapping, Set, Any, Optional
 from os import environ
 from urllib.parse import urlsplit
 
 from sqlalchemy import Column, ForeignKey, types as satypes
-from sqlalchemy.orm import relationship, RelationshipProperty
+from sqlalchemy.orm import relationship, RelationshipProperty, Session
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, insert as pg_insert
 from sqlalchemy.ext.declarative import declarative_base
 from flask_sqlalchemy import SQLAlchemy
@@ -77,11 +77,10 @@ class Bookmark:
 
 db = SQLAlchemy()
 cors = CORS()
-
 blueprint = flask.Blueprint("quartermarker", "quartermarker")
 
 
-def get_bookmark_by_url(session: Any, url: str) -> Optional[Bookmark]:
+def get_bookmark_by_url(session: Session, url: str) -> Optional[Bookmark]:
     scheme, netloc, path, query, fragment = urlsplit(url)
     sqla_bookmark = (
         session.query(SQLABookmark)
@@ -107,12 +106,13 @@ def get_bookmark_by_url(session: Any, url: str) -> Optional[Bookmark]:
         )
 
 
-def set_bookmark(session: Any, bookmark: Bookmark) -> None:
+def set_bookmark(session: Session, bookmark: Bookmark) -> None:
     scheme, netloc, path, query, fragment = urlsplit(bookmark.url)
-    url_uuid = (
+    proposed_uuid = uuid4()
+    url_stmt = (
         pg_insert(SQLAUrl.__table__)
         .values(
-            uuid=uuid4(),
+            uuid=proposed_uuid,
             scheme=scheme,
             netloc=netloc,
             path=path,
@@ -124,7 +124,26 @@ def set_bookmark(session: Any, bookmark: Bookmark) -> None:
         )
         .returning(SQLAUrl.__table__.c.uuid)
     )
-    (url_uuid,) = session.execute(url_uuid).fetchone()
+    upsert_result_set = session.execute(url_stmt).fetchone()
+
+    url_uuid: UUID
+    if upsert_result_set is None:
+        # The update didn't happen, but we still need to know what the url uuid
+        # is...
+        (url_uuid,) = (
+            session.query(SQLAUrl.uuid)
+            .filter(
+                SQLAUrl.scheme == scheme,
+                SQLAUrl.netloc == netloc,
+                SQLAUrl.path == path,
+                SQLAUrl.query == query,
+                SQLAUrl.fragment == fragment,
+            )
+            .one()
+        )
+    else:
+        # If the update did happen, we know our proposed uuid was used
+        url_uuid = proposed_uuid
 
     dt = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(
         milliseconds=bookmark.timestamp
@@ -146,47 +165,50 @@ def set_bookmark(session: Any, bookmark: Bookmark) -> None:
         ),
     )
     session.execute(bookmark_upsert_stmt)
-    session.commit()
 
 
 @blueprint.route("/ok")
-def ok():
+def ok() -> flask.Response:
     return flask.json.jsonify({"ok": True})
 
 
 @blueprint.route("/sync", methods=["POST"])
-def sync():
+def sync() -> flask.Response:
     body = flask.request.json
     recieved_bookmarks: Set[Bookmark] = set(
         Bookmark.from_json(item) for item in body["bookmarks"]
     )
     changed_bookmarks: Set[Bookmark] = set()
-    new_bookmarks: Set[Bookmark] = set()
     for recieved in recieved_bookmarks:
         existing = get_bookmark_by_url(db.session, url=recieved.url)
-        if existing is not None:
+        if existing is None:
+            # If it doesn't exist in our db, we create it - but client already
+            # knows
+            set_bookmark(db.session, recieved)
+            log.info("added: %s", recieved)
+        else:
             merged = existing.merge(recieved)
             if merged != existing:
+                # If it exists but is old we have to update it
                 log.info(
                     "recieved bm merged, changing local: %s + %s = %s",
                     recieved,
                     existing,
                     merged,
                 )
+                set_bookmark(db.session, merged)
             else:
                 log.info("no change to %s", recieved)
-            if recieved != merged:
-                log.info("recieved bm changed by merge: %s -> %s", recieved, merged)
+            if merged != recieved:
+                # If what we have is different from what were sent, we need to
+                # tell the client
                 changed_bookmarks.add(merged)
-                # FIXME: And set!!!
-        else:
-            new_bookmarks.add(recieved)
-            set_bookmark(db.session, recieved)
-            log.info("added: %s", recieved)
+
+    db.session.commit()
     return flask.json.jsonify({"bookmarks": [b.to_json() for b in changed_bookmarks]})
 
 
-def init_app(db_uri: str):
+def init_app(db_uri: str) -> flask.Flask:
     app = flask.Flask("quartermarker")
     app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
