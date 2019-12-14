@@ -1,0 +1,12 @@
+{# -*- mode: web -*- #}
+{% extends "base.j2" %}
+{% block main %}
+    <h1>Bookmarks</h1>
+    {% for bookmark in bookmarks %}
+        <p>
+            <a href="{{bookmark.url}}">{{bookmark.title}}</a>,
+            {{bookmark.timestamp}}
+            {% if bookmark.unread %},<strong>unread</strong>{% endif %}
+        </p>
+    {% endfor %}
+{% endblock %}

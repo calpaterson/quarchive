@@ -4,7 +4,7 @@ import logging
 from uuid import uuid4, UUID
 from typing import Mapping, Set, Any, Optional
 from os import environ
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from sqlalchemy import Column, ForeignKey, types as satypes
 from sqlalchemy.orm import relationship, RelationshipProperty, Session
@@ -51,6 +51,7 @@ class SQLABookmark(Base):
 class Bookmark:
     url: str
     title: str
+    # FIXME: Should have created timestamp
     # FIXME: 'timestamp' should be 'updated'
     timestamp: int
     unread: bool
@@ -80,6 +81,16 @@ cors = CORS()
 blueprint = flask.Blueprint("quartermarker", "quartermarker")
 
 
+def bookmark_from_sqla(url: str, sqla_obj: SQLABookmark) -> Bookmark:
+    return Bookmark(
+        url=url,
+        timestamp=int(sqla_obj.updated.timestamp() * 1000),
+        unread=sqla_obj.unread,
+        deleted=sqla_obj.deleted,
+        title=sqla_obj.title,
+    )
+
+
 def get_bookmark_by_url(session: Session, url: str) -> Optional[Bookmark]:
     scheme, netloc, path, query, fragment = urlsplit(url)
     sqla_bookmark = (
@@ -97,13 +108,7 @@ def get_bookmark_by_url(session: Session, url: str) -> Optional[Bookmark]:
     if sqla_bookmark is None:
         return None
     else:
-        return Bookmark(
-            url=url,
-            timestamp=int(sqla_bookmark.updated.timestamp() * 1000),
-            unread=sqla_bookmark.unread,
-            deleted=sqla_bookmark.deleted,
-            title=sqla_bookmark.title,
-        )
+        return bookmark_from_sqla(url, sqla_bookmark)
 
 
 def set_bookmark(session: Session, bookmark: Bookmark) -> None:
@@ -165,6 +170,25 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> None:
         ),
     )
     session.execute(bookmark_upsert_stmt)
+
+
+@blueprint.route("/")
+def index() -> flask.Response:
+    sqla_objs = db.session.query(SQLABookmark)
+    bookmarks = []
+    for sqla_obj in sqla_objs:
+        url_obj: SQLAUrl = sqla_obj.url_obj
+        url = urlunsplit(
+            [
+                url_obj.scheme,
+                url_obj.netloc,
+                url_obj.path,
+                url_obj.query,
+                url_obj.fragment,
+            ]
+        )
+        bookmarks.append(bookmark_from_sqla(url, sqla_obj))
+    return flask.make_response(flask.render_template("index.j2", bookmarks=bookmarks),)
 
 
 @blueprint.route("/ok")
