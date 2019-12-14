@@ -21,6 +21,7 @@ setup(
             "alembic~=1.3.1",
         ],
         "dev": [
+            "wheel~=0.33.6",
             "black~=19.10b0",
             "mypy~=0.750",
             "sqlalchemy-stubs~=0.3",
