@@ -9,4 +9,28 @@
             {% if bookmark.unread %},<strong>unread</strong>{% endif %}
         </p>
     {% endfor %}
+
+    <p>
+        <span class="prev-page">
+            {% if prev_page_exists %}
+                <a
+                    {% if page == 2 %}
+                    href="/"
+                    {% else %}
+                    href="?page={{ page - 1 }}"
+                    {% endif %}
+                >Previous page</a>
+            {% else %}
+                <s>Previous page</s>
+            {% endif %}
+        </span>
+
+        <span class="next-page">
+            {% if next_page_exists %}
+                <a href="?page={{ page + 1 }}">Next page</a>
+            {% else %}
+                <s>Next page</s>
+            {% endif %}
+        </span>
+    </p>
 {% endblock %}

@@ -187,7 +187,24 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> None:
 
 @blueprint.route("/")
 def index() -> flask.Response:
-    sqla_objs = db.session.query(SQLABookmark).order_by(SQLABookmark.updated.desc())
+    page_size = flask.current_app.config["PAGE_SIZE"]
+    page = int(flask.request.args.get("page", "1"))
+    offset = (page - 1) * page_size
+    sqla_objs = (
+        db.session.query(SQLABookmark)
+        .order_by(SQLABookmark.updated.desc())
+        .offset(offset)
+        .limit(page_size)
+    )
+
+    prev_page_exists = page > 1
+    next_page_exists: bool = db.session.query(
+        db.session.query(SQLABookmark)
+        .order_by(SQLABookmark.updated.desc())
+        .offset(offset + page_size)
+        .exists()
+    ).scalar()
+
     bookmarks = []
     for sqla_obj in sqla_objs:
         url_obj: SQLAUrl = sqla_obj.url_obj
@@ -201,7 +218,15 @@ def index() -> flask.Response:
             ]
         )
         bookmarks.append(bookmark_from_sqla(url, sqla_obj))
-    return flask.make_response(flask.render_template("index.j2", bookmarks=bookmarks),)
+    return flask.make_response(
+        flask.render_template(
+            "index.j2",
+            bookmarks=bookmarks,
+            page=page,
+            prev_page_exists=prev_page_exists,
+            next_page_exists=next_page_exists,
+        )
+    )
 
 
 @blueprint.route("/ok")
@@ -249,6 +274,7 @@ def init_app(db_uri: str) -> flask.Flask:
     app = flask.Flask("quartermarker")
     app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["PAGE_SIZE"] = 10
     db.init_app(app)
     cors.init_app(app)
     app.register_blueprint(blueprint)
