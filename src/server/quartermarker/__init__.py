@@ -229,6 +229,21 @@ def index() -> flask.Response:
     )
 
 
+@blueprint.route("/sign-in", methods=["GET", "POST"])
+def sign_in() -> flask.Response:
+    if flask.request.method == "GET":
+        return flask.make_response(flask.render_template("sign-in.j2"))
+    else:
+        username = flask.request.form.get("username")
+        password = flask.request.form.get("password")
+        if password == flask.current_app.config["PASSWORD"]:
+            flask.current_app.logger.info("successful sign in")
+            return flask.redirect("/", code=303)
+        else:
+            flask.current_app.logger.info("unsuccessful sign in")
+            flask.abort(400)
+
+
 @blueprint.route("/ok")
 def ok() -> flask.Response:
     return flask.json.jsonify({"ok": True})
@@ -270,11 +285,12 @@ def sync() -> flask.Response:
     return flask.json.jsonify({"bookmarks": [b.to_json() for b in changed_bookmarks]})
 
 
-def init_app(db_uri: str) -> flask.Flask:
+def init_app(db_uri: str, password: str) -> flask.Flask:
     app = flask.Flask("quartermarker")
     app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["PAGE_SIZE"] = 10
+    app.config["PASSWORD"] = password
     db.init_app(app)
     cors.init_app(app)
     app.register_blueprint(blueprint)
@@ -289,6 +305,6 @@ def init_app(db_uri: str) -> flask.Flask:
 
 
 def main():
-    app = init_app(environ["QM_SQL_URL"])
+    app = init_app(environ["QM_SQL_URL"], environ["QM_PASSWORD"])
     logging.basicConfig(level=logging.INFO)
     app.run()

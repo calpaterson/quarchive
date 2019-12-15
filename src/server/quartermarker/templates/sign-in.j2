@@ -1,0 +1,12 @@
+{# -*- mode: web -*- #}
+{% extends "base.j2" %}
+{% block main %}
+    <h1>Sign in</h1>
+    <form action="sign-in" method="POST">
+        <label>username</label>
+        <input type="text" name="username" required>
+        <label>password</label>
+        <input type="password" name="password" required>
+        <button type="submit">Sign in</button>
+    </form>
+{% endblock %}

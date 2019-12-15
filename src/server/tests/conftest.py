@@ -31,7 +31,7 @@ def ensure_clean_tables(app, sql_db):
 
 @pytest.fixture()
 def app(sql_db):
-    a = sut.init_app(environ["QM_SQL_URL"])
+    a = sut.init_app(environ["QM_SQL_URL"], "test_password")
     a.config["TESTING"] = True
     return a
 
@@ -46,3 +46,8 @@ def make_bookmark(**kwargs):
     }
     values.update(kwargs)
     return sut.Bookmark(**values)
+
+
+@pytest.fixture()
+def signed_in_client(client):
+    yield client

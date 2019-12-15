@@ -5,12 +5,32 @@ from lxml.cssselect import CSSSelector
 from .conftest import make_bookmark
 
 
-def test_index(client):
+def test_sign_in_success(client):
+    sign_in_form_response = client.get("/sign-in")
+    assert sign_in_form_response.status_code == 200
+
+    sign_in_response = client.post(
+        "/sign-in",
+        data={"username": "cal@calpaterson.com", "password": "test_password"},
+    )
+    assert sign_in_response.status_code == 303
+    assert sign_in_response.headers["Location"] == "http://localhost/"
+
+
+def test_sign_in_failure(client):
+    sign_in_response = client.post(
+        "/sign-in",
+        data={"username": "cal@calpaterson.com", "password": "wrong_password"},
+    )
+    assert sign_in_response.status_code == 400
+
+
+def test_index(signed_in_client):
     bm = make_bookmark()
 
-    client.post("/sync", json={"bookmarks": [bm.to_json()]})
+    signed_in_client.post("/sync", json={"bookmarks": [bm.to_json()]})
 
-    response = client.get("/")
+    response = signed_in_client.get("/")
     assert response.status_code == 200
 
     html_parser = etree.HTMLParser()
@@ -19,7 +39,7 @@ def test_index(client):
     assert bookmark is not None
 
 
-def test_index_paging(app, client):
+def test_index_paging(app, signed_in_client):
     page_size = app.config["PAGE_SIZE"]
 
     bms = [
@@ -27,9 +47,9 @@ def test_index_paging(app, client):
         for i in range(math.floor(page_size * 2.5))
     ]
 
-    client.post("/sync", json={"bookmarks": [bm.to_json() for bm in bms]})
+    signed_in_client.post("/sync", json={"bookmarks": [bm.to_json() for bm in bms]})
 
-    response_pg1 = client.get("/")
+    response_pg1 = signed_in_client.get("/")
     assert response_pg1.status_code == 200
 
     html_parser = etree.HTMLParser()
@@ -37,7 +57,7 @@ def test_index_paging(app, client):
     bookmarks_pg1 = CSSSelector("p.bookmark")(root_pg1)
     assert len(bookmarks_pg1) == page_size
 
-    response_pg3 = client.get("/?page=3")
+    response_pg3 = signed_in_client.get("/?page=3")
     assert response_pg1.status_code == 200
 
     root_pg3 = etree.fromstring(response_pg3.get_data(), html_parser)
