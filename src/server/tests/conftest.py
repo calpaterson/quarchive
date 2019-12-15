@@ -1,4 +1,6 @@
 from os import environ
+from typing import MutableMapping, Any
+from datetime import datetime
 from unittest import mock
 
 import quartermarker as sut
@@ -32,3 +34,15 @@ def app(sql_db):
     a = sut.init_app(environ["QM_SQL_URL"])
     a.config["TESTING"] = True
     return a
+
+
+def make_bookmark(**kwargs):
+    values: MutableMapping[str, Any] = {
+        "url": "http://example.com",
+        "title": "Example",
+        "updated": datetime(1970, 1, 1),
+        "unread": False,
+        "deleted": False,
+    }
+    values.update(kwargs)
+    return sut.Bookmark(**values)

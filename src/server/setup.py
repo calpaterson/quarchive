@@ -20,6 +20,8 @@ setup(
             "hypothesis~=4.50.6",
             "testing.postgresql~=1.3.0",
             "alembic~=1.3.1",
+            "lxml~=4.4.2",
+            "cssselect~=1.1.0",
         ],
         "dev": [
             "wheel~=0.33.6",
