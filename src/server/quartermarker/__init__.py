@@ -1,8 +1,11 @@
 from dataclasses import dataclass, asdict as dataclass_as_dict
 from datetime import datetime, timezone, timedelta
+from werkzeug import exceptions as exc
+from werkzeug.wrappers import Response as WerkzeugResponse
+from functools import wraps
 import logging
 from uuid import uuid4, UUID
-from typing import Mapping, Set, Any, Optional
+from typing import Mapping, Set, Any, Optional, Callable, NoReturn, Union
 from os import environ
 from urllib.parse import urlsplit, urlunsplit
 
@@ -58,7 +61,7 @@ class Bookmark:
     deleted: bool
     # FIXME: tags: Any
 
-    def merge(self, other):
+    def merge(self, other: "Bookmark") -> "Bookmark":
         # Take the one with the latest timestamp
         if self.updated != other.updated:
             return max((self, other), key=lambda b: b.updated)
@@ -185,7 +188,21 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> None:
     session.execute(bookmark_upsert_stmt)
 
 
+def sign_in_required(
+    handler: Callable[[], flask.Response]
+) -> Callable[[], flask.Response]:
+    @wraps(handler)
+    def wrapper(*args, **kwargs):
+        if "username" not in flask.session:
+            return flask.redirect("/sign-in")
+        else:
+            return handler()
+
+    return wrapper
+
+
 @blueprint.route("/")
+@sign_in_required
 def index() -> flask.Response:
     page_size = flask.current_app.config["PAGE_SIZE"]
     page = int(flask.request.args.get("page", "1"))
@@ -238,10 +255,18 @@ def sign_in() -> flask.Response:
         password = flask.request.form.get("password")
         if password == flask.current_app.config["PASSWORD"]:
             flask.current_app.logger.info("successful sign in")
-            return flask.redirect("/", code=303)
+            flask.session["username"] = "username"
+
+            # Make it last for 31 days
+            flask.session.permanent = True
+
+            # flask.redirect("/", code=303)
+            response = flask.make_response("Redirecting...", 303)
+            response.headers["Location"] = "/"
+            return response
         else:
             flask.current_app.logger.info("unsuccessful sign in")
-            flask.abort(400)
+            raise exc.BadRequest()
 
 
 @blueprint.route("/ok")
@@ -285,8 +310,9 @@ def sync() -> flask.Response:
     return flask.json.jsonify({"bookmarks": [b.to_json() for b in changed_bookmarks]})
 
 
-def init_app(db_uri: str, password: str) -> flask.Flask:
+def init_app(db_uri: str, password: str, secret_key: str) -> flask.Flask:
     app = flask.Flask("quartermarker")
+    app.config["SECRET_KEY"] = secret_key
     app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["PAGE_SIZE"] = 10
@@ -304,7 +330,9 @@ def init_app(db_uri: str, password: str) -> flask.Flask:
     return app
 
 
-def main():
-    app = init_app(environ["QM_SQL_URL"], environ["QM_PASSWORD"])
+def main() -> None:
+    app = init_app(
+        environ["QM_SQL_URL"], environ["QM_PASSWORD"], environ["QM_SECRET_KEY"]
+    )
     logging.basicConfig(level=logging.INFO)
     app.run()

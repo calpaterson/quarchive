@@ -3,11 +3,13 @@ from typing import MutableMapping, Any
 from datetime import datetime
 from unittest import mock
 
+import flask
+from sqlalchemy.engine import create_engine
+
 import quartermarker as sut
 
 import pytest
 import testing.postgresql
-from sqlalchemy.engine import create_engine
 
 
 @pytest.fixture(scope="session")
@@ -31,7 +33,7 @@ def ensure_clean_tables(app, sql_db):
 
 @pytest.fixture()
 def app(sql_db):
-    a = sut.init_app(environ["QM_SQL_URL"], "test_password")
+    a = sut.init_app(environ["QM_SQL_URL"], "test_password", "secret_key")
     a.config["TESTING"] = True
     return a
 
@@ -50,4 +52,6 @@ def make_bookmark(**kwargs):
 
 @pytest.fixture()
 def signed_in_client(client):
+    with client.session_transaction() as sess:
+        sess["username"] = "cal@calpaterson.com"
     yield client

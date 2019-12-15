@@ -16,6 +16,9 @@ def test_sign_in_success(client):
     assert sign_in_response.status_code == 303
     assert sign_in_response.headers["Location"] == "http://localhost/"
 
+    index_response = client.get("/")
+    assert index_response.status_code == 200
+
 
 def test_sign_in_failure(client):
     sign_in_response = client.post(
@@ -23,6 +26,12 @@ def test_sign_in_failure(client):
         data={"username": "cal@calpaterson.com", "password": "wrong_password"},
     )
     assert sign_in_response.status_code == 400
+
+
+def test_unsigned_in_index(client):
+    response = client.get("/")
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/sign-in")
 
 
 def test_index(signed_in_client):
