@@ -8,7 +8,7 @@ artefact := quartermarker-0.0.1-py3-none-any.whl
 build: dist/quartermarker-0.1.zip dist/$(artefact)
 
 lint: $(eslint)
-	$(eslint) src/extension/quartermarker.js
+	$(eslint) src/extension/quartermarker.js src/extension/options.js
 
 docker: dist/quartermarker-$(commit).docker
 
