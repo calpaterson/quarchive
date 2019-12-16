@@ -8,7 +8,7 @@ var saveOptions = function(e){
 var restoreOptions = function(){
     var gettingKey = browser.storage.sync.get("APIKey");
     gettingKey.then(function (result) {
-        document.querySelector("#api-key").value = result.result;
+        document.querySelector("#api-key").value = result.APIKey;
     })
 }
 

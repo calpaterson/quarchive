@@ -14,5 +14,10 @@
         "page": "options.html",
         "browser_style": true,
         "chrome_style": true
+    },
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "{ee416e00-528a-4b7b-a0d2-98bae198d30c}"
+        }
     }
 }
