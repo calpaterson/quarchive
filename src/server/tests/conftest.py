@@ -53,5 +53,11 @@ def make_bookmark(**kwargs):
 @pytest.fixture()
 def signed_in_client(client):
     with client.session_transaction() as sess:
-        sess["username"] = "cal@calpaterson.com"
+        sess["username"] = "calpaterson"
     yield client
+
+
+working_cred_headers = {
+    "X-QM-API-Username": "calpaterson",
+    "X-QM-API-Key": "test_password",
+}

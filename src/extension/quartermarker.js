@@ -18,6 +18,12 @@ class Bookmark {
     }
 }
 
+async function getCredentials() {
+    var gettingKey = await browser.storage.sync.get("APIKey");
+    var gettingUsername = await browser.storage.sync.get("username");
+    return [gettingUsername.username, gettingKey.APIKey];
+}
+
 // Lookup the bookmark from browser.bookmarks
 async function lookupBookmarkFromBrowser(browserId) {
     // FIXME: this can fail, should check to make sure more than one treeNode
@@ -115,11 +121,14 @@ async function syncBookmark(bookmark) {
             "deleted": bookmark.deleted,
         }]};
     console.log("syncing %o", sync_body);
+    const [username, APIKey] = await getCredentials();
     // FIXME: failure should be logged
     const response = await fetch(BASE_URL + "/sync", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
+            "X-QM-API-Username": username,
+            "X-QM-API-Key": APIKey,
         },
         body: JSON.stringify(sync_body),
     });

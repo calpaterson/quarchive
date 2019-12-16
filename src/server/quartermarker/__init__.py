@@ -205,12 +205,20 @@ def api_key_required(
 ) -> Callable[[], flask.Response]:
     @wraps(handler)
     def wrapper(*args, **kwargs):
-        api_key = flask.request.headers["X-QM-API-Key"]
-        if api_key is None:
-            flask.current_app.log.error("bad api key")
-            return flask.jsonify({"error": "bad api key"}, 400)
-        else:
+        try:
+            username = flask.request.headers["X-QM-API-Username"]
+            api_key = flask.request.headers["X-QM-API-Key"]
+        except KeyError:
+            flask.current_app.logger.info("no api credentials")
+            return flask.jsonify({"error": "no api credentials"}), 400
+        if (
+            username == "calpaterson"
+            and api_key == flask.current_app.config["PASSWORD"]
+        ):
             return handler()
+        else:
+            flask.current_app.logger.info("bad api credentials")
+            return flask.jsonify({"error": "bad api credentials"}), 400
 
     return wrapper
 
@@ -289,6 +297,7 @@ def ok() -> flask.Response:
 
 
 @blueprint.route("/sync", methods=["POST"])
+@api_key_required
 def sync() -> flask.Response:
     body = flask.request.json
     recieved_bookmarks: Set[Bookmark] = set(
