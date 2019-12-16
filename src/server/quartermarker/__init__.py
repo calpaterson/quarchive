@@ -1,11 +1,10 @@
-from dataclasses import dataclass, asdict as dataclass_as_dict
+from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from werkzeug import exceptions as exc
-from werkzeug.wrappers import Response as WerkzeugResponse
 from functools import wraps
 import logging
 from uuid import uuid4, UUID
-from typing import Mapping, Set, Any, Optional, Callable, NoReturn, Union
+from typing import Mapping, Set, Any, Optional, Callable
 from os import environ
 from urllib.parse import urlsplit, urlunsplit
 
