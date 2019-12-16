@@ -200,6 +200,21 @@ def sign_in_required(
     return wrapper
 
 
+def api_key_required(
+    handler: Callable[[], flask.Response]
+) -> Callable[[], flask.Response]:
+    @wraps(handler)
+    def wrapper(*args, **kwargs):
+        api_key = flask.request.headers["X-QM-API-Key"]
+        if api_key is None:
+            flask.current_app.log.error("bad api key")
+            return flask.jsonify({"error": "bad api key"}, 400)
+        else:
+            return handler()
+
+    return wrapper
+
+
 @blueprint.route("/")
 @sign_in_required
 def index() -> flask.Response:
