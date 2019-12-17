@@ -16,6 +16,22 @@ class Bookmark {
         this.browserId = browserId;
         // this.tags = tags;
     }
+
+    merge(other){
+        if (this.updated != other.updated) {
+            if (this.updated > other.updated) {
+                return this
+            } else {
+                return other
+            }
+        } else {
+            if (this.title.length > other.title.length) {
+                return this
+            } else {
+                return other
+            }
+        }
+    }
 }
 
 async function getCredentials() {
@@ -42,7 +58,7 @@ async function lookupBookmarkFromBrowser(browserId) {
 }
 
 // Lookup the bookmark from local db
-async function lookupBookmarkFromLocalDb(browserId) {
+async function lookupBookmarkFromLocalDb(browserId) { // FIXME: ByBrowserId
     return new Promise(function(resolve, reject) {
         var transaction = db.transaction(["bookmarks"], "readonly");
         transaction.oncomplete = function(event){
@@ -60,9 +76,12 @@ async function lookupBookmarkFromLocalDb(browserId) {
         }
         request.onerror = function(event){
             console.warn("lookupBookmarkFromLocalDb request failed: %o", event);
-            reject();
+            reject(); // FIXME: what if it doesn't exist?
         }
     });
+}
+
+async function lookupBookmarkFromLocalDbByUrl(url) {
 }
 
 // Insert the bookmark into local db
@@ -113,7 +132,7 @@ async function updateBookmarkInLocalDb(bookmark){
 // Syncs a bookmark with the API
 async function syncBookmark(bookmark) {
     const sync_body = {
-        "bookmarks": [{
+        "bookmarks": [{  // FIXME: refactor this into to_json and from_json
             "url": bookmark.url,
             "timestamp": bookmark.timestamp,
             "title": bookmark.title,
@@ -134,6 +153,20 @@ async function syncBookmark(bookmark) {
     });
     const json = await response.json();
     console.log("got %o", json);
+    // FIXME: if we get back something different we should merge it
+}
+
+async function fullSync() {
+    console.log("starting full sync");
+    const bookmarksFromLocalDb = await allBookmarksFromLocalDb();
+    const bookmarksFromServer = await fullSyncBookmarks(bookmarksFromLocalDb);
+    for (var serverBookmark of bookmarksFromServer) {
+        const localBookmark = lookupBookmarkFromLocalDbByUrl(serverBookmark.url);
+        const mergedBookmark = localBookmark.merge(serverBookmark);
+        insertBookmarkToLocalDb(mergedBookmark);
+        console.log("merged %o", mergedBookmark);
+    }
+    console.log("ended full sync");
 }
 
 async function createdListener(browserId, treeNode) {
@@ -152,7 +185,6 @@ async function changeListener(browserId, changeInfo) {
     await updateBookmarkInLocalDb(bookmarkInDb);
     await syncBookmark(bookmarkInDb);
 }
-
 
 async function removedListener(browserId, removeInfo) {
     console.log("removed browserId: %s - %o", browserId, removeInfo);
