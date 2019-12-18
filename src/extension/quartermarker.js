@@ -57,6 +57,22 @@ async function lookupBookmarkFromBrowser(browserId) {
     return bookmark;
 }
 
+async function upsertBookmarkIntoBrowser(bookmark) {
+    // Unable to read or write tags
+    // https://bugzilla.mozilla.org/show_bug.cgi?id=1225916
+    const argument = {
+        url: bookmark.url,
+        title: bookmark.title,
+    }
+    if (bookmark.browserId === null){
+        // we're creating
+        await browser.bookmarks.create(argument);
+    } else {
+        // we're updating
+        await browser.bookmarks.update(bookmark.browserId, argument);
+    }
+}
+
 // Lookup the bookmark from local db
 async function lookupBookmarkFromLocalDbByBrowserId(browserId) { // FIXME: ByBrowserId
     return new Promise(function(resolve, reject) {
@@ -81,7 +97,49 @@ async function lookupBookmarkFromLocalDbByBrowserId(browserId) { // FIXME: ByBro
     });
 }
 
+async function allBookmarksFromLocalDb() {
+    return new Promise(function(resolve, reject) {
+        var transaction = db.transaction(["bookmarks"], "readonly");
+        transaction.oncomplete = function(event){
+            console.log("allBookmarksFromLocalDb transaction complete: %o", event);
+        }
+        transaction.onerror = function(event){
+            console.warn("allBookmarksFromLocalDb transaction failed: %o", event);
+        }
+        var objectStore = transaction.objectStore("bookmarks");
+        var index = objectStore.index("browserId");
+        var request = index.getAll()
+        request.onsuccess = function(event){
+            console.log("allBookmarksFromLocalDb request complete: %o", event);
+            resolve(request.result);
+        }
+        request.onerror = function(event){
+            console.warn("allBookmarksFromLocalDb request failed: %o", event);
+            reject();  // could this ever fail?
+        }
+    });
+}
+
 async function lookupBookmarkFromLocalDbByUrl(url) {
+    return new Promise(function(resolve, reject) {
+        var transaction = db.transaction(["bookmarks"], "readonly");
+        transaction.oncomplete = function(event){
+            console.log("lookupBookmarkFromLocalDbByUrl transaction complete: %o", event);
+        }
+        transaction.onerror = function(event){
+            console.warn("lookupBookmarkFromLocalDbByUrl transaction failed: %o", event);
+        }
+        var objectStore = transaction.objectStore("bookmarks");
+        var request = objectStore.get(url)
+        request.onsuccess = function(event){
+            console.log("lookupBookmarkFromLocalDbByUrl request complete: %o", event);
+            resolve(request.result);
+        }
+        request.onerror = function(event){
+            console.warn("lookupBookmarkFromLocalDbByUrl request failed: %o", event);
+            reject(); // FIXME: what if it doesn't exist?
+        }
+    });
 }
 
 // Insert the bookmark into local db
@@ -129,6 +187,10 @@ async function updateBookmarkInLocalDb(bookmark){
     });
 }
 
+async function copyBrowserBookmarksToLocalDb(){
+    // TODO
+}
+
 // Syncs a bookmark with the API
 async function syncBookmark(bookmark) {
     const sync_body = {
@@ -156,8 +218,13 @@ async function syncBookmark(bookmark) {
     // FIXME: if we get back something different we should merge it
 }
 
+async function fullSyncBookmarks(bookmarks){
+    // TODO
+}
+
 async function fullSync() {
     console.log("starting full sync");
+    await copyBrowserBookmarksToLocalDb();
     const bookmarksFromLocalDb = await allBookmarksFromLocalDb();
     const bookmarksFromServer = await fullSyncBookmarks(bookmarksFromLocalDb);
     // delete bookmarksFromLocalDb // should consider this, it's probably pretty large
@@ -166,7 +233,7 @@ async function fullSync() {
         serverBookmark.browserId = localBookmark.browserId;
         const mergedBookmark = localBookmark.merge(serverBookmark);
         insertBookmarkIntoLocalDb(mergedBookmark);
-        insertBookmarkIntoBrowser(mergedBookmark);
+        upsertBookmarkIntoBrowser(mergedBookmark);
         console.log("merged %o", mergedBookmark);
     }
     console.log("ended full sync");
