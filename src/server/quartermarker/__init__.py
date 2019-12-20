@@ -4,7 +4,7 @@ from werkzeug import exceptions as exc
 from functools import wraps
 import logging
 from uuid import uuid4, UUID
-from typing import Mapping, Set, Any, Optional, Callable
+from typing import Mapping, Set, Any, Optional, Callable, Iterable
 from os import environ
 from urllib.parse import urlsplit, urlunsplit
 
@@ -82,7 +82,7 @@ class Bookmark:
 
     @classmethod
     def from_json(cls, mapping: Mapping[str, Any]) -> "Bookmark":
-        updated_dt = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(
+        updated_dt = datetime(1970, 1, 1).replace(tzinfo=timezone.utc) + timedelta(
             milliseconds=mapping["timestamp"]
         )
         return cls(
@@ -185,6 +185,51 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> None:
         ),
     )
     session.execute(bookmark_upsert_stmt)
+
+
+def merge_bookmarks(session, recieved_bookmarks: Set[Bookmark]) -> Set[Bookmark]:
+    changed_bookmarks: Set[Bookmark] = set()
+    for recieved in recieved_bookmarks:
+        existing = get_bookmark_by_url(session, url=recieved.url)
+        if existing is None:
+            # If it doesn't exist in our db, we create it - but client already
+            # knows
+            set_bookmark(session, recieved)
+            log.info("added: %s", recieved)
+        else:
+            merged = existing.merge(recieved)
+            if merged != existing:
+                # If it exists but is old we have to update it
+                log.info(
+                    "recieved bm merged, changing local: %s + %s = %s",
+                    recieved,
+                    existing,
+                    merged,
+                )
+                set_bookmark(session, merged)
+            else:
+                log.info("no change to %s", recieved)
+            if merged != recieved:
+                # If what we have is different from what were sent, we need to
+                # tell the client
+                changed_bookmarks.add(merged)
+    return changed_bookmarks
+
+
+def all_bookmarks(session) -> Iterable[Bookmark]:
+    query = session.query(SQLABookmark)
+    for sqla_bookmark in query:
+        url_obj = sqla_bookmark.url_obj
+        url = urlunsplit(
+            [
+                url_obj.scheme,
+                url_obj.netloc,
+                url_obj.path,
+                url_obj.query,
+                url_obj.fragment,
+            ]
+        )
+        yield bookmark_from_sqla(url, sqla_bookmark)
 
 
 def sign_in_required(
@@ -303,34 +348,14 @@ def sync() -> flask.Response:
     recieved_bookmarks: Set[Bookmark] = set(
         Bookmark.from_json(item) for item in body["bookmarks"]
     )
-    changed_bookmarks: Set[Bookmark] = set()
-    for recieved in recieved_bookmarks:
-        existing = get_bookmark_by_url(db.session, url=recieved.url)
-        if existing is None:
-            # If it doesn't exist in our db, we create it - but client already
-            # knows
-            set_bookmark(db.session, recieved)
-            log.info("added: %s", recieved)
-        else:
-            merged = existing.merge(recieved)
-            if merged != existing:
-                # If it exists but is old we have to update it
-                log.info(
-                    "recieved bm merged, changing local: %s + %s = %s",
-                    recieved,
-                    existing,
-                    merged,
-                )
-                set_bookmark(db.session, merged)
-            else:
-                log.info("no change to %s", recieved)
-            if merged != recieved:
-                # If what we have is different from what were sent, we need to
-                # tell the client
-                changed_bookmarks.add(merged)
 
+    changed_bookmarks = merge_bookmarks(db.session, recieved_bookmarks)
     db.session.commit()
-    return flask.json.jsonify({"bookmarks": [b.to_json() for b in changed_bookmarks]})
+    if "full" in flask.request.args:
+        response_bookmarks = all_bookmarks(db.session)
+    else:
+        response_bookmarks = changed_bookmarks
+    return flask.json.jsonify({"bookmarks": [b.to_json() for b in response_bookmarks]})
 
 
 def init_app(db_uri: str, password: str, secret_key: str) -> flask.Flask:

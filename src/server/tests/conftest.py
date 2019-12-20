@@ -1,6 +1,6 @@
 from os import environ
 from typing import MutableMapping, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest import mock
 
 import flask
@@ -42,7 +42,7 @@ def make_bookmark(**kwargs):
     values: MutableMapping[str, Any] = {
         "url": "http://example.com",
         "title": "Example",
-        "updated": datetime(1970, 1, 1),
+        "updated": datetime(1970, 1, 1, tzinfo=timezone.utc),
         "unread": False,
         "deleted": False,
     }
