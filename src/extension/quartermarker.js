@@ -57,7 +57,7 @@ class Bookmark {
             json.timestamp,
             json.deleted,
             json.unread,
-            json.browserId
+            null,
         )
     }
 
@@ -306,7 +306,7 @@ async function callFullSyncAPI(bookmarks){
     }
     console.log("calling /sync?full=true");
     const [username, APIKey] = await getCredentials();
-    const response = await fetch(BASE_URL + "/sync", {
+    const response = await fetch(BASE_URL + "/sync?full=true", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -316,7 +316,11 @@ async function callFullSyncAPI(bookmarks){
         body: JSON.stringify({"bookmarks": body}),
     });
     const json = await response.json();
-    return json.bookmarks;
+    var returnValue = [];
+    for (var responseBookmark of json["bookmarks"]){
+        returnValue.push(Bookmark.from_json(responseBookmark));
+    }
+    return returnValue;
 }
 
 async function fullSync() {
@@ -327,11 +331,16 @@ async function fullSync() {
     // delete bookmarksFromLocalDb // should consider this, it's probably pretty large
     for (var serverBookmark of bookmarksFromServer) {
         const localBookmark = await lookupBookmarkFromLocalDbByUrl(serverBookmark.url);
-        serverBookmark.browserId = localBookmark.browserId;
-        const mergedBookmark = localBookmark.merge(serverBookmark);
-        insertBookmarkIntoLocalDb(mergedBookmark);
-        upsertBookmarkIntoBrowser(mergedBookmark);
-        console.log("merged %o", mergedBookmark);
+        if (localBookmark === null) {
+            insertBookmarkIntoLocalDb(serverBookmark);
+            upsertBookmarkIntoBrowser(serverBookmark);
+        } else {
+            serverBookmark.browserId = localBookmark.browserId;
+            const mergedBookmark = localBookmark.merge(serverBookmark);
+            updateBookmarkInLocalDb(mergedBookmark);
+            upsertBookmarkIntoBrowser(mergedBookmark);
+            console.log("merged %o", mergedBookmark);
+        }
     }
     console.log("ended full sync");
 }
