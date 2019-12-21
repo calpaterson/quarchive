@@ -26,7 +26,7 @@ class SQLAUrl(Base):
     __tablename__ = "urls"
 
     # Synthetic key for foreign references
-    uuid = Column(PGUUID(as_uuid=True), nullable=False, index=True, unique=True)
+    url_uuid = Column(PGUUID(as_uuid=True), nullable=False, index=True, unique=True)
 
     # The actual url
     scheme = Column(satypes.String, nullable=False, index=True, primary_key=True)
@@ -39,7 +39,9 @@ class SQLAUrl(Base):
 class SQLABookmark(Base):
     __tablename__ = "bookmarks"
 
-    url = Column(PGUUID(as_uuid=True), ForeignKey("urls.uuid"), primary_key=True)
+    url_uuid = Column(
+        PGUUID(as_uuid=True), ForeignKey("urls.url_uuid"), primary_key=True
+    )
     updated = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
     unread = Column(satypes.Boolean, nullable=False, index=True)
     deleted = Column(satypes.Boolean, nullable=False, index=True)
@@ -135,7 +137,7 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> None:
     url_stmt = (
         pg_insert(SQLAUrl.__table__)
         .values(
-            uuid=proposed_uuid,
+            url_uuid=proposed_uuid,
             scheme=scheme,
             netloc=netloc,
             path=path,
@@ -145,7 +147,7 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> None:
         .on_conflict_do_nothing(
             index_elements=["scheme", "netloc", "path", "query", "fragment"]
         )
-        .returning(SQLAUrl.__table__.c.uuid)
+        .returning(SQLAUrl.__table__.c.url_uuid)
     )
     upsert_result_set = session.execute(url_stmt).fetchone()
 
@@ -154,7 +156,7 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> None:
         # The update didn't happen, but we still need to know what the url uuid
         # is...
         (url_uuid,) = (
-            session.query(SQLAUrl.uuid)
+            session.query(SQLAUrl.url_uuid)
             .filter(
                 SQLAUrl.scheme == scheme,
                 SQLAUrl.netloc == netloc,
@@ -169,14 +171,14 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> None:
         url_uuid = proposed_uuid
 
     bookmark_insert_stmt = pg_insert(SQLABookmark.__table__).values(
-        url=url_uuid,
+        url_uuid=url_uuid,
         updated=bookmark.updated.replace(tzinfo=timezone.utc),
         unread=bookmark.unread,
         deleted=bookmark.deleted,
         title=bookmark.title,
     )
     bookmark_upsert_stmt = bookmark_insert_stmt.on_conflict_do_update(
-        index_elements=["url"],
+        index_elements=["url_uuid"],
         set_=dict(
             updated=bookmark_insert_stmt.excluded.updated,
             unread=bookmark_insert_stmt.excluded.unread,
