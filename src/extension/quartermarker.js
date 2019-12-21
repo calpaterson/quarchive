@@ -4,7 +4,14 @@ const BASE_URL = "http://localhost:5000"
 
 const SCHEMA_VERSION = 2;
 
+// An hour
+const PERIODIC_FULL_SYNC_INTERVAL = 60 * 60 * 1000;
+
 var db;
+
+// This variable is for debugging purposes only
+// eslint-disable-next-line no-unused-vars
+var periodicFullSyncIntervalId;
 
 class Bookmark {
     constructor(url, title, timestamp, deleted, unread, browserId){
@@ -134,7 +141,11 @@ async function allBookmarksFromLocalDb() {
         var request = objectStore.getAll()
         request.onsuccess = function(event){
             console.log("allBookmarksFromLocalDb request complete: %o", event);
-            resolve(request.result);
+            var rv = [];
+            for (var object of request.result){
+                rv.push(Bookmark.from_json(object));
+            }
+            resolve(rv);
         }
         request.onerror = function(event){
             console.warn("allBookmarksFromLocalDb request failed: %o", event);
@@ -281,15 +292,31 @@ async function syncBookmark(bookmark) {
     // FIXME: if we get back something different we should merge it
 }
 
-async function fullSyncBookmarks(bookmarks){
-    // TODO
+async function callFullSyncAPI(bookmarks){
+    var body = [];
+    for (var bookmark of bookmarks) {
+        body.push(bookmark.to_json())
+    }
+    console.log("calling /sync?full=true");
+    const [username, APIKey] = await getCredentials();
+    const response = await fetch(BASE_URL + "/sync", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-QM-API-Username": username,
+            "X-QM-API-Key": APIKey,
+        },
+        body: JSON.stringify({"bookmarks": body}),
+    });
+    const json = await response.json();
+    return json.bookmarks;
 }
 
 async function fullSync() {
     console.log("starting full sync");
     await syncBrowserBookmarksToLocalDb();
     const bookmarksFromLocalDb = await allBookmarksFromLocalDb();
-    const bookmarksFromServer = await fullSyncBookmarks(bookmarksFromLocalDb);
+    const bookmarksFromServer = await callFullSyncAPI(bookmarksFromLocalDb);
     // delete bookmarksFromLocalDb // should consider this, it's probably pretty large
     for (var serverBookmark of bookmarksFromServer) {
         const localBookmark = lookupBookmarkFromLocalDbByUrl(serverBookmark.url);
@@ -300,6 +327,13 @@ async function fullSync() {
         console.log("merged %o", mergedBookmark);
     }
     console.log("ended full sync");
+}
+
+function enablePeriodicFullSync(){
+    var fullSyncWrapper = function() {
+        fullSync().then();
+    }
+    periodicFullSyncIntervalId = setInterval(fullSyncWrapper, PERIODIC_FULL_SYNC_INTERVAL);
 }
 
 async function createdListener(browserId, treeNode) {
@@ -348,13 +382,13 @@ dbOpenRequest.onupgradeneeded = function (event) {
 dbOpenRequest.onsuccess = function(event){
     console.log("opened database: %o, %o", event, dbOpenRequest.result);
     db = dbOpenRequest.result;
-    syncBrowserBookmarksToLocalDb().then(function() {
+    fullSync().then(function() {
         browser.bookmarks.onChanged.addListener(changeListener);
         browser.bookmarks.onCreated.addListener(createdListener);
         browser.bookmarks.onMoved.addListener(movedListener);
         browser.bookmarks.onRemoved.addListener(removedListener);
+        enablePeriodicFullSync();
     });
 };
-
 
 console.log("quartermarker loaded");
