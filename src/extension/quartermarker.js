@@ -119,13 +119,16 @@ async function upsertBookmarkIntoBrowser(bookmark) {
         url: bookmark.url,
         title: bookmark.title,
     }
+    if (bookmark.deleted){
+        return
+    }
     if (bookmark.browserId === null){
         // we're creating
         await browser.bookmarks.create(argument);
     } else {
         // we're updating
         await browser.bookmarks.update(bookmark.browserId, argument);
-    }
+   }
 }
 
 async function allBookmarksFromLocalDb() {
@@ -272,7 +275,7 @@ async function syncBrowserBookmarksToLocalDb() {
 }
 
 // Syncs a bookmark with the API
-async function syncBookmark(bookmark) {
+async function callSyncAPI(bookmark) {
     const sync_body = {
         "bookmarks": [bookmark.to_json()]};
     console.log("syncing %o", sync_body);
@@ -289,7 +292,11 @@ async function syncBookmark(bookmark) {
     });
     const json = await response.json();
     console.log("got %o", json);
-    // FIXME: if we get back something different we should merge it
+    var returnValue = [];
+    for (var responseBookmark of json["bookmarks"]){
+        returnValue.push(Bookmark.from_json(responseBookmark));
+    }
+    return returnValue;
 }
 
 async function callFullSyncAPI(bookmarks){
@@ -319,7 +326,7 @@ async function fullSync() {
     const bookmarksFromServer = await callFullSyncAPI(bookmarksFromLocalDb);
     // delete bookmarksFromLocalDb // should consider this, it's probably pretty large
     for (var serverBookmark of bookmarksFromServer) {
-        const localBookmark = lookupBookmarkFromLocalDbByUrl(serverBookmark.url);
+        const localBookmark = await lookupBookmarkFromLocalDbByUrl(serverBookmark.url);
         serverBookmark.browserId = localBookmark.browserId;
         const mergedBookmark = localBookmark.merge(serverBookmark);
         insertBookmarkIntoLocalDb(mergedBookmark);
@@ -338,9 +345,14 @@ function enablePeriodicFullSync(){
 
 async function createdListener(browserId, treeNode) {
     console.log("created: browserId: %s - %o", browserId, treeNode);
-    const bookmark = await lookupBookmarkFromBrowser(browserId);
-    await insertBookmarkIntoLocalDb(bookmark);
-    await syncBookmark(bookmark);
+    const bookmarkFromBrowser = await lookupBookmarkFromBrowser(browserId);
+    await insertBookmarkIntoLocalDb(bookmarkFromBrowser);
+    const bookmarksMergedWithServer = await callSyncAPI(bookmarkFromBrowser);
+    if (bookmarksMergedWithServer.length > 1) {
+        const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
+        updateBookmarkInLocalDb(bookmarkMergedWithServer);
+        upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
+    }
 }
 
 async function changeListener(browserId, changeInfo) {
@@ -350,15 +362,25 @@ async function changeListener(browserId, changeInfo) {
     bookmarkInDb.title = bookmarkInBrowser.title;
     bookmarkInDb.timestamp = Date.now();
     await updateBookmarkInLocalDb(bookmarkInDb);
-    await syncBookmark(bookmarkInDb);
+    const bookmarksMergedWithServer = await callSyncAPI(bookmarkInDb);
+    if (bookmarksMergedWithServer.length > 1) {
+        const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
+        updateBookmarkInLocalDb(bookmarkMergedWithServer);
+        upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
+    }
 }
 
 async function removedListener(browserId, removeInfo) {
     console.log("removed browserId: %s - %o", browserId, removeInfo);
-    const bookmark = await lookupBookmarkFromLocalDbByBrowserId(browserId)
-    bookmark.deleted = true;
-    await updateBookmarkInLocalDb(bookmark);
-    await syncBookmark(bookmark);
+    const bookmarkFromBrowser = await lookupBookmarkFromLocalDbByBrowserId(browserId)
+    bookmarkFromBrowser.deleted = true;
+    await updateBookmarkInLocalDb(bookmarkFromBrowser);
+    const bookmarksMergedWithServer = await callSyncAPI(bookmarkFromBrowser);
+    if (bookmarksMergedWithServer.length > 1) {
+        const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
+        updateBookmarkInLocalDb(bookmarkMergedWithServer);
+        upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
+    }
 }
 
 async function movedListener(browserId, moveInfo) {
