@@ -1,4 +1,4 @@
-from os import environ
+from os import environ, path
 from typing import MutableMapping, Any
 from datetime import datetime, timezone
 from unittest import mock
@@ -10,6 +10,15 @@ import quartermarker as sut
 
 import pytest
 import testing.postgresql
+
+
+working_cred_headers = {
+    "X-QM-API-Username": "calpaterson",
+    "X-QM-API-Key": "test_password",
+}
+
+
+test_data_path = path.join(path.dirname(__file__), "test-data")
 
 
 @pytest.fixture(scope="session")
@@ -55,9 +64,3 @@ def signed_in_client(client):
     with client.session_transaction() as sess:
         sess["username"] = "calpaterson"
     yield client
-
-
-working_cred_headers = {
-    "X-QM-API-Username": "calpaterson",
-    "X-QM-API-Key": "test_password",
-}

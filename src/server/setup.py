@@ -11,6 +11,7 @@ setup(
         "sqlalchemy~=1.3.11",
         "psycopg2~=2.8.4",
         "babel~=2.7.0",
+        "click~=7.0.0",
     ],
     extras_require={
         "tests": [
@@ -22,6 +23,7 @@ setup(
             "alembic~=1.3.1",
             "lxml~=4.4.2",
             "cssselect~=1.1.0",
+            "freezegun~=0.3.12",
         ],
         "dev": [
             "wheel~=0.33.6",
@@ -32,5 +34,10 @@ setup(
             "alembic~=1.3.1",
         ],
     },
-    entry_points={"console_scripts": ["quartermarker=quartermarker:main",]},
+    entry_points={
+        "console_scripts": [
+            "quartermarker=quartermarker:main",
+            "qm-pinboard-import=quartermarker:pinboard_import",
+        ]
+    },
 )

@@ -1,13 +1,16 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
-from werkzeug import exceptions as exc
 from functools import wraps
+import itertools
 import logging
 from uuid import uuid4, UUID
 from typing import Mapping, Set, Any, Optional, Callable, Iterable
 from os import environ
 from urllib.parse import urlsplit, urlunsplit
+import json
 
+import click
+from werkzeug import exceptions as exc
 from babel.dates import format_timedelta
 from sqlalchemy import Column, ForeignKey, types as satypes
 from sqlalchemy.orm import relationship, RelationshipProperty, Session
@@ -386,3 +389,31 @@ def main() -> None:
     )
     logging.basicConfig(level=logging.INFO)
     app.run()
+
+
+@click.command()
+@click.argument("json_file", type=click.File("rb"))
+def pinboard_import(json_file):
+    def pinboard_bookmark_to_bookmark(mapping: Mapping[str, str]) -> Bookmark:
+        # FIXME: Doesn't handle created date or description ("extended")
+        return Bookmark(
+            url=mapping["href"],
+            title=mapping["description"],
+            # description=mapping["extended"],
+            updated=datetime.utcnow().replace(tzinfo=timezone.utc),
+            # created = ...
+            unread=True if mapping["toread"] == "yes" else False,
+            deleted=False,
+        )
+
+    logging.basicConfig(level=logging.INFO)
+    document = json.load(json_file)
+    keys = set(itertools.chain(*[item.keys() for item in document]))
+    log.info("keys = %s", keys)
+    app = init_app(
+        environ["QM_SQL_URL"], environ["QM_PASSWORD"], environ["QM_SECRET_KEY"]
+    )
+    with app.app_context():
+        for pinboard_bookmark in document:
+            set_bookmark(db.session, pinboard_bookmark_to_bookmark(pinboard_bookmark))
+        db.session.commit()
