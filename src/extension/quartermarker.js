@@ -101,7 +101,6 @@ async function lookupBookmarkFromBrowser(browserId) {
     const treeNodes = await browser.bookmarks.get(browserId)
     const treeNode = treeNodes[0];
     const bookmark = Bookmark.fromTreeNode(treeNode);
-    console.log("built %o", bookmark);
     return bookmark;
 }
 
