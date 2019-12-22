@@ -9,6 +9,8 @@ const PERIODIC_FULL_SYNC_INTERVAL = 60 * 60 * 1000;
 
 var db;
 
+var fullSyncInProgress = false;
+
 // This variable is for debugging purposes only
 // eslint-disable-next-line no-unused-vars
 var periodicFullSyncIntervalId;
@@ -40,6 +42,12 @@ class Bookmark {
         }
     }
 
+    equals(other) {
+        // this is utterly absurd but seems to be the way people do things in
+        // js
+        return JSON.stringify(this) == JSON.stringify(other);
+    }
+
     to_json() {
         return {
             "url": this.url,
@@ -51,13 +59,18 @@ class Bookmark {
     }
 
     static from_json(json) {
+        if (Object.prototype.hasOwnProperty.call(json, 'browserId')){
+            var browserId = json.browserId;
+        } else {
+            var browserId = null;
+        }
         return new this(
             json.url,
             json.title,
             json.timestamp,
             json.deleted,
             json.unread,
-            null,
+            browserId,
         )
     }
 
@@ -134,16 +147,12 @@ async function upsertBookmarkIntoBrowser(bookmark) {
 async function allBookmarksFromLocalDb() {
     return new Promise(function(resolve, reject) {
         var transaction = db.transaction(["bookmarks"], "readonly");
-        transaction.oncomplete = function(event){
-            console.log("allBookmarksFromLocalDb transaction complete: %o", event);
-        }
         transaction.onerror = function(event){
             console.warn("allBookmarksFromLocalDb transaction failed: %o", event);
         }
         var objectStore = transaction.objectStore("bookmarks");
         var request = objectStore.getAll()
         request.onsuccess = function(event){
-            console.log("allBookmarksFromLocalDb request complete: %o", event);
             var rv = [];
             for (var object of request.result){
                 rv.push(Bookmark.from_json(object));
@@ -160,16 +169,12 @@ async function allBookmarksFromLocalDb() {
 async function lookupBookmarkFromLocalDbByUrl(url) {
     return new Promise(function(resolve, reject) {
         var transaction = db.transaction(["bookmarks"], "readonly");
-        transaction.oncomplete = function(event){
-            console.log("lookupBookmarkFromLocalDbByUrl transaction complete: %o", event);
-        }
         transaction.onerror = function(event){
             console.warn("lookupBookmarkFromLocalDbByUrl transaction failed: %o", event);
         }
         var objectStore = transaction.objectStore("bookmarks");
         var request = objectStore.get(url)
         request.onsuccess = function(event){
-            console.log("lookupBookmarkFromLocalDbByUrl request complete: %o", event);
             if (request.result === undefined){
                 resolve(null);
             } else {
@@ -187,9 +192,6 @@ async function lookupBookmarkFromLocalDbByUrl(url) {
 async function lookupBookmarkFromLocalDbByBrowserId(browserId) {
     return new Promise(function(resolve, reject) {
         var transaction = db.transaction(["bookmarks"], "readonly");
-        transaction.oncomplete = function(event){
-            console.log("lookupBookmarkFromLocalDbByBrowserId transaction complete: %o", event);
-        }
         transaction.onerror = function(event){
             console.warn("lookupBookmarkFromLocalDbByBrowserId transaction failed: %o", event);
         }
@@ -197,7 +199,6 @@ async function lookupBookmarkFromLocalDbByBrowserId(browserId) {
         var index = objectStore.index("browserId");
         var request = index.get(browserId);
         request.onsuccess = function(event){
-            console.log("lookupBookmarkFromLocalDbByBrowserId request complete: %o", event);
             if (request.result === undefined) {
                 resolve(null);
             } else {
@@ -215,16 +216,12 @@ async function lookupBookmarkFromLocalDbByBrowserId(browserId) {
 async function insertBookmarkIntoLocalDb(bookmark){
     return new Promise(function(resolve, reject) {
         var transaction = db.transaction(["bookmarks"], "readwrite");
-        transaction.oncomplete = function(event){
-            console.log("insertBookmarkIntoLocalDb transaction complete: %o", event);
-        }
         transaction.onerror = function(event){
             console.warn("insertBookmarkIntoLocalDb transaction failed: %o", event);
         }
         var objectStore = transaction.objectStore("bookmarks");
         var request = objectStore.add(bookmark)
         request.onsuccess = function(event){
-            console.log("insertBookmarkIntoLocalDb request complete: %o", event);
             resolve();
         }
         request.onerror = function(event){
@@ -237,16 +234,12 @@ async function insertBookmarkIntoLocalDb(bookmark){
 async function updateBookmarkInLocalDb(bookmark){
     return new Promise(function(resolve, reject) {
         var transaction = db.transaction(["bookmarks"], "readwrite");
-        transaction.oncomplete = function(event){
-            console.log("updateBookmarkInLocalDb transaction complete: %o", event);
-        }
         transaction.onerror = function(event){
             console.warn("updateBookmarkInLocalDb transaction failed: %o", event);
         }
         var objectStore = transaction.objectStore("bookmarks");
         var request = objectStore.put(bookmark)
         request.onsuccess = function(event){
-            console.log("updateBookmarkInLocalDb request complete: %o", event);
             resolve();
         }
         request.onerror = function(event){
@@ -264,8 +257,9 @@ async function syncBrowserBookmarksToLocalDb() {
         if (localBookmark === null) {
             await insertBookmarkIntoLocalDb(browserBookmark);
         } else {
+            localBookmark.browserId = browserBookmark.browserId;
             const merged = localBookmark.merge(browserBookmark);
-            if (merged !== localBookmark) {
+            if (!merged.equals(localBookmark)) {
                 console.log("%s out of date in local db, updating", merged.url);
                 await updateBookmarkInLocalDb(merged);
             }
@@ -325,10 +319,9 @@ async function callFullSyncAPI(bookmarks){
 
 async function fullSync() {
     console.log("starting full sync");
+    var fullSyncInProgress = true;
     await syncBrowserBookmarksToLocalDb();
-    const bookmarksFromLocalDb = await allBookmarksFromLocalDb();
-    const bookmarksFromServer = await callFullSyncAPI(bookmarksFromLocalDb);
-    // delete bookmarksFromLocalDb // should consider this, it's probably pretty large
+    const bookmarksFromServer = await callFullSyncAPI(await allBookmarksFromLocalDb());
     for (var serverBookmark of bookmarksFromServer) {
         const localBookmark = await lookupBookmarkFromLocalDbByUrl(serverBookmark.url);
         if (localBookmark === null) {
@@ -339,9 +332,9 @@ async function fullSync() {
             const mergedBookmark = localBookmark.merge(serverBookmark);
             updateBookmarkInLocalDb(mergedBookmark);
             upsertBookmarkIntoBrowser(mergedBookmark);
-            console.log("merged %o", mergedBookmark);
         }
     }
+    var fullSyncInProgress = false;
     console.log("ended full sync");
 }
 
@@ -353,42 +346,48 @@ function enablePeriodicFullSync(){
 }
 
 async function createdListener(browserId, treeNode) {
-    console.log("created: browserId: %s - %o", browserId, treeNode);
-    const bookmarkFromBrowser = await lookupBookmarkFromBrowser(browserId);
-    await insertBookmarkIntoLocalDb(bookmarkFromBrowser);
-    const bookmarksMergedWithServer = await callSyncAPI(bookmarkFromBrowser);
-    if (bookmarksMergedWithServer.length > 1) {
-        const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
-        updateBookmarkInLocalDb(bookmarkMergedWithServer);
-        upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
+    if(!fullSyncInProgress){
+        console.log("created: browserId: %s - %o", browserId, treeNode);
+        const bookmarkFromBrowser = await lookupBookmarkFromBrowser(browserId);
+        await insertBookmarkIntoLocalDb(bookmarkFromBrowser);
+        const bookmarksMergedWithServer = await callSyncAPI(bookmarkFromBrowser);
+        if (bookmarksMergedWithServer.length > 1) {
+            const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
+            updateBookmarkInLocalDb(bookmarkMergedWithServer);
+            upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
+        }
     }
 }
 
 async function changeListener(browserId, changeInfo) {
-    console.log("changed: browserId: %s - %o", browserId, changeInfo);
-    const bookmarkInBrowser = await lookupBookmarkFromBrowser(browserId);
-    const bookmarkInDb = await lookupBookmarkFromLocalDbByBrowserId(browserId);
-    bookmarkInDb.title = bookmarkInBrowser.title;
-    bookmarkInDb.timestamp = Date.now();
-    await updateBookmarkInLocalDb(bookmarkInDb);
-    const bookmarksMergedWithServer = await callSyncAPI(bookmarkInDb);
-    if (bookmarksMergedWithServer.length > 1) {
-        const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
-        updateBookmarkInLocalDb(bookmarkMergedWithServer);
-        upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
+    if(!fullSyncInProgress){
+        console.log("changed: browserId: %s - %o", browserId, changeInfo);
+        const bookmarkInBrowser = await lookupBookmarkFromBrowser(browserId);
+        const bookmarkInDb = await lookupBookmarkFromLocalDbByBrowserId(browserId);
+        bookmarkInDb.title = bookmarkInBrowser.title;
+        bookmarkInDb.timestamp = Date.now();
+        await updateBookmarkInLocalDb(bookmarkInDb);
+        const bookmarksMergedWithServer = await callSyncAPI(bookmarkInDb);
+        if (bookmarksMergedWithServer.length > 1) {
+            const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
+            updateBookmarkInLocalDb(bookmarkMergedWithServer);
+            upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
+        }
     }
 }
 
 async function removedListener(browserId, removeInfo) {
-    console.log("removed browserId: %s - %o", browserId, removeInfo);
-    const bookmarkFromBrowser = await lookupBookmarkFromLocalDbByBrowserId(browserId)
-    bookmarkFromBrowser.deleted = true;
-    await updateBookmarkInLocalDb(bookmarkFromBrowser);
-    const bookmarksMergedWithServer = await callSyncAPI(bookmarkFromBrowser);
-    if (bookmarksMergedWithServer.length > 1) {
-        const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
-        updateBookmarkInLocalDb(bookmarkMergedWithServer);
-        upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
+    if(!fullSyncInProgress){
+        console.log("removed browserId: %s - %o", browserId, removeInfo);
+        const bookmarkFromBrowser = await lookupBookmarkFromLocalDbByBrowserId(browserId)
+        bookmarkFromBrowser.deleted = true;
+        await updateBookmarkInLocalDb(bookmarkFromBrowser);
+        const bookmarksMergedWithServer = await callSyncAPI(bookmarkFromBrowser);
+        if (bookmarksMergedWithServer.length > 1) {
+            const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
+            updateBookmarkInLocalDb(bookmarkMergedWithServer);
+            upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
+        }
     }
 }
 
@@ -413,13 +412,13 @@ dbOpenRequest.onupgradeneeded = function (event) {
 dbOpenRequest.onsuccess = function(event){
     console.log("opened database: %o, %o", event, dbOpenRequest.result);
     db = dbOpenRequest.result;
-    fullSync().then(function() {
+    // fullSync().then(function() {
         browser.bookmarks.onChanged.addListener(changeListener);
         browser.bookmarks.onCreated.addListener(createdListener);
         browser.bookmarks.onMoved.addListener(movedListener);
         browser.bookmarks.onRemoved.addListener(removedListener);
-        enablePeriodicFullSync();
-    });
+        // enablePeriodicFullSync();
+    // });
 };
 
 console.log("quartermarker loaded");

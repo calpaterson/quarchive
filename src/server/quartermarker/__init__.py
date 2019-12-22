@@ -200,12 +200,12 @@ def merge_bookmarks(session, recieved_bookmarks: Set[Bookmark]) -> Set[Bookmark]
             # If it doesn't exist in our db, we create it - but client already
             # knows
             set_bookmark(session, recieved)
-            log.info("added: %s", recieved)
+            log.debug("added: %s", recieved)
         else:
             merged = existing.merge(recieved)
             if merged != existing:
                 # If it exists but is old we have to update it
-                log.info(
+                log.debug(
                     "recieved bm merged, changing local: %s + %s = %s",
                     recieved,
                     existing,
@@ -213,7 +213,7 @@ def merge_bookmarks(session, recieved_bookmarks: Set[Bookmark]) -> Set[Bookmark]
                 )
                 set_bookmark(session, merged)
             else:
-                log.info("no change to %s", recieved)
+                log.debug("no change to %s", recieved)
             if merged != recieved:
                 # If what we have is different from what were sent, we need to
                 # tell the client
