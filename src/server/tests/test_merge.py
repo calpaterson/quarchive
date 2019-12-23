@@ -5,35 +5,75 @@ from hypothesis import given
 from hypothesis.strategies import text, datetimes, booleans
 
 
-@given(title=text(), timestamp=datetimes(), deleted=booleans(), unread=booleans())
-def test_merge_is_idempotent(title, timestamp, deleted, unread):
+@given(
+    created=datetimes(),
+    deleted=booleans(),
+    description=text(),
+    title=text(),
+    unread=booleans(),
+    updated=datetimes(),
+)
+def test_merge_is_idempotent(title, created, updated, deleted, unread, description):
     url = "http://example.com"
     a = sut.Bookmark(
-        url=url, title=title, updated=timestamp, deleted=deleted, unread=unread
+        created=created,
+        deleted=deleted,
+        description=description,
+        title=title,
+        unread=unread,
+        updated=updated,
+        url=url,
     )
     b = a.merge(a)
     assert a == b
 
 
 @given(
-    title_a=text(),
-    timestamp_a=datetimes(),
-    title_b=text(),
-    timestamp_b=datetimes(),
+    created_a=datetimes(),
+    created_b=datetimes(),
     deleted_a=booleans(),
     deleted_b=booleans(),
+    description_a=text(),
+    description_b=text(),
+    title_a=text(),
+    title_b=text(),
     unread_a=booleans(),
     unread_b=booleans(),
+    updated_a=datetimes(),
+    updated_b=datetimes(),
 )
 def test_merge_is_commutative(
-    title_a, title_b, timestamp_a, timestamp_b, unread_a, unread_b, deleted_a, deleted_b
+    created_a,
+    created_b,
+    deleted_a,
+    deleted_b,
+    description_a,
+    description_b,
+    title_a,
+    title_b,
+    unread_a,
+    unread_b,
+    updated_a,
+    updated_b,
 ):
     url = "http://example.com"
     a = sut.Bookmark(
-        url=url, title=title_a, updated=timestamp_a, deleted=deleted_a, unread=unread_a,
+        created=created_a,
+        deleted=deleted_a,
+        description=description_a,
+        title=title_a,
+        unread=unread_a,
+        updated=updated_a,
+        url=url,
     )
     b = sut.Bookmark(
-        url=url, title=title_b, updated=timestamp_b, deleted=deleted_a, unread=unread_a,
+        created=created_a,
+        deleted=deleted_a,
+        description=description_b,
+        title=title_b,
+        unread=unread_a,
+        updated=updated_b,
+        url=url,
     )
     c = a.merge(b)
     d = b.merge(a)
@@ -41,42 +81,72 @@ def test_merge_is_commutative(
 
 
 @given(
-    title_a=text(),
-    timestamp_a=datetimes(),
-    title_b=text(),
-    timestamp_b=datetimes(),
-    title_c=text(),
-    timestamp_c=datetimes(),
+    created_a=datetimes(),
+    created_b=datetimes(),
+    created_c=datetimes(),
     deleted_a=booleans(),
     deleted_b=booleans(),
     deleted_c=booleans(),
+    description_a=text(),
+    description_b=text(),
+    description_c=text(),
+    title_a=text(),
+    title_b=text(),
+    title_c=text(),
     unread_a=booleans(),
     unread_b=booleans(),
     unread_c=booleans(),
+    updated_a=datetimes(),
+    updated_b=datetimes(),
+    updated_c=datetimes(),
 )
 def test_merge_is_associative(
-    title_a,
-    title_b,
-    title_c,
-    timestamp_a,
-    timestamp_b,
-    timestamp_c,
-    unread_a,
-    unread_b,
-    unread_c,
+    created_a,
+    created_b,
+    created_c,
     deleted_a,
     deleted_b,
     deleted_c,
+    description_a,
+    description_b,
+    description_c,
+    title_a,
+    title_b,
+    title_c,
+    unread_a,
+    unread_b,
+    unread_c,
+    updated_a,
+    updated_b,
+    updated_c,
 ):
     url = "http://example.com"
     a = sut.Bookmark(
-        url=url, title=title_a, updated=timestamp_a, unread=unread_a, deleted=deleted_a,
+        created=created_a,
+        deleted=deleted_a,
+        description=description_a,
+        title=title_a,
+        unread=unread_a,
+        updated=updated_a,
+        url=url,
     )
     b = sut.Bookmark(
-        url=url, title=title_b, updated=timestamp_b, unread=unread_b, deleted=deleted_b,
+        created=created_b,
+        deleted=deleted_b,
+        description=description_b,
+        title=title_b,
+        unread=unread_b,
+        updated=updated_b,
+        url=url,
     )
     c = sut.Bookmark(
-        url=url, title=title_c, updated=timestamp_c, unread=unread_c, deleted=deleted_c,
+        created=created_c,
+        deleted=deleted_c,
+        description=description_c,
+        title=title_c,
+        unread=unread_c,
+        updated=updated_c,
+        url=url,
     )
     d = a.merge(b).merge(c)
     e = a.merge(b.merge(c))

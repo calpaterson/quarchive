@@ -51,7 +51,9 @@ def make_bookmark(**kwargs):
     values: MutableMapping[str, Any] = {
         "url": "http://example.com",
         "title": "Example",
+        "created": datetime(1970, 1, 1, tzinfo=timezone.utc),
         "updated": datetime(1970, 1, 1, tzinfo=timezone.utc),
+        "description": "An example bookmark",
         "unread": False,
         "deleted": False,
     }

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import re
 from datetime import datetime, timezone, timedelta
 from functools import wraps
 import itertools
@@ -45,10 +46,15 @@ class SQLABookmark(Base):
     url_uuid = Column(
         PGUUID(as_uuid=True), ForeignKey("urls.url_uuid"), primary_key=True
     )
+
+    title = Column(satypes.String, nullable=False, index=True)
+    description = Column(satypes.String, nullable=False, index=True)
+
+    created = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
     updated = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
+
     unread = Column(satypes.Boolean, nullable=False, index=True)
     deleted = Column(satypes.Boolean, nullable=False, index=True)
-    title = Column(satypes.String, nullable=False, index=True)
 
     url_obj: RelationshipProperty = relationship(
         SQLAUrl, uselist=False, backref="bookmark_objs"
@@ -58,12 +64,15 @@ class SQLABookmark(Base):
 @dataclass(frozen=True)
 class Bookmark:
     url: str
+
     title: str
-    # FIXME: Should have created timestamp
+    description: str
+
+    created: datetime
     updated: datetime
+
     unread: bool
     deleted: bool
-    # FIXME: tags: Any
 
     def merge(self, other: "Bookmark") -> "Bookmark":
         # Take the one with the latest timestamp
@@ -76,24 +85,24 @@ class Bookmark:
         # only in (eg unread)
 
     def to_json(self) -> Mapping:
-        updated_millis = self.updated.timestamp() * 1000
         return {
             "url": self.url,
             "title": self.title,
-            "timestamp": updated_millis,
+            "description": self.description,
+            "created": self.created.isoformat(),
+            "updated": self.updated.isoformat(),
             "unread": self.unread,
             "deleted": self.deleted,
         }
 
     @classmethod
     def from_json(cls, mapping: Mapping[str, Any]) -> "Bookmark":
-        updated_dt = datetime(1970, 1, 1).replace(tzinfo=timezone.utc) + timedelta(
-            milliseconds=mapping["timestamp"]
-        )
         return cls(
             url=mapping["url"],
             title=mapping["title"],
-            updated=updated_dt,
+            description=mapping["description"],
+            updated=datetime.fromisoformat(mapping["updated"]),
+            created=datetime.fromisoformat(mapping["created"]),
             unread=mapping["unread"],
             deleted=mapping["deleted"],
         )
@@ -107,6 +116,8 @@ blueprint = flask.Blueprint("quartermarker", "quartermarker")
 def bookmark_from_sqla(url: str, sqla_obj: SQLABookmark) -> Bookmark:
     return Bookmark(
         url=url,
+        created=sqla_obj.created,
+        description=sqla_obj.description,
         updated=sqla_obj.updated,
         unread=sqla_obj.unread,
         deleted=sqla_obj.deleted,
@@ -174,19 +185,23 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> None:
         url_uuid = proposed_uuid
 
     bookmark_insert_stmt = pg_insert(SQLABookmark.__table__).values(
-        url_uuid=url_uuid,
-        updated=bookmark.updated.replace(tzinfo=timezone.utc),
-        unread=bookmark.unread,
+        created=bookmark.created,
         deleted=bookmark.deleted,
+        description=bookmark.description,
         title=bookmark.title,
+        unread=bookmark.unread,
+        updated=bookmark.updated.replace(tzinfo=timezone.utc),
+        url_uuid=url_uuid,
     )
     bookmark_upsert_stmt = bookmark_insert_stmt.on_conflict_do_update(
         index_elements=["url_uuid"],
         set_=dict(
-            updated=bookmark_insert_stmt.excluded.updated,
-            unread=bookmark_insert_stmt.excluded.unread,
+            created=bookmark_insert_stmt.excluded.created,
             deleted=bookmark_insert_stmt.excluded.deleted,
+            description=bookmark_insert_stmt.excluded.description,
             title=bookmark_insert_stmt.excluded.title,
+            unread=bookmark_insert_stmt.excluded.unread,
+            updated=bookmark_insert_stmt.excluded.updated,
         ),
     )
     session.execute(bookmark_upsert_stmt)
@@ -281,7 +296,7 @@ def index() -> flask.Response:
     offset = (page - 1) * page_size
     sqla_objs = (
         db.session.query(SQLABookmark)
-        .order_by(SQLABookmark.updated.desc())
+        .order_by(SQLABookmark.created.desc())
         .offset(offset)
         .limit(page_size)
     )
@@ -289,7 +304,7 @@ def index() -> flask.Response:
     prev_page_exists = page > 1
     next_page_exists: bool = db.session.query(
         db.session.query(SQLABookmark)
-        .order_by(SQLABookmark.updated.desc())
+        .order_by(SQLABookmark.created.desc())
         .offset(offset + page_size)
         .exists()
     ).scalar()
@@ -368,6 +383,13 @@ def init_app(db_uri: str, password: str, secret_key: str) -> flask.Flask:
     app.config["SECRET_KEY"] = secret_key
     app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    # By default Postgres will consult the locale to decide what timezone to
+    # return datetimes in.  We want UTC in all cases.
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "connect_args": {"options": "-c timezone=utc"}
+    }
+
     app.config["PAGE_SIZE"] = 10
     app.config["PASSWORD"] = password
     db.init_app(app)
@@ -394,14 +416,20 @@ def main() -> None:
 @click.command()
 @click.argument("json_file", type=click.File("rb"))
 def pinboard_import(json_file):
+    def parse_pinboard_datetime(dt_string: str) -> datetime:
+        # Pinboard uses the "Z" suffix to indicate UTC but fromisoformat
+        # doesn't understand that
+        with_offset = re.sub("Z$", "+00:00", dt_string)
+        return datetime.fromisoformat(with_offset)
+
     def pinboard_bookmark_to_bookmark(mapping: Mapping[str, str]) -> Bookmark:
         # FIXME: Doesn't handle created date or description ("extended")
         return Bookmark(
             url=mapping["href"],
             title=mapping["description"],
-            # description=mapping["extended"],
+            description=mapping["extended"],
             updated=datetime.utcnow().replace(tzinfo=timezone.utc),
-            # created = ...
+            created=parse_pinboard_datetime(mapping["time"]),
             unread=True if mapping["toread"] == "yes" else False,
             deleted=False,
         )
