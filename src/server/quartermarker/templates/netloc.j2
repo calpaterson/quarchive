@@ -1,0 +1,15 @@
+{# -*- mode: web -*- #}
+{% extends "base.j2" %}
+{% block main %}
+    <h1>Netloc: {{netloc}}</h1>
+    <h2>URLs at this netloc</h2>
+    {% for url_obj in url_objs %}
+        <p>
+            <a
+                href="{{ urlunsplit((url_obj.scheme, url_obj.netloc, url_obj.path, url_obj.query, url_obj.fragment)) }}"
+            >{{ urlunsplit((url_obj.scheme, url_obj.netloc, url_obj.path, url_obj.query, url_obj.fragment)) }}
+            </a>
+        </p>
+    {% endfor %}
+
+{% endblock %}

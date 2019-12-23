@@ -5,7 +5,7 @@ from functools import wraps
 import itertools
 import logging
 from uuid import uuid4, UUID
-from typing import Mapping, Set, Any, Optional, Callable, Iterable
+from typing import Mapping, Set, Any, Optional, Callable, Iterable, cast
 from os import environ
 from urllib.parse import urlsplit, urlunsplit
 import json
@@ -59,6 +59,35 @@ class SQLABookmark(Base):
     url_obj: RelationshipProperty = relationship(
         SQLAUrl, uselist=False, backref="bookmark_objs"
     )
+
+
+@dataclass(frozen=True)
+class URL:
+    url_uuid: UUID
+
+    scheme: str
+    netloc: str
+    path: str
+    query: str
+    fragment: str
+
+    def to_url(self) -> str:
+        return urlunsplit(
+            (self.scheme, self.netloc, self.path, self.query, self.fragment)
+        )
+
+    @classmethod
+    def from_sqla_url(cls, sql_url: SQLAUrl) -> "URL":
+        # sqlalchemy-stubs can't figure this out
+        url_uuid = cast(UUID, sql_url.url_uuid)
+        return cls(
+            url_uuid=url_uuid,
+            scheme=sql_url.scheme,
+            netloc=sql_url.netloc,
+            path=sql_url.path,
+            query=sql_url.query,
+            fragment=sql_url.fragment,
+        )
 
 
 @dataclass(frozen=True)
@@ -253,14 +282,14 @@ def all_bookmarks(session) -> Iterable[Bookmark]:
 
 
 def sign_in_required(
-    handler: Callable[[], flask.Response]
-) -> Callable[[], flask.Response]:
+    handler: Callable[..., flask.Response]
+) -> Callable[..., flask.Response]:
     @wraps(handler)
     def wrapper(*args, **kwargs):
         if "username" not in flask.session:
             return flask.redirect("/sign-in")
         else:
-            return handler()
+            return handler(*args, **kwargs)
 
     return wrapper
 
@@ -312,16 +341,8 @@ def index() -> flask.Response:
     bookmarks = []
     for sqla_obj in sqla_objs:
         url_obj: SQLAUrl = sqla_obj.url_obj
-        url = urlunsplit(
-            [
-                url_obj.scheme,
-                url_obj.netloc,
-                url_obj.path,
-                url_obj.query,
-                url_obj.fragment,
-            ]
-        )
-        bookmarks.append(bookmark_from_sqla(url, sqla_obj))
+        url = URL.from_sqla_url(sqla_obj.url_obj)
+        bookmarks.append((url, bookmark_from_sqla(url.to_url(), sqla_obj)))
     return flask.make_response(
         flask.render_template(
             "index.j2",
@@ -331,6 +352,30 @@ def index() -> flask.Response:
             next_page_exists=next_page_exists,
         )
     )
+
+
+@blueprint.route("/url/<uuid:url_uuid>")
+@sign_in_required
+def view_url(url_uuid: UUID) -> flask.Response:
+    url_obj = db.session.query(SQLAUrl).filter(SQLAUrl.url_uuid == url_uuid).first()
+    if url_obj is None:
+        raise exc.NotFound()
+    else:
+        return flask.make_response(
+            flask.render_template("url.j2", url=URL.from_sqla_url(url_obj))
+        )
+
+
+@blueprint.route("/netloc/<string:netloc>")
+@sign_in_required
+def view_netloc(netloc: str) -> flask.Response:
+    url_objs = db.session.query(SQLAUrl).filter(SQLAUrl.netloc == netloc)
+    if url_objs.count() == 0:
+        raise exc.NotFound()
+    else:
+        return flask.make_response(
+            flask.render_template("netloc.j2", netloc=netloc, url_objs=url_objs)
+        )
 
 
 @blueprint.route("/sign-in", methods=["GET", "POST"])
@@ -401,6 +446,10 @@ def init_app(db_uri: str, password: str, secret_key: str) -> flask.Flask:
         now = datetime.utcnow().replace(tzinfo=timezone.utc)
         td = dt - now
         return format_timedelta(td, add_direction=True, locale="en_GB")
+
+    @app.context_processor
+    def context_processor():
+        return {"urlunsplit": urlunsplit}
 
     return app
 
