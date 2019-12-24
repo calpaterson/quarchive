@@ -16,12 +16,17 @@ let listenersEnabled = false;
 var periodicFullSyncIntervalId;
 
 class Bookmark {
-    constructor(url, title, timestamp, deleted, unread, browserId){
+    constructor(url, title, description, created, updated, deleted, unread, browserId){
         this.url = url;
         this.title = title;
-        this.timestamp = timestamp;
+        this.description = description,
+
+        this.created = created;
+        this.updated = updated;
+
         this.deleted = deleted;
         this.unread = unread;
+
         this.browserId = browserId;
         // this.tags = tags;
     }
@@ -50,11 +55,13 @@ class Bookmark {
 
     to_json() {
         return {
-            "url": this.url,
-            "timestamp": this.timestamp,
+            "created": this.created.toISOString(),
+            "deleted": this.deleted,
+            "description": this.description,
             "title": this.title,
             "unread": this.unread,
-            "deleted": this.deleted,
+            "updated": this.updated.toISOString(),
+            "url": this.url,
         }
     }
 
@@ -68,23 +75,12 @@ class Bookmark {
         return new this(
             json.url,
             json.title,
-            json.timestamp,
+            json.description,
+            new Date(json.created),
+            new Date(json.updated),
             json.deleted,
             json.unread,
             browserId,
-        )
-    }
-
-    static fromTreeNode(treeNode) {
-        // NOTE: as the bookmarks API does not provide unread or deleted
-        // information, those are both assumed to be false
-        return new this(
-            treeNode.url,
-            treeNode.title,
-            treeNode.dateAdded,
-            false,
-            false,
-            treeNode.id,
         )
     }
 }
@@ -96,24 +92,23 @@ async function getCredentials() {
 }
 
 // Lookup the bookmark from browser.bookmarks
-async function lookupBookmarkFromBrowser(browserId) {
+async function lookupTreeNodeFromBrowser(browserId) {
     // FIXME: this can fail, should check to make sure no more than one
     // treeNode
     const treeNodes = await browser.bookmarks.get(browserId)
     const treeNode = treeNodes[0];
-    const bookmark = Bookmark.fromTreeNode(treeNode);
-    return bookmark;
+    return treeNode
 }
 
-async function allBookmarksFromBrowser() {
+async function allTreeNodesFromBrowser() {
     // cautiously create a new array rather than reusing because who knows what
     // will happen if we mutate the array returned by getTree
     var unexplored = [(await browser.bookmarks.getTree())[0]];
-    var bookmarks = [];
+    var treeNodes = [];
     while (unexplored.length > 0) {
         const treeNode = unexplored.pop();
         if (treeNode.type === 'bookmark') {
-            bookmarks.push(Bookmark.fromTreeNode(treeNode));
+            treeNodes.push(treeNode);
         }
         if (Object.prototype.hasOwnProperty.call(treeNode, 'children')
             && treeNode.children.length > 0) {
@@ -122,7 +117,7 @@ async function allBookmarksFromBrowser() {
             }
         }
     }
-    return bookmarks;
+    return treeNodes;
 }
 
 async function upsertBookmarkIntoBrowser(bookmark) {
@@ -178,7 +173,8 @@ async function lookupBookmarkFromLocalDbByUrl(url) {
             if (request.result === undefined){
                 resolve(null);
             } else {
-                resolve(Bookmark.from_json(request.result));
+                const bookmark = Bookmark.from_json(request.result);
+                resolve(bookmark);
             }
         }
         request.onerror = function(event){
@@ -202,7 +198,8 @@ async function lookupBookmarkFromLocalDbByBrowserId(browserId) {
             if (request.result === undefined) {
                 resolve(null);
             } else {
-                resolve(Bookmark.from_json(request.result));
+                const bookmark = Bookmark.from_json(request.result);
+                resolve(bookmark);
             }
         }
         request.onerror = function(event){
@@ -220,7 +217,7 @@ async function insertBookmarkIntoLocalDb(bookmark){
             console.warn("insertBookmarkIntoLocalDb transaction failed: %o", event);
         }
         var objectStore = transaction.objectStore("bookmarks");
-        var request = objectStore.add(bookmark)
+        var request = objectStore.add(bookmark.to_json())
         request.onsuccess = function(event){
             resolve();
         }
@@ -238,7 +235,7 @@ async function updateBookmarkInLocalDb(bookmark){
             console.warn("updateBookmarkInLocalDb transaction failed: %o", event);
         }
         var objectStore = transaction.objectStore("bookmarks");
-        var request = objectStore.put(bookmark)
+        var request = objectStore.put(bookmark.to_json())
         request.onsuccess = function(event){
             resolve();
         }
@@ -251,20 +248,29 @@ async function updateBookmarkInLocalDb(bookmark){
 
 async function syncBrowserBookmarksToLocalDb() {
     console.log("starting syncBrowserBookmarksToLocalDb");
-    const browserBookmarks = await allBookmarksFromBrowser();
-    for (var browserBookmark of browserBookmarks) {
-        const localBookmark = await lookupBookmarkFromLocalDbByUrl(browserBookmark.url);
+    const treeNodes = await allTreeNodesFromBrowser();
+    for (var treeNode of treeNodes) {
+        const localBookmark = await lookupBookmarkFromLocalDbByUrl(treeNode.url);
         if (localBookmark === null) {
-            await insertBookmarkIntoLocalDb(browserBookmark);
+            const bookmark = new Bookmark(
+                treeNode.url,
+                treeNode.title,
+                "",
+                new Date(treeNode.dateAdded),
+                new Date(treeNode.dateAdded),
+                false,
+                false,
+                treeNode.id,
+            )
+            await insertBookmarkIntoLocalDb(bookmark);
         } else {
-            // FIXME: Can't just merge here, that will blat updated, unread and deleted
             let dbOutOfDate = false;
-            if (localBookmark.browserId !== browserBookmark.browserId){
-                localBookmark.browserId = browserBookmark.browserId;
+            if (localBookmark.browserId !== treeNode.id){
+                localBookmark.browserId = treeNode.id;
                 dbOutOfDate = true;
             }
-            if (localBookmark.title !== browserBookmark.title){
-                localBookmark.title = browserBookmark.title;
+            if (localBookmark.title !== treeNode.title){
+                localBookmark.title = treeNode.title;
                 dbOutOfDate = true;
             }
             if (dbOutOfDate){
@@ -338,8 +344,10 @@ async function fullSync() {
         } else {
             serverBookmark.browserId = localBookmark.browserId;
             const mergedBookmark = localBookmark.merge(serverBookmark);
-            await updateBookmarkInLocalDb(mergedBookmark);
-            await upsertBookmarkIntoBrowser(mergedBookmark);
+            if (!mergedBookmark.equals(localBookmark)) {
+                await updateBookmarkInLocalDb(mergedBookmark);
+                await upsertBookmarkIntoBrowser(mergedBookmark);
+            }
         }
     }
     console.log("ended full sync");
@@ -355,9 +363,18 @@ function enablePeriodicFullSync(){
 
 async function createdListener(browserId, treeNode) {
     console.log("created: browserId: %s - %o", browserId, treeNode);
-    const bookmarkFromBrowser = await lookupBookmarkFromBrowser(browserId);
-    await insertBookmarkIntoLocalDb(bookmarkFromBrowser);
-    const bookmarksMergedWithServer = await callSyncAPI(bookmarkFromBrowser);
+    const bookmark = Bookmark(
+        treeNode.url,
+        treeNode.title,
+        "",
+        new Date(treeNode.dateAdded),
+        new Date(treeNode.dateAdded),
+        false,
+        false,
+        treeNode.id,
+    )
+    await insertBookmarkIntoLocalDb(bookmark);
+    const bookmarksMergedWithServer = await callSyncAPI(bookmark);
     if (bookmarksMergedWithServer.length > 1) {
         const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
         updateBookmarkInLocalDb(bookmarkMergedWithServer);
@@ -367,10 +384,10 @@ async function createdListener(browserId, treeNode) {
 
 async function changeListener(browserId, changeInfo) {
     console.log("changed: browserId: %s - %o", browserId, changeInfo);
-    const bookmarkInBrowser = await lookupBookmarkFromBrowser(browserId);
+    const treeNode = await lookupTreeNodeFromBrowser(browserId);
     const bookmarkInDb = await lookupBookmarkFromLocalDbByBrowserId(browserId);
-    bookmarkInDb.title = bookmarkInBrowser.title;
-    bookmarkInDb.timestamp = Date.now();
+    bookmarkInDb.title = treeNode.title;
+    bookmarkInDb.updated = Date.now();
     await updateBookmarkInLocalDb(bookmarkInDb);
     const bookmarksMergedWithServer = await callSyncAPI(bookmarkInDb);
     if (bookmarksMergedWithServer.length > 1) {
