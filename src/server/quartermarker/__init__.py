@@ -12,6 +12,7 @@ import json
 
 import click
 from werkzeug import exceptions as exc
+from dateutil.parser import isoparse
 from babel.dates import format_timedelta
 from sqlalchemy import Column, ForeignKey, types as satypes
 from sqlalchemy.orm import relationship, RelationshipProperty, Session
@@ -130,8 +131,8 @@ class Bookmark:
             url=mapping["url"],
             title=mapping["title"],
             description=mapping["description"],
-            updated=datetime.fromisoformat(mapping["updated"]),
-            created=datetime.fromisoformat(mapping["created"]),
+            updated=isoparse(mapping["updated"]),
+            created=isoparse(mapping["created"]),
             unread=mapping["unread"],
             deleted=mapping["deleted"],
         )
@@ -465,12 +466,6 @@ def main() -> None:
 @click.command()
 @click.argument("json_file", type=click.File("rb"))
 def pinboard_import(json_file):
-    def parse_pinboard_datetime(dt_string: str) -> datetime:
-        # Pinboard uses the "Z" suffix to indicate UTC but fromisoformat
-        # doesn't understand that
-        with_offset = re.sub("Z$", "+00:00", dt_string)
-        return datetime.fromisoformat(with_offset)
-
     def pinboard_bookmark_to_bookmark(mapping: Mapping[str, str]) -> Bookmark:
         # FIXME: Doesn't handle created date or description ("extended")
         return Bookmark(
@@ -478,7 +473,7 @@ def pinboard_import(json_file):
             title=mapping["description"],
             description=mapping["extended"],
             updated=datetime.utcnow().replace(tzinfo=timezone.utc),
-            created=parse_pinboard_datetime(mapping["time"]),
+            created=isoparse(mapping["time"]),
             unread=True if mapping["toread"] == "yes" else False,
             deleted=False,
         )

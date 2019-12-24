@@ -12,6 +12,7 @@ setup(
         "psycopg2~=2.8.4",
         "babel~=2.7.0",
         "click~=7.0.0",
+        "python-dateutil~=2.8.1",
     ],
     extras_require={
         "tests": [
