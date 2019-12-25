@@ -2,18 +2,6 @@
 {% extends "base.j2" %}
 {% block main %}
     <h1>Bookmarks</h1>
-    {% for url, bookmark in bookmarks %}
-        <div class="bookmark">
-            <p class="bookmark">
-                <a href="{{url.to_url()}}">{{bookmark.title}}</a>
-                <span title="{{bookmark.created}}">{{bookmark.created|relativetime}}</span>
-                {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
-            </p>
-            <p>
-                <a href="{{ url_for('quartermarker.view_url', url_uuid=url.url_uuid) }}">View URL</a>
-            </p>
-        </div>
-    {% endfor %}
 
     <p>
         <span class="prev-page">
@@ -38,4 +26,17 @@
             {% endif %}
         </span>
     </p>
+
+    {% for url, bookmark in bookmarks %}
+        <div class="bookmark">
+            <p class="bookmark">
+                <a href="{{url.to_url()}}">{{bookmark.title}}</a>
+                <span title="{{bookmark.created}}">{{bookmark.created|relativetime}}</span>
+                {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
+            </p>
+            <p>
+                <a href="{{ url_for('quartermarker.view_url', url_uuid=url.url_uuid) }}">View URL</a>
+            </p>
+        </div>
+    {% endfor %}
 {% endblock %}

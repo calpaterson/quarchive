@@ -8,7 +8,13 @@
         <title>QM</title>
     </head>
     <body>
-        {% block main %}
-        {% endblock %}
+        <nav>
+            <strong>Quartermarker</strong>
+            <a href="{{ url_for('quartermarker.index') }}">Bookmarks</a>
+        </nav>
+        <main>
+            {% block main %}
+            {% endblock %}
+        </main>
     </body>
 </html>
