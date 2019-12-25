@@ -88,6 +88,12 @@ class Bookmark {
         }
     }
 
+    to_db_json() {
+        let json = this.to_json();
+        json.browserId = this.browserId;
+        return json
+    }
+
     static from_json(json) {
         let browserId;
         if (Object.prototype.hasOwnProperty.call(json, 'browserId')){
@@ -240,7 +246,7 @@ async function insertBookmarkIntoLocalDb(bookmark){
             console.warn("insertBookmarkIntoLocalDb transaction failed: %o", event);
         }
         var objectStore = transaction.objectStore("bookmarks");
-        var request = objectStore.add(bookmark.to_json())
+        var request = objectStore.add(bookmark.to_db_json())
         request.onsuccess = function(event){
             resolve();
         }
@@ -258,7 +264,7 @@ async function updateBookmarkInLocalDb(bookmark){
             console.warn("updateBookmarkInLocalDb transaction failed: %o", event);
         }
         var objectStore = transaction.objectStore("bookmarks");
-        var request = objectStore.put(bookmark.to_json())
+        var request = objectStore.put(bookmark.to_db_json())
         request.onsuccess = function(event){
             resolve();
         }
