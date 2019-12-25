@@ -32,19 +32,42 @@ class Bookmark {
     }
 
     merge(other) {
-        if (this.updated != other.updated) {
-            if (this.updated > other.updated) {
-                return this
-            } else {
-                return other
-            }
+        let moreRecent;
+        let minCreated;
+        let maxUpdated;
+        if (this.updated > other.updated) {
+            moreRecent = this;
+        } else if (other.updated > this.updated) {
+            moreRecent = other;
         } else {
-            if (this.title.length > other.title.length) {
-                return this
+            const thisLengths = this.title.length + this.description.length;
+            const otherLengths = other.title.length + other.description.length;
+            if (otherLengths > thisLengths) {
+                moreRecent = other;
             } else {
-                return other
+                moreRecent = this;
             }
         }
+        if (this.created < other.created){
+            minCreated = this.created;
+        } else {
+            minCreated = other.created;
+        }
+        if (this.updated > other.updated) {
+            maxUpdated = this.updated;
+        } else {
+            maxUpdated = other.updated;
+        }
+        return new Bookmark(
+            this.url,
+            moreRecent.title,
+            moreRecent.description,
+            minCreated,
+            maxUpdated,
+            moreRecent.deleted,
+            moreRecent.unread,
+            moreRecent.browserId
+        )
     }
 
     equals(other) {
@@ -342,8 +365,8 @@ async function fullSync() {
             await insertBookmarkIntoLocalDb(serverBookmark);
             await upsertBookmarkIntoBrowser(serverBookmark);
         } else {
-            serverBookmark.browserId = localBookmark.browserId;
             const mergedBookmark = localBookmark.merge(serverBookmark);
+            mergedBookmark.browserId = localBookmark.browserId;
             if (!mergedBookmark.equals(localBookmark)) {
                 await updateBookmarkInLocalDb(mergedBookmark);
                 await upsertBookmarkIntoBrowser(mergedBookmark);

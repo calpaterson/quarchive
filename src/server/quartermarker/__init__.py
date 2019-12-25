@@ -225,7 +225,7 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> None:
         url_uuid = proposed_uuid
 
     bookmark_insert_stmt = pg_insert(SQLABookmark.__table__).values(
-        created=bookmark.created,
+        created=bookmark.created.replace(tzinfo=timezone.utc),
         deleted=bookmark.deleted,
         description=bookmark.description,
         title=bookmark.title,
