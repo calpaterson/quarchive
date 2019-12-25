@@ -1,8 +1,11 @@
 import quartermarker as sut
+from datetime import datetime
 
 import pytest
 from hypothesis import given
 from hypothesis.strategies import text, datetimes, booleans
+
+from .conftest import make_bookmark
 
 
 @given(
@@ -151,3 +154,19 @@ def test_merge_is_associative(
     d = a.merge(b).merge(c)
     e = a.merge(b.merge(c))
     assert d == e
+
+
+@pytest.mark.parametrize(
+    "field, from_, to_, expected",
+    [
+        ("deleted", False, True, True),
+        ("deleted", True, False, False),
+        ("title", "First title", "Second title", "Second title"),
+        ("created", datetime(2018, 1, 2), datetime(2018, 1, 3), datetime(2018, 1, 2)),
+    ],
+)
+def test_mutations(field, from_, to_, expected):
+    state_1 = make_bookmark(**{field: from_}, updated=datetime(2018, 1, 2))
+    state_2 = make_bookmark(**{field: to_}, updated=datetime(2018, 1, 3))
+    merged = state_1.merge(state_2)
+    assert getattr(merged, field) == expected

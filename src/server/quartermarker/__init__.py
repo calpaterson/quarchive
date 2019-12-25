@@ -105,14 +105,24 @@ class Bookmark:
     deleted: bool
 
     def merge(self, other: "Bookmark") -> "Bookmark":
-        # Take the one with the latest timestamp
-        if self.updated != other.updated:
-            return max((self, other), key=lambda b: b.updated)
-        # If timestamps are equal, take the longest title
-        else:
-            return max((self, other), key=lambda b: b.title)
-        # FIXME: all other fields should also be considered in case they differ
-        # only in (eg unread)
+        more_recent: "Bookmark" = sorted(
+            (self, other),
+            key=lambda b: (b.updated, len(b.title) + len(b.description)),
+            reverse=True,
+        )[0]
+        # The strategy in short:
+        # Take the fields from the most recently updated bookmark, EXCEPT:
+        # created - for which take the oldest value
+        # updated - for which take the latest value
+        return Bookmark(
+            url=self.url,
+            created=min((self.created, other.created)),
+            updated=max((self.updated, other.updated)),
+            title=more_recent.title,
+            description=more_recent.description,
+            unread=more_recent.unread,
+            deleted=more_recent.deleted,
+        )
 
     def to_json(self) -> Mapping:
         return {
