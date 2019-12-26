@@ -3,7 +3,7 @@ from os import path, environ
 from datetime import datetime, timezone
 from unittest import mock
 
-from quartermarker import pinboard_import, db, get_bookmark_by_url, Bookmark
+from quarchive import pinboard_import, db, get_bookmark_by_url, Bookmark
 
 from freezegun import freeze_time
 import pytest

@@ -1,4 +1,4 @@
-import quartermarker as sut
+import quarchive as sut
 from datetime import datetime
 
 import pytest

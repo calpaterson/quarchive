@@ -1,7 +1,7 @@
 web_ext := src/extension/node_modules/web-ext/bin/web-ext
 eslint := src/extension/node_modules/eslint/bin/eslint.js
 commit := $(shell git rev-parse --short HEAD)
-artefact := quartermarker-0.0.1-py3-none-any.whl
+artefact := quarchive-0.0.1-py3-none-any.whl
 
 .PHONY: build docker
 
@@ -10,13 +10,13 @@ build: dist/quartermarker-0.1.zip dist/$(artefact)
 lint: $(eslint)
 	$(eslint) -f unix src/extension/quartermarker.js src/extension/options.js
 
-docker: dist/quartermarker-$(commit).docker
+docker: dist/quarchive-$(commit).docker
 
-dist/quartermarker-$(commit).docker: dist/$(artefact)
+dist/quarchive-$(commit).docker: dist/$(artefact)
 	docker build . -t make-temp:latest
 	docker save make-temp:latest | gzip > $@
 
-dist/$(artefact): src/server src/server/quartermarker/__init__.py | dist
+dist/$(artefact): src/server src/server/quarchive/__init__.py | dist
 	cd src/server; tox
 	mv src/server/dist/$(artefact) dist/
 

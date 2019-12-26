@@ -1,5 +1,5 @@
 .tox
-quartermarker.egg-info
+quarchive.egg-info
 __pycache__/
 .mypy_cache/
 .hypothesis/

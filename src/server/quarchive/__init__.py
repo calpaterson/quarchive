@@ -22,7 +22,7 @@ from flask_sqlalchemy import SQLAlchemy
 import flask
 from flask_cors import CORS
 
-log = logging.getLogger("quartermarker")
+log = logging.getLogger("quarchive")
 
 Base: Any = declarative_base()
 
@@ -150,7 +150,7 @@ class Bookmark:
 
 db = SQLAlchemy()
 cors = CORS()
-blueprint = flask.Blueprint("quartermarker", "quartermarker")
+blueprint = flask.Blueprint("quarchive", "quarchive")
 
 
 def bookmark_from_sqla(url: str, sqla_obj: SQLABookmark) -> Bookmark:
@@ -435,7 +435,7 @@ def sync() -> flask.Response:
 
 
 def init_app(db_uri: str, password: str, secret_key: str) -> flask.Flask:
-    app = flask.Flask("quartermarker")
+    app = flask.Flask("quarchive")
     app.config["SECRET_KEY"] = secret_key
     app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False

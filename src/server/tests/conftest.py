@@ -6,7 +6,7 @@ from unittest import mock
 import flask
 from sqlalchemy.engine import create_engine
 
-import quartermarker as sut
+import quarchive as sut
 
 import pytest
 import testing.postgresql

@@ -1,9 +1,11 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="quartermarker",
+    name="quarchive",
     version="0.0.1",
     packages=find_packages(),
+    include_package_data=True,
+    zip_safe=False,
     install_requires=[
         "flask-sqlalchemy~=2.4.1",
         "flask~=1.1.1",
@@ -37,8 +39,8 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "quartermarker=quartermarker:main",
-            "qm-pinboard-import=quartermarker:pinboard_import",
+            "quarchive=quarchive:main",
+            "qm-pinboard-import=quarchive:pinboard_import",
         ]
     },
 )

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from dataclasses import asdict as dataclass_as_dict
 
-import quartermarker as sut
+import quarchive as sut
 
 import pytest
 

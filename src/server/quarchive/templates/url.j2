@@ -2,5 +2,5 @@
 {% extends "base.j2" %}
 {% block main %}
     <h1>{{ url.to_url() }}</h1>
-    <p><a href="{{ url_for('quartermarker.view_netloc', netloc=url.netloc) }}">{{ url.netloc }}</a></p>
+    <p><a href="{{ url_for('quarchive.view_netloc', netloc=url.netloc) }}">{{ url.netloc }}</a></p>
 {% endblock %}
