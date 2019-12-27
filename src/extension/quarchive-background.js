@@ -176,6 +176,7 @@ async function allBookmarksFromLocalDb() {
         }
         var objectStore = transaction.objectStore("bookmarks");
         var request = objectStore.getAll()
+        // eslint-disable-next-line no-unused-vars
         request.onsuccess = function(event){
             var rv = [];
             for (var object of request.result){
@@ -198,6 +199,7 @@ async function lookupBookmarkFromLocalDbByUrl(url) {
         }
         var objectStore = transaction.objectStore("bookmarks");
         var request = objectStore.get(url)
+        // eslint-disable-next-line no-unused-vars
         request.onsuccess = function(event){
             if (request.result === undefined){
                 resolve(null);
@@ -223,6 +225,7 @@ async function lookupBookmarkFromLocalDbByBrowserId(browserId) {
         var objectStore = transaction.objectStore("bookmarks");
         var index = objectStore.index("browserId");
         var request = index.get(browserId);
+        // eslint-disable-next-line no-unused-vars
         request.onsuccess = function(event){
             if (request.result === undefined) {
                 resolve(null);
@@ -247,6 +250,7 @@ async function insertBookmarkIntoLocalDb(bookmark){
         }
         var objectStore = transaction.objectStore("bookmarks");
         var request = objectStore.add(bookmark.to_db_json())
+        // eslint-disable-next-line no-unused-vars
         request.onsuccess = function(event){
             resolve();
         }
@@ -265,6 +269,7 @@ async function updateBookmarkInLocalDb(bookmark){
         }
         var objectStore = transaction.objectStore("bookmarks");
         var request = objectStore.put(bookmark.to_db_json())
+        // eslint-disable-next-line no-unused-vars
         request.onsuccess = function(event){
             resolve();
         }
@@ -467,7 +472,7 @@ function disableListeners() {
     }
 }
 
-const dbOpenRequest = window.indexedDB.open("quartermarker", SCHEMA_VERSION);
+const dbOpenRequest = window.indexedDB.open("quarchive", SCHEMA_VERSION);
 dbOpenRequest.onerror = function(event){
     console.warn("unable to open database: %o", event);
 }
@@ -492,4 +497,4 @@ dbOpenRequest.onsuccess = function(event){
     });
 };
 
-console.log("quartermarker loaded");
+console.log("quarchive loaded");
