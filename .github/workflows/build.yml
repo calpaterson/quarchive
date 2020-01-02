@@ -7,15 +7,28 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:11
+        env:
+          POSTGRES_USER: quarchive
+          POSTGRES_PASSWORD: quarchive
+          POSTGRES_DB: quarchive_test
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
     steps:
     - uses: actions/checkout@v1
     - name: Set up Python 3.7
       uses: actions/setup-python@v1
       with:
         python-version: 3.7
-    - name: Install postgresql server
-      run: sudo apt-get install -y postgresql postgresql-server-dev-all
+    - name: Install postgresql server dev requirements
+      run: sudo apt-get install -y postgresql-server-dev-all
     - name: Install tox
       run: pip install tox
     - name: Make
       run: make
+      env:
+        QM_SQL_URL_TEST: postgresql+psycopg2://quarchive:quarchive@localhost/quarchive_dev

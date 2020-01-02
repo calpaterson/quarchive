@@ -9,7 +9,6 @@ from sqlalchemy.engine import create_engine
 import quarchive as sut
 
 import pytest
-import testing.postgresql
 
 
 working_cred_headers = {
@@ -23,14 +22,8 @@ test_data_path = path.join(path.dirname(__file__), "test-data")
 
 @pytest.fixture(scope="session")
 def sql_db():
-    if "QM_SQL_URL_TEST" not in environ:
-        with testing.postgresql.Postgresql() as pg:
-            with mock.patch.dict(environ, {"QM_SQL_URL": pg.url()}):
-                sut.Base.metadata.create_all(bind=create_engine(pg.url()))
-                yield
-    else:
-        with mock.patch.dict(environ, {"QM_SQL_URL": environ["QM_SQL_URL_TEST"]}):
-            yield
+    with mock.patch.dict(environ, {"QM_SQL_URL": environ["QM_SQL_URL_TEST"]}):
+        yield
 
 
 @pytest.fixture(autouse=True, scope="function")

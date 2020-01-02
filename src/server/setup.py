@@ -22,7 +22,6 @@ setup(
             "pytest~=5.3.1",
             "pytest-flask~=0.15.0",
             "hypothesis~=4.50.6",
-            "testing.postgresql~=1.3.0",
             "alembic~=1.3.1",
             "lxml~=4.4.2",
             "cssselect~=1.1.0",
