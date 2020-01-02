@@ -23,4 +23,4 @@ def upgrade():
 
 def downgrade():
     op.alter_column("urls", "url_uuid", new_column_name="uuid")
-    op.alter_column("bookmarks", "uuid", new_column_name="url")
+    op.alter_column("bookmarks", "url_uuid", new_column_name="url")
