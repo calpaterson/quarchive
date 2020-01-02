@@ -31,4 +31,4 @@ jobs:
     - name: Make
       run: make
       env:
-        QM_SQL_URL_TEST: postgresql+psycopg2://quarchive:quarchive@localhost/quarchive_dev
+        QM_SQL_URL_TEST: postgresql+psycopg2://quarchive:quarchive@localhost/quarchive_test
