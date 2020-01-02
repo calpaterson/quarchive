@@ -397,7 +397,7 @@ function enablePeriodicFullSync(){
 
 async function createdListener(browserId, treeNode) {
     console.log("created: browserId: %s - %o", browserId, treeNode);
-    const bookmark = Bookmark(
+    let bookmark = new Bookmark(
         treeNode.url,
         treeNode.title,
         "",
@@ -407,7 +407,14 @@ async function createdListener(browserId, treeNode) {
         false,
         treeNode.id,
     )
-    await insertBookmarkIntoLocalDb(bookmark);
+    const bookmarkFromLocalDbIfPresent = await lookupBookmarkFromLocalDbByUrl(treeNode.url)
+    if (bookmarkFromLocalDbIfPresent !== null){
+        // Bookmark already exists in db (probably deleted then re-created)
+        bookmark = bookmark.merge(bookmarkFromLocalDbIfPresent);
+        await updateBookmarkInLocalDb(bookmark);
+    } else {
+        await insertBookmarkIntoLocalDb(bookmark);
+    }
     const bookmarksMergedWithServer = await callSyncAPI(bookmark);
     if (bookmarksMergedWithServer.length > 1) {
         const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
@@ -421,7 +428,7 @@ async function changeListener(browserId, changeInfo) {
     const treeNode = await lookupTreeNodeFromBrowser(browserId);
     const bookmarkInDb = await lookupBookmarkFromLocalDbByBrowserId(browserId);
     bookmarkInDb.title = treeNode.title;
-    bookmarkInDb.updated = Date.now();
+    bookmarkInDb.updated = new Date();
     await updateBookmarkInLocalDb(bookmarkInDb);
     const bookmarksMergedWithServer = await callSyncAPI(bookmarkInDb);
     if (bookmarksMergedWithServer.length > 1) {
@@ -436,6 +443,7 @@ async function removedListener(browserId, removeInfo) {
     const bookmarkFromBrowser = await lookupBookmarkFromLocalDbByBrowserId(browserId)
     bookmarkFromBrowser.deleted = true;
     bookmarkFromBrowser.browserId = null;
+    bookmarkFromBrowser.updated = new Date();
     await updateBookmarkInLocalDb(bookmarkFromBrowser);
     const bookmarksMergedWithServer = await callSyncAPI(bookmarkFromBrowser);
     if (bookmarksMergedWithServer.length > 1) {
