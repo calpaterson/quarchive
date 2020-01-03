@@ -1,7 +1,5 @@
 "use strict";
 
-const BASE_URL = "http://localhost:5000"
-
 const SCHEMA_VERSION = 2;
 
 // An hour
@@ -114,10 +112,11 @@ class Bookmark {
     }
 }
 
-async function getCredentials() {
+async function getHTTPConfig() {
     var gettingKey = await browser.storage.sync.get("APIKey");
     var gettingUsername = await browser.storage.sync.get("username");
-    return [gettingUsername.username, gettingKey.APIKey];
+    var gettingURL = await browser.storage.sync.get("APIURL");
+    return [gettingURL.APIURL, gettingUsername.username, gettingKey.APIKey];
 }
 
 // Lookup the bookmark from browser.bookmarks
@@ -321,9 +320,10 @@ async function callSyncAPI(bookmark) {
     const sync_body = {
         "bookmarks": [bookmark.to_json()]};
     console.log("syncing %o", sync_body);
-    const [username, APIKey] = await getCredentials();
+    const [APIURL, username, APIKey] = await getHTTPConfig();
     // FIXME: failure should be logged
-    const response = await fetch(BASE_URL + "/sync", {
+    const url = new URL("/sync", APIURL);
+    const response = await fetch(url, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -347,8 +347,9 @@ async function callFullSyncAPI(bookmarks){
         body.push(bookmark.to_json())
     }
     console.log("calling /sync?full=true");
-    const [username, APIKey] = await getCredentials();
-    const response = await fetch(BASE_URL + "/sync?full=true", {
+    const [APIURL, username, APIKey] = await getHTTPConfig();
+    const url = new URL("/sync?full=true", APIURL);
+    const response = await fetch(url, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
