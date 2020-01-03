@@ -3,33 +3,36 @@ eslint := src/extension/node_modules/eslint/bin/eslint.js
 commit := $(shell git rev-parse --short HEAD)
 artefact := quarchive-0.0.1-py3-none-any.whl
 js_files := $(wildcard src/extension/*.js)
+extension_version_file := src/extension/VERSION
+extension_version := $(file < $(extension_version_file))
+extension_manifest := src/extension/manifest.json
+extension_manifest_template := src/extension/manifest.json.template
 
-.PHONY: build docker
+.PHONY: build
 
-build: dist/quarchive-0.0.1.zip dist/$(artefact)
+build: dist/quarchive-$(extension_version).zip dist/$(artefact)
+
+dist:
+	mkdir -p dist
+
+# Server build steps
+dist/$(artefact): src/server src/server/quarchive/__init__.py | dist
+	cd src/server; tox
+	mv src/server/dist/$(artefact) dist/
+
+# Extension build steps
+dist/quarchive-$(extension_version).zip: $(web_ext) $(js_files) src/extension/.eslint-sentinel $(extension_manifest) | dist
+	$(web_ext) build -a dist -s src/extension/ -i package.json -i package-lock.json --overwrite-dest
 
 src/extension/.eslint-sentinel: $(eslint) $(js_files)
 	$(eslint) -f unix src/extension/quarchive-background.js src/extension/quarchive-options.js
 	touch $@
 
-docker: dist/quarchive-$(commit).docker
-
-dist/quarchive-$(commit).docker: dist/$(artefact)
-	docker build . -t make-temp:latest
-	docker save make-temp:latest | gzip > $@
-
-dist/$(artefact): src/server src/server/quarchive/__init__.py | dist
-	cd src/server; tox
-	mv src/server/dist/$(artefact) dist/
-
-dist/quarchive-0.0.1.zip: $(web_ext) $(js_files) src/extension/.eslint-sentinel | dist
-	$(web_ext) build -a dist -s src/extension/ -i package.json -i package-lock.json --overwrite-dest
+$(extension_manifest): $(extension_manifest_template) $(extension_version_file)
+	sed 's/$$VERSION/$(extension_version)/' $(extension_manifest_template) > $@
 
 $(web_ext):
 	cd src/extension; npm install --save-dev web-ext
 
 $(eslint):
 	cd src/extension; npm install --save-dev eslint
-
-dist:
-	mkdir -p dist
