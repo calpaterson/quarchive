@@ -1,7 +1,8 @@
-# Quartermarker - social bookmarks in your browser
+# Quarchive - a social bookmarking tool
 
-Quartermarker (a working title) is a mechanism for syncing your browser
-bookmarks with a third-party server (provided) for fun and profit.
+Quarchive is a open source social bookmarking system.
+
+It consists of a web server and a browser extension (that syncs your bookmarks with the server).
 
 ## Building
 
