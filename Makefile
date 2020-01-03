@@ -22,7 +22,7 @@ dist/$(artefact): src/server src/server/quarchive/__init__.py | dist
 
 # Extension build steps
 dist/quarchive-$(extension_version).zip: $(web_ext) $(js_files) src/extension/.eslint-sentinel $(extension_manifest) | dist
-	$(web_ext) build -a dist -s src/extension/ -i package.json -i package-lock.json --overwrite-dest
+	$(web_ext) build -a dist -s src/extension/ -i package.json -i package-lock.json -i manifest.json.template -i VERSION --overwrite-dest
 
 src/extension/.eslint-sentinel: $(eslint) $(js_files)
 	$(eslint) -f unix src/extension/quarchive-background.js src/extension/quarchive-options.js
