@@ -4,7 +4,7 @@ commit := $(shell git rev-parse --short HEAD)
 artefact := quarchive-0.0.1-py3-none-any.whl
 js_files := $(wildcard src/extension/*.js)
 extension_version_file := src/extension/VERSION
-extension_version := $(file < $(extension_version_file))
+extension_version := $(shell cat $(extension_version_file))
 extension_manifest := src/extension/manifest.json
 extension_manifest_template := src/extension/manifest.json.template
 
