@@ -516,7 +516,6 @@ def main() -> None:
 @click.argument("json_file", type=click.File("rb"))
 def pinboard_import(json_file):
     def pinboard_bookmark_to_bookmark(mapping: Mapping[str, str]) -> Bookmark:
-        # FIXME: Doesn't handle created date or description ("extended")
         return Bookmark(
             url=mapping["href"],
             title=mapping["description"],
