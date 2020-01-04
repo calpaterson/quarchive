@@ -2,7 +2,12 @@ import math
 from lxml import etree
 from lxml.cssselect import CSSSelector
 
+import pytest
+
 from .conftest import make_bookmark, working_cred_headers
+from .utils import sync_bookmarks
+
+pytestmark = pytest.mark.web
 
 
 def test_sign_in_success(client):
@@ -37,9 +42,7 @@ def test_unsigned_in_index(client):
 def test_index(signed_in_client):
     bm = make_bookmark()
 
-    signed_in_client.post(
-        "/sync", json={"bookmarks": [bm.to_json()]}, headers=working_cred_headers
-    )
+    sync_bookmarks(signed_in_client, [bm])
 
     response = signed_in_client.get("/")
     assert response.status_code == 200
@@ -57,6 +60,8 @@ def test_index_paging(app, signed_in_client):
         make_bookmark(url="http://example.com/%s" % i)
         for i in range(math.floor(page_size * 2.5))
     ]
+
+    sync_bookmarks(signed_in_client, bms)
 
     signed_in_client.post(
         "/sync",

@@ -27,10 +27,11 @@ def sql_db():
 
 
 @pytest.fixture(autouse=True, scope="function")
-def ensure_clean_tables(app, sql_db):
+def session(app, sql_db):
     for table in reversed(sut.Base.metadata.sorted_tables):
         sut.db.session.execute("delete from %s;" % table.name)
     sut.db.session.commit()
+    return sut.db.session
 
 
 @pytest.fixture()
