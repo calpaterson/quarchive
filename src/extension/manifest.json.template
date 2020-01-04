@@ -17,7 +17,8 @@
     },
     "browser_specific_settings": {
         "gecko": {
-            "id": "{ee416e00-528a-4b7b-a0d2-98bae198d30c}"
+            "id": "{ee416e00-528a-4b7b-a0d2-98bae198d30c}",
+            "update_url": "https://quarchive.com/extension/gecko/updates.json"
         }
     }
 }
