@@ -5,7 +5,7 @@ from functools import wraps
 import itertools
 import logging
 from uuid import uuid4, UUID
-from typing import Mapping, Set, Any, Optional, Callable, Iterable, cast, Tuple
+from typing import Mapping, Set, Any, Optional, Callable, Iterable, cast, Tuple, TypeVar
 from os import environ
 from urllib.parse import urlsplit, urlunsplit
 import json
@@ -298,9 +298,11 @@ def all_bookmarks(session) -> Iterable[Bookmark]:
         yield bookmark_from_sqla(url, sqla_bookmark)
 
 
-def sign_in_required(
-    handler: Callable[..., Tuple[flask.Response, int]]
-) -> Callable[..., Tuple[flask.Response, int]]:
+# Flask's "views" are quite variable
+V = TypeVar("V", bound=Callable)
+
+
+def sign_in_required(handler: V) -> V:
     @wraps(handler)
     def wrapper(*args, **kwargs):
         if "username" not in flask.session:
@@ -308,28 +310,24 @@ def sign_in_required(
         else:
             return handler(*args, **kwargs)
 
-    return wrapper
+    return cast(V, wrapper)
 
 
-def observe_redirect_to(
-    handler: Callable[..., Tuple[flask.Response, int]]
-) -> Callable[..., Tuple[flask.Response, int]]:
+def observe_redirect_to(handler: V) -> V:
     @wraps(handler)
     def wrapper(*args, **kwargs):
-        response, status_code = handler(*args, **kwargs)
-        if status_code == 200 and "redirect_to" in flask.request.args:
+        response = handler(*args, **kwargs)
+        if response.status_code == 200 and "redirect_to" in flask.request.args:
             redirection = flask.make_response("redirecting",)
             redirection.headers["Location"] = flask.request.args["redirect_to"]
             return redirection, 303
         else:
-            return response, status_code
+            return response
 
-    return wrapper
+    return cast(V, wrapper)
 
 
-def api_key_required(
-    handler: Callable[[], flask.Response]
-) -> Callable[[], flask.Response]:
+def api_key_required(handler: V) -> V:
     @wraps(handler)
     def wrapper(*args, **kwargs):
         try:
@@ -347,7 +345,7 @@ def api_key_required(
             flask.current_app.logger.info("bad api credentials")
             return flask.jsonify({"error": "bad api credentials"}), 400
 
-    return wrapper
+    return cast(V, wrapper)
 
 
 @blueprint.route("/")
@@ -376,17 +374,14 @@ def index() -> Tuple[flask.Response, int]:
         url_obj: SQLAUrl = sqla_obj.url_obj
         url = URL.from_sqla_url(sqla_obj.url_obj)
         bookmarks.append((url, bookmark_from_sqla(url.to_url(), sqla_obj)))
-    return (
-        flask.make_response(
-            flask.render_template(
-                "index.j2",
-                bookmarks=bookmarks,
-                page=page,
-                prev_page_exists=prev_page_exists,
-                next_page_exists=next_page_exists,
-            )
-        ),
-        200,
+    return flask.make_response(
+        flask.render_template(
+            "index.j2",
+            bookmarks=bookmarks,
+            page=page,
+            prev_page_exists=prev_page_exists,
+            next_page_exists=next_page_exists,
+        )
     )
 
 
@@ -406,7 +401,7 @@ def edit_bookmark(url_uuid: UUID) -> Tuple[flask.Response, int]:
     bookmark_fields["updated"] = datetime.utcnow().replace(tzinfo=timezone.utc)
     set_bookmark(db.session, Bookmark(**bookmark_fields))
     db.session.commit()
-    return flask.make_response("ok"), 200
+    return flask.make_response("ok")
 
 
 @blueprint.route("/url/<uuid:url_uuid>")
@@ -416,11 +411,8 @@ def view_url(url_uuid: UUID) -> Tuple[flask.Response, int]:
     if url_obj is None:
         raise exc.NotFound()
     else:
-        return (
-            flask.make_response(
-                flask.render_template("url.j2", url=URL.from_sqla_url(url_obj))
-            ),
-            200,
+        return flask.make_response(
+            flask.render_template("url.j2", url=URL.from_sqla_url(url_obj))
         )
 
 
@@ -431,11 +423,8 @@ def view_netloc(netloc: str) -> Tuple[flask.Response, int]:
     if url_objs.count() == 0:
         raise exc.NotFound()
     else:
-        return (
-            flask.make_response(
-                flask.render_template("netloc.j2", netloc=netloc, url_objs=url_objs)
-            ),
-            200,
+        return flask.make_response(
+            flask.render_template("netloc.j2", netloc=netloc, url_objs=url_objs)
         )
 
 
