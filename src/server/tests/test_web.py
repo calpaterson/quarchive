@@ -49,7 +49,7 @@ def test_index(signed_in_client):
 
     html_parser = etree.HTMLParser()
     root = etree.fromstring(response.get_data(), html_parser)
-    (bookmark,) = CSSSelector("p.bookmark")(root)
+    (bookmark,) = CSSSelector("div.bookmark")(root)
     assert bookmark is not None
 
 
@@ -74,12 +74,12 @@ def test_index_paging(app, signed_in_client):
 
     html_parser = etree.HTMLParser()
     root_pg1 = etree.fromstring(response_pg1.get_data(), html_parser)
-    bookmarks_pg1 = CSSSelector("p.bookmark")(root_pg1)
+    bookmarks_pg1 = CSSSelector("div.bookmark")(root_pg1)
     assert len(bookmarks_pg1) == page_size
 
     response_pg3 = signed_in_client.get("/?page=3")
     assert response_pg1.status_code == 200
 
     root_pg3 = etree.fromstring(response_pg3.get_data(), html_parser)
-    bookmarks_pg3 = CSSSelector("p.bookmark")(root_pg3)
+    bookmarks_pg3 = CSSSelector("div.bookmark")(root_pg3)
     assert len(bookmarks_pg3) == math.floor(0.5 * page_size)
