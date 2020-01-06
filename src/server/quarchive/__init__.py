@@ -198,6 +198,8 @@ def get_bookmark_by_url(session: Session, url: str) -> Optional[Bookmark]:
 
 def get_bookmark_by_url_uuid(session, url_uuid: UUID) -> Optional[Bookmark]:
     sqla_bookmark = session.query(SQLABookmark).get(url_uuid)
+    if sqla_bookmark is None:
+        return None
     url = URL.from_sqla_url(sqla_bookmark.url_obj).to_url()
     return bookmark_from_sqla(url, sqla_bookmark)
 
@@ -367,6 +369,7 @@ def index() -> Tuple[flask.Response, int]:
     offset = (page - 1) * page_size
     sqla_objs = (
         db.session.query(SQLABookmark)
+        .filter(~SQLABookmark.deleted)
         .order_by(SQLABookmark.created.desc())
         .offset(offset)
         .limit(page_size)
@@ -402,10 +405,15 @@ def index() -> Tuple[flask.Response, int]:
 def edit_bookmark(url_uuid: UUID) -> Tuple[flask.Response, int]:
     fields = set(["title", "description", "unread", "deleted"])
     bookmark = get_bookmark_by_url_uuid(db.session, url_uuid)
+    if bookmark is None:
+        raise exc.NotFound()
     bookmark_fields = dataclass_as_dict(bookmark)
     for field in fields:
         if field in flask.request.form:
-            if field in ["unread", "deleted"]:
+            if field == "deleted":
+                bookmark_fields[field] = True
+                flask.flash("Deleted %s" % bookmark.url)
+            elif field == "unread":
                 bookmark_fields[field] = True
             else:
                 bookmark_fields[field] = flask.request.form[field]

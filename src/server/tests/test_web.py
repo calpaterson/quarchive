@@ -53,6 +53,20 @@ def test_index(signed_in_client):
     assert bookmark is not None
 
 
+def test_index_excludes_deleted_bookmarks(signed_in_client):
+    bm = make_bookmark(deleted=True)
+
+    sync_bookmarks(signed_in_client, [bm])
+
+    response = signed_in_client.get("/")
+    assert response.status_code == 200
+
+    html_parser = etree.HTMLParser()
+    root = etree.fromstring(response.get_data(), html_parser)
+    bookmarks = CSSSelector("div.bookmark")(root)
+    assert len(bookmarks) == 0
+
+
 def test_index_paging(app, signed_in_client):
     page_size = app.config["PAGE_SIZE"]
 
