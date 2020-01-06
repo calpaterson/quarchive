@@ -1,0 +1,26 @@
+{# -*- mode: web -*- #}
+{% extends "base.j2" %}
+{% block main %}
+    <h1>Create a bookmark</h1>
+    <form method="POST" action="{{  url_for('quarchive.create_bookmark') }}">
+        <p>
+            <label>URL</label>
+            <input name="url" type="text">
+        </p>
+        <p>
+            <label for="title">Title</label>
+            <input name="title" type="text">
+        </p>
+        <p>
+            <label for="description">Description</label>
+            <textarea name="description"></textarea>
+        </p>
+        <p>
+            <input name="unread" type="checkbox">
+            <label for="unread">Unread</label>
+        </p>
+        <p>
+            <button>Create</button>
+        </p>
+    </form>
+{% endblock %}

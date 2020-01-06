@@ -204,7 +204,7 @@ def get_bookmark_by_url_uuid(session, url_uuid: UUID) -> Optional[Bookmark]:
     return bookmark_from_sqla(url, sqla_bookmark)
 
 
-def set_bookmark(session: Session, bookmark: Bookmark) -> None:
+def set_bookmark(session: Session, bookmark: Bookmark) -> UUID:
     scheme, netloc, path, query, fragment = urlsplit(bookmark.url)
     proposed_uuid = uuid4()
     url_stmt = (
@@ -264,6 +264,7 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> None:
         ),
     )
     session.execute(bookmark_upsert_stmt)
+    return url_uuid
 
 
 def merge_bookmarks(session, recieved_bookmarks: Set[Bookmark]) -> Set[Bookmark]:
@@ -399,10 +400,40 @@ def index() -> Tuple[flask.Response, int]:
     )
 
 
+@blueprint.route("/create-bookmark")
+@sign_in_required
+def create_bookmark_form() -> flask.Response:
+    return flask.make_response(flask.render_template("create_or_edit_bookmark.j2",))
+
+
+@blueprint.route("/bookmark", methods=["POST"])
+@sign_in_required
+def create_bookmark() -> flask.Response:
+    form = flask.request.form
+    creation_time = datetime.utcnow().replace(tzinfo=timezone.utc)
+    bookmark = Bookmark(
+        url=form["url"],
+        title=form["title"],
+        description=form["description"],
+        unread="unread" in form,
+        deleted=False,
+        updated=creation_time,
+        created=creation_time,
+    )
+    url_uuid = set_bookmark(db.session, bookmark)
+    db.session.commit()
+    flask.flash("bookmarked %s" % bookmark.url)
+    response = flask.make_response("Redirecting...", 303)
+    response.headers["Location"] = flask.url_for(
+        "quarchive.edit_bookmark", url_uuid=url_uuid
+    )
+    return response
+
+
 @blueprint.route("/bookmark/<uuid:url_uuid>", methods=["POST"])
 @sign_in_required
 @observe_redirect_to
-def edit_bookmark(url_uuid: UUID) -> Tuple[flask.Response, int]:
+def edit_bookmark(url_uuid: UUID) -> flask.Response:
     fields = set(["title", "description", "unread", "deleted"])
     bookmark = get_bookmark_by_url_uuid(db.session, url_uuid)
     if bookmark is None:

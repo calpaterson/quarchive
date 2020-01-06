@@ -1,5 +1,13 @@
 {# -*- mode: web -*- #}
 
+{% macro header_item(req, route, text) %}
+    {% if req.endpoint == route %}
+        <em>{{ text }}</em>
+    {% else %}
+        <a href="{{ url_for(route) }}">{{ text }}</a>
+    {% endif %}
+{% endmacro %}
+
 <!doctype html>
 <html lang="en">
     <head>
@@ -9,8 +17,10 @@
     </head>
     <body>
         <nav>
-            <strong>Quarchive.com</strong>
-            <a href="{{ url_for('quarchive.index') }}">Bookmarks</a>
+            <span style="background-color: grey"><strong><span style="color: purple">Qu</span><span style="color: white">archive.com</span></strong></span>
+            |
+            {{ header_item(request, 'quarchive.index', "Index") }}
+            {{ header_item(request, 'quarchive.create_bookmark_form', "Create a bookmark") }}
         </nav>
         <main>
 
