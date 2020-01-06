@@ -396,8 +396,11 @@ function enablePeriodicFullSync(){
     periodicFullSyncIntervalId = setInterval(fullSyncWrapper, PERIODIC_FULL_SYNC_INTERVAL);
 }
 
-async function createdListener(browserId, treeNode) {
-    console.log("created: browserId: %s - %o", browserId, treeNode);
+async function createdListener(browserId, buggyTreeNode) {
+    // don't use the second argument, dateAdded is wrong in Firefox - see
+    // https://github.com/calpaterson/quarchive/issues/6
+    console.log("created: browserId: %s - %o", browserId, buggyTreeNode);
+    const treeNode = await lookupTreeNodeFromBrowser(browserId);
     let bookmark = new Bookmark(
         treeNode.url,
         treeNode.title,
