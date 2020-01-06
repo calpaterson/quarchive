@@ -137,6 +137,17 @@ class Bookmark:
 
     @classmethod
     def from_json(cls, mapping: Mapping[str, Any]) -> "Bookmark":
+        try:
+            updated = isoparse(mapping["updated"])
+            created = isoparse(mapping["created"])
+        except ValueError:
+            log.error(
+                "Got invalid datetime: [%s, %s] for %s",
+                mapping["updated"],
+                mapping["created"],
+                mapping["url"],
+            )
+            raise
         return cls(
             url=mapping["url"],
             title=mapping["title"],

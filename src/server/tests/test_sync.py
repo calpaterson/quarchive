@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from dataclasses import asdict as dataclass_as_dict
+import logging
 
 import quarchive as sut
 
@@ -107,3 +108,20 @@ def test_full_sync_gets_all(client):
         "/sync?full=true", headers=working_cred_headers, json={"bookmarks": []}
     )
     assert full_sync_response.json == {"bookmarks": [bm_1.to_json()]}
+
+
+@pytest.mark.full_sync
+def test_logging_for_bug_6(client, caplog):
+    bm_json = make_bookmark().to_json()
+    bm_json["updated"] = "+051979-10-24T11:59:23.000Z"
+
+    with caplog.at_level(logging.ERROR) as e:
+        with pytest.raises(ValueError):
+            client.post(
+                "/sync", json={"bookmarks": [bm_json]}, headers=working_cred_headers
+            )
+
+        assert (
+            caplog.records[0].getMessage()
+            == "Got invalid datetime: [+051979-10-24T11:59:23.000Z, 1970-01-01T00:00:00+00:00] for http://example.com"
+        )
