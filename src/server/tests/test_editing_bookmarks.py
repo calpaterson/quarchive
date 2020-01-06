@@ -43,8 +43,10 @@ def test_editing_a_bookmark(signed_in_client, session, field, form_value, expect
 def test_editing_a_bookmark_that_doesnt_exist(signed_in_client):
     response = signed_in_client.post(
         flask.url_for(
-            "quarchive.edit_bookmark", url_uuid=UUID("f" * 32), redirect_to="/test_location",
+            "quarchive.edit_bookmark",
+            url_uuid=UUID("f" * 32),
+            redirect_to="/test_location",
         ),
-        data={"deleted": "on"}
+        data={"deleted": "on"},
     )
     assert response.status_code == 404
