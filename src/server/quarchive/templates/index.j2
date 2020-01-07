@@ -1,58 +1,59 @@
-{# -*- mode: web -*- #}
+{# -*- mode: jinja2 -*- #}
 {% extends "base.j2" %}
 {% block main %}
-    <h1>Bookmarks</h1>
+  <h1>Bookmarks</h1>
 
-    <p>
-        <span class="prev-page">
-            {% if prev_page_exists %}
-                <a
-                    {% if page == 2 %}
-                    href="/"
-                    {% else %}
-                    href="?page={{ page - 1 }}"
-                    {% endif %}
-                >Previous page</a>
-            {% else %}
-                <s>Previous page</s>
-            {% endif %}
-        </span>
-
-        <span class="next-page">
-            {% if next_page_exists %}
-                <a href="?page={{ page + 1 }}">Next page</a>
-            {% else %}
-                <s>Next page</s>
-            {% endif %}
-        </span>
-    </p>
-
-    {% for url, bookmark in bookmarks %}
-        {{ render_bookmark(url, bookmark) }}
-        {% if not loop.last %}
-            <strong>***</strong>
+  <p>
+    <span class="prev-page">
+      {% if prev_page_exists %}
+        <a
+          {% if page == 2 %}
+            href="/"
+          {% else %}
+            href="?page={{ page - 1 }}"
+          {% endif %}
+          >Previous page</a>
+        {% else %}
+          <s>Previous page</s>
         {% endif %}
-    {% endfor %}
+    </span>
+
+    <span class="next-page">
+      {% if next_page_exists %}
+        <a href="?page={{ page + 1 }}">Next page</a>
+      {% else %}
+        <s>Next page</s>
+      {% endif %}
+    </span>
+  </p>
+
+  {% for url, bookmark in bookmarks %}
+    {{ render_bookmark(url, bookmark) }}
+    {% if not loop.last %}
+      <strong>***</strong>
+    {% endif %}
+  {% endfor %}
 {% endblock %}
 
 {% macro render_bookmark(url, bookmark) -%}
-    <div class="bookmark">
-        <p>
-            <a href="{{url.to_url()}}">{{bookmark.title}}</a> (<a href="{{ url_for('quarchive.view_netloc', netloc=url.netloc) }}">{{ url.netloc }}</a>)
-        </p>
-        <p>
-            <a href="{{ url_for('quarchive.view_url', url_uuid=url.url_uuid) }}">{{ url.to_url() }}</a>
-        </p>
-        <p>
-            <em>created <span title="{{bookmark.created}}">{{bookmark.created|relativetime}}</span></em> {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
-        </p>
-        <p>
-            <form
-                method="POST"
-                action="{{ url_for('quarchive.edit_bookmark', url_uuid=url.url_uuid, redirect_to=request.url) }}">
-                <input type="hidden" name="deleted" value="on">
-                <button>Delete</button>
-            </form>
-        </p>
-    </div>
+  <div class="bookmark">
+    <p>
+      <a href="{{url.to_url()}}">{{bookmark.title}}</a> (<a href="{{ url_for('quarchive.view_netloc', netloc=url.netloc) }}">{{ url.netloc }}</a>)
+    </p>
+    <p>
+      <a href="{{ url_for('quarchive.view_url', url_uuid=url.url_uuid) }}">{{ url.to_url() }}</a>
+    </p>
+    <p>
+      <em>created <span title="{{bookmark.created}}">{{bookmark.created|relativetime}}</span></em> {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
+    </p>
+    <p>
+      <a href="{{ url_for('quarchive.edit_bookmark', url_uuid=url.url_uuid) }}">Edit</a>
+      <form
+        method="POST"
+        action="{{ url_for('quarchive.edit_bookmark', url_uuid=url.url_uuid, redirect_to=request.url) }}">
+        <input type="hidden" name="deleted" value="on">
+        <button>Delete</button>
+      </form>
+    </p>
+  </div>
 {% endmacro %}

@@ -422,7 +422,7 @@ def create_bookmark() -> flask.Response:
     )
     url_uuid = set_bookmark(db.session, bookmark)
     db.session.commit()
-    flask.flash("bookmarked %s" % bookmark.url)
+    flask.flash("Bookmarked: %s" % bookmark.url)
     response = flask.make_response("Redirecting...", 303)
     response.headers["Location"] = flask.url_for(
         "quarchive.edit_bookmark", url_uuid=url_uuid
@@ -430,28 +430,35 @@ def create_bookmark() -> flask.Response:
     return response
 
 
-@blueprint.route("/bookmark/<uuid:url_uuid>", methods=["POST"])
+@blueprint.route("/bookmark/<uuid:url_uuid>", methods=["GET", "POST"])
 @sign_in_required
 @observe_redirect_to
 def edit_bookmark(url_uuid: UUID) -> flask.Response:
-    fields = set(["title", "description", "unread", "deleted"])
-    bookmark = get_bookmark_by_url_uuid(db.session, url_uuid)
-    if bookmark is None:
-        raise exc.NotFound()
-    bookmark_fields = dataclass_as_dict(bookmark)
-    for field in fields:
-        if field in flask.request.form:
-            if field == "deleted":
-                bookmark_fields[field] = True
-                flask.flash("Deleted %s" % bookmark.url)
-            elif field == "unread":
-                bookmark_fields[field] = True
-            else:
-                bookmark_fields[field] = flask.request.form[field]
-    bookmark_fields["updated"] = datetime.utcnow().replace(tzinfo=timezone.utc)
-    set_bookmark(db.session, Bookmark(**bookmark_fields))
-    db.session.commit()
-    return flask.make_response("ok")
+    if flask.request.method == "GET":
+        bookmark = get_bookmark_by_url_uuid(db.session, url_uuid)
+        # FIXME: what if it doesn't exist?
+        return flask.make_response(
+            flask.render_template(
+                "create_or_edit_bookmark.j2", url_uuid=url_uuid, bookmark=bookmark
+            )
+        )
+    else:
+        form = flask.request.form
+        fields = set(["title", "description", "unread", "deleted"])
+        bookmark = get_bookmark_by_url_uuid(db.session, url_uuid)
+        if bookmark is None:
+            raise exc.NotFound()
+        bookmark_fields = dataclass_as_dict(bookmark)
+        bookmark_fields["title"] = form["title"]
+        bookmark_fields["description"] = form["description"]
+        bookmark_fields["unread"] = "unread" in form
+        bookmark_fields["deleted"] = "deleted" in form
+        bookmark_fields["updated"] = datetime.utcnow().replace(tzinfo=timezone.utc)
+        final_bookmark = Bookmark(**bookmark_fields)
+        set_bookmark(db.session, final_bookmark)
+        db.session.commit()
+        flask.flash("Edited: %s" % bookmark.url)
+        return flask.make_response("ok")
 
 
 @blueprint.route("/url/<uuid:url_uuid>")

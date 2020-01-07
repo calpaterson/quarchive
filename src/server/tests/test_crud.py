@@ -40,27 +40,52 @@ def test_creating_a_bookmark(signed_in_client, session, unread):
     )
 
 
+@freeze_time("2018-01-03")
+def test_edit_bookmark_form(signed_in_client, session):
+    bm = make_bookmark()
+    sync_bookmarks(signed_in_client, [bm])
+
+    (url_uuid,) = session.query(SQLABookmark.url_uuid).one()
+
+    response = signed_in_client.get(
+        flask.url_for("quarchive.edit_bookmark", url_uuid=url_uuid)
+    )
+    assert response.status_code == 200
+
+
 @pytest.mark.parametrize(
-    "field, form_value, expected",
+    "field, start_value, form_value, expected",
     [
-        ("deleted", "on", True),
-        ("unread", "on", True),
-        ("title", "Something else", "Something else"),
-        ("description", "A desc", "A desc"),
+        ("deleted", False, "on", True),
+        ("deleted", True, None, False),
+        ("unread", False, "on", True),
+        ("unread", True, None, False),
+        ("title", "example", "Something else", "Something else"),
+        ("description", "example desc", "A desc", "A desc"),
     ],
 )
-def test_editing_a_bookmark(signed_in_client, session, field, form_value, expected):
-    bm = make_bookmark()
+def test_editing_a_bookmark(
+    signed_in_client, session, field, start_value, form_value, expected
+):
+    bm_args = {field: start_value}
+    bm = make_bookmark(**bm_args)
 
     sync_bookmarks(signed_in_client, [bm])
 
     (url_uuid,) = session.query(SQLABookmark.url_uuid).one()
+    form_data = {
+        "title": bm.title,
+        "description": bm.description,
+        # "unread": False and "deleted": False are by default
+    }
+    if form_value is not None:
+        form_data[field] = form_value
 
     response = signed_in_client.post(
         flask.url_for(
             "quarchive.edit_bookmark", url_uuid=url_uuid, redirect_to="/test_location",
         ),
-        data={field: form_value},
+        data=form_data,
     )
     assert response.status_code == 303
     assert response.headers["Location"] == "http://localhost/test_location"
