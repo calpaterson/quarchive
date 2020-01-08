@@ -3,6 +3,11 @@
 {% block main %}
   <h1>Bookmarks</h1>
 
+  <form>
+    <input type="text" name="q">
+    <button>Search</button>
+  </form>
+
   <p>
     <span class="prev-page">
       {% if prev_page_exists %}
@@ -10,7 +15,7 @@
           {% if page == 2 %}
             href="/"
           {% else %}
-            href="?page={{ page - 1 }}"
+            href="{{ modify_query(page=page-1) }}"
           {% endif %}
           >Previous page</a>
         {% else %}
@@ -20,7 +25,7 @@
 
     <span class="next-page">
       {% if next_page_exists %}
-        <a href="?page={{ page + 1 }}">Next page</a>
+        <a href="{{ modify_query(page=page+1) }}">Next page</a>
       {% else %}
         <s>Next page</s>
       {% endif %}

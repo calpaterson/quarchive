@@ -1,4 +1,6 @@
 import math
+
+import flask
 from lxml import etree
 from lxml.cssselect import CSSSelector
 
@@ -97,3 +99,22 @@ def test_index_paging(app, signed_in_client):
     root_pg3 = etree.fromstring(response_pg3.get_data(), html_parser)
     bookmarks_pg3 = CSSSelector("div.bookmark")(root_pg3)
     assert len(bookmarks_pg3) == math.floor(0.5 * page_size)
+
+
+def test_index_search(app, signed_in_client):
+    def get_bookmark_urls(response):
+        html_parser = etree.HTMLParser()
+        root = etree.fromstring(response.get_data(), html_parser)
+        bookmarks = CSSSelector("div.bookmark>p:nth-child(2)>a")(root)
+        return [b.text for b in bookmarks]
+
+    bm1 = make_bookmark()
+    bm2 = make_bookmark(url="http://test.com", title="Test")
+
+    sync_bookmarks(signed_in_client, [bm1, bm2])
+
+    normal_response = signed_in_client.get(flask.url_for("quarchive.index"))
+    assert len(get_bookmark_urls(normal_response)) == 2
+
+    search_response = signed_in_client.get(flask.url_for("quarchive.index", q="test"))
+    assert get_bookmark_urls(search_response) == ["http://test.com"]

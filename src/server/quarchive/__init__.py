@@ -12,9 +12,10 @@ import json
 
 import click
 from werkzeug import exceptions as exc
+from werkzeug.urls import url_encode
 from dateutil.parser import isoparse
 from babel.dates import format_timedelta
-from sqlalchemy import Column, ForeignKey, types as satypes
+from sqlalchemy import Column, ForeignKey, types as satypes, func
 from sqlalchemy.orm import relationship, RelationshipProperty, Session
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, insert as pg_insert
 from sqlalchemy.ext.declarative import declarative_base
@@ -368,20 +369,24 @@ def index() -> Tuple[flask.Response, int]:
     page_size = flask.current_app.config["PAGE_SIZE"]
     page = int(flask.request.args.get("page", "1"))
     offset = (page - 1) * page_size
+    query = db.session.query(SQLABookmark).filter(~SQLABookmark.deleted)
+
+    if "q" in flask.request.args:
+        search_query = flask.request.args["q"]
+        combined_tsvector = func.to_tsvector(SQLABookmark.title).op("||")(
+            func.to_tsvector(SQLABookmark.description)
+        )
+        query = query.filter(
+            combined_tsvector.op("@@")(func.websearch_to_tsquery(search_query))
+        )
+
     sqla_objs = (
-        db.session.query(SQLABookmark)
-        .filter(~SQLABookmark.deleted)
-        .order_by(SQLABookmark.created.desc())
-        .offset(offset)
-        .limit(page_size)
+        query.order_by(SQLABookmark.created.desc()).offset(offset).limit(page_size)
     )
 
     prev_page_exists = page > 1
     next_page_exists: bool = db.session.query(
-        db.session.query(SQLABookmark)
-        .order_by(SQLABookmark.created.desc())
-        .offset(offset + page_size)
-        .exists()
+        query.order_by(SQLABookmark.created.desc()).offset(offset + page_size).exists()
     ).scalar()
 
     bookmarks = []
@@ -557,6 +562,15 @@ def init_app(db_uri: str, password: str, secret_key: str) -> flask.Flask:
     @app.context_processor
     def context_processor():
         return {"urlunsplit": urlunsplit}
+
+    @app.template_global(name="modify_query")
+    def modify_query(**new_args):
+        args = flask.request.args.copy()
+
+        for key, value in new_args.items():
+            args[key] = value
+
+        return "?%s" % url_encode(args)
 
     return app
 
