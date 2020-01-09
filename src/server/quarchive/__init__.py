@@ -548,7 +548,7 @@ def init_app(db_uri: str, password: str, secret_key: str) -> flask.Flask:
         "connect_args": {"options": "-c timezone=utc"}
     }
 
-    app.config["PAGE_SIZE"] = 10
+    app.config["PAGE_SIZE"] = 30
     app.config["PASSWORD"] = password
     db.init_app(app)
     cors.init_app(app)
