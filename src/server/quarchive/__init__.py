@@ -401,6 +401,7 @@ def index() -> Tuple[flask.Response, int]:
             page=page,
             prev_page_exists=prev_page_exists,
             next_page_exists=next_page_exists,
+            q=flask.request.args.get("q"),
         )
     )
 
@@ -568,7 +569,11 @@ def init_app(db_uri: str, password: str, secret_key: str) -> flask.Flask:
         args = flask.request.args.copy()
 
         for key, value in new_args.items():
-            args[key] = value
+            if value is not None:
+                args[key] = value
+            else:
+                # None is a request to unset
+                del args[key]
 
         return "?%s" % url_encode(args)
 

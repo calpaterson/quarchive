@@ -4,7 +4,13 @@
   <h1>Bookmarks</h1>
 
   <form>
-    <input type="text" name="q">
+    <input
+      type="text"
+      name="q"
+      {% if q %}
+      value="{{ q }}"
+      {% endif %}
+      >
     <button>Search</button>
   </form>
 
@@ -13,7 +19,7 @@
       {% if prev_page_exists %}
         <a
           {% if page == 2 %}
-            href="/"
+            href={{ modify_query(page=None) }}
           {% else %}
             href="{{ modify_query(page=page-1) }}"
           {% endif %}
