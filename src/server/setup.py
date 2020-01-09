@@ -1,8 +1,10 @@
 from setuptools import setup, find_packages
 
+VERSION = open("VERSION").read().strip()
+
 setup(
     name="quarchive",
-    version="0.0.1",
+    version=VERSION,
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,

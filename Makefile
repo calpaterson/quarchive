@@ -1,9 +1,11 @@
 web_ext := src/extension/node_modules/web-ext/bin/web-ext
 eslint := src/extension/node_modules/eslint/bin/eslint.js
 commit := $(shell git rev-parse --short HEAD)
-artefact := quarchive-0.0.1-py3-none-any.whl
 js_files := $(wildcard src/extension/*.js)
 py_files := $(shell find src/server -name '*.py' -not -path "src/server/.tox/*" -not -path "src/server/build/**")
+server_version_file := src/server/VERSION
+server_version := $(shell cat $(server_version_file))
+artefact := quarchive-$(server_version)-py3-none-any.whl
 extension_version_file := src/extension/VERSION
 extension_version := $(shell cat $(extension_version_file))
 extension_manifest := src/extension/manifest.json
@@ -17,7 +19,7 @@ dist:
 	mkdir -p dist
 
 # Server build steps
-dist/$(artefact): $(py_files) | dist
+dist/$(artefact): $(py_files) $(server_version_file) | dist
 	cd src/server; tox
 	mv src/server/dist/$(artefact) dist/
 
