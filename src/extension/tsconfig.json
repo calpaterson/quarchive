@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "noEmitOnError": true,
+        "target": "es6",
+        "moduleResolution": "node",
+        "module": "commonjs",
+        "esModuleInterop": true,
+        "sourceMap": true
+    },
+    "include": [
+        "*.ts"
+    ],
+    "exclude": [
+        "node_modules"
+    ],
+  "lib": ["es2015"]
+}

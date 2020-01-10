@@ -14,6 +14,14 @@ let listenersEnabled = false;
 var periodicFullSyncIntervalId;
 
 class Bookmark {
+    url: string;
+    title;
+    description;
+    created;
+    updated;
+    deleted;
+    unread;
+    browserId;
     constructor(url, title, description, created, updated, deleted, unread, browserId){
         this.url = url;
         this.title = title;
@@ -88,7 +96,7 @@ class Bookmark {
 
     to_db_json() {
         let json = this.to_json();
-        json.browserId = this.browserId;
+        json["browserId"] = this.browserId;
         return json
     }
 
@@ -190,7 +198,7 @@ async function allBookmarksFromLocalDb() {
     });
 }
 
-async function lookupBookmarkFromLocalDbByUrl(url) {
+async function lookupBookmarkFromLocalDbByUrl(url: string): Promise<Bookmark> {
     return new Promise(function(resolve, reject) {
         var transaction = db.transaction(["bookmarks"], "readonly");
         transaction.onerror = function(event){
@@ -215,7 +223,7 @@ async function lookupBookmarkFromLocalDbByUrl(url) {
 }
 
 // Lookup the bookmark from local db
-async function lookupBookmarkFromLocalDbByBrowserId(browserId) {
+async function lookupBookmarkFromLocalDbByBrowserId(browserId: string): Promise<Bookmark> {
     return new Promise(function(resolve, reject) {
         var transaction = db.transaction(["bookmarks"], "readonly");
         transaction.onerror = function(event){
@@ -241,7 +249,7 @@ async function lookupBookmarkFromLocalDbByBrowserId(browserId) {
 }
 
 // Insert the bookmark into local db
-async function insertBookmarkIntoLocalDb(bookmark){
+async function insertBookmarkIntoLocalDb(bookmark: Bookmark){
     return new Promise(function(resolve, reject) {
         var transaction = db.transaction(["bookmarks"], "readwrite");
         transaction.onerror = function(event){
@@ -322,7 +330,7 @@ async function callSyncAPI(bookmark) {
     console.log("syncing %o", sync_body);
     const [APIURL, username, APIKey] = await getHTTPConfig();
     // FIXME: failure should be logged
-    const url = new URL("/sync", APIURL);
+    const url = new URL("/sync", APIURL).toString();
     const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -348,7 +356,7 @@ async function callFullSyncAPI(bookmarks){
     }
     console.log("calling /sync?full=true");
     const [APIURL, username, APIKey] = await getHTTPConfig();
-    const url = new URL("/sync?full=true", APIURL);
+    const url = new URL("/sync?full=true", APIURL).toString();
     const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -490,7 +498,8 @@ dbOpenRequest.onerror = function(event){
 }
 dbOpenRequest.onupgradeneeded = function (event) {
     console.log("upgrade needed: %o", event);
-    var db = event.target.result;
+    let target = <IDBOpenDBRequest> event.target;
+    var db = target.result;
     var objectStore = db.createObjectStore("bookmarks", {keyPath: "url"});
     objectStore.createIndex("browserId", "browserId", {unique: true});
     objectStore.transaction.oncomplete = function(event) {

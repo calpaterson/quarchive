@@ -1,20 +1,22 @@
 {
-  "name": "quartermarker",
-  "version": "0.0.1",
-  "description": "",
-  "main": "quartermarker.js",
-  "dependencies": {},
-  "devDependencies": {
-    "eslint": "^6.7.2",
-    "web-ext": "^3.2.1"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "\t"
-  },
-  "author": "",
-  "license": "UNLICENSED"
+    "name": "quarchive",
+    "version": "0.0.1",
+    "description": "",
+    "main": "quartermarker.js",
+    "dependencies": {},
+    "devDependencies": {
+        "eslint": "~6.7.2",
+        "web-ext": "~3.2.1",
+        "typescript": "~3.7.4",
+        "@types/firefox-webext-browser": "~70.0.1"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "\t"
+    },
+    "author": "",
+    "license": "UNLICENSED"
 }
