@@ -1,6 +1,7 @@
 web_ext := src/extension/node_modules/web-ext/bin/web-ext
 eslint := src/extension/node_modules/eslint/bin/eslint.js
 tsc := src/extension/node_modules/typescript/bin/tsc
+jest := src/extension/node_modules/jest/bin/jest.js
 commit := $(shell git rev-parse --short HEAD)
 ts_files := $(wildcard src/extension/*.ts)
 js_files := $(ts_files:ts=js)
@@ -29,8 +30,9 @@ dist/$(artefact): $(py_files) $(server_version_file) | dist
 dist/quarchive-$(extension_version).zip: $(web_ext) $(js_files) $(extension_manifest) | dist
 	$(web_ext) build -a dist -s src/extension/ -i package.json -i package-lock.json -i manifest.json.template -i VERSION --overwrite-dest
 
-$(js_files): src/extension/tsconfig.json $(ts_files)
+$(js_files): src/extension/tsconfig.json $(ts_files) src/extension/jest.config.js
 	$(tsc) --build src/extension/tsconfig.json
+	$(jest) -c src/extension/jest.config.js
 
 src/extension/.eslint-sentinel: $(eslint) $(js_files)
 	$(eslint) -f unix src/extension/quarchive-background.js src/extension/quarchive-options.js
@@ -39,5 +41,5 @@ src/extension/.eslint-sentinel: $(eslint) $(js_files)
 $(extension_manifest): $(extension_manifest_template) $(extension_version_file)
 	sed 's/$$VERSION/$(extension_version)/' $(extension_manifest_template) > $@
 
-$(web_ext) $(tsc) $(eslint):
+$(web_ext) $(tsc) $(eslint) $(jest):
 	cd src/extension; npm install --save-dev
