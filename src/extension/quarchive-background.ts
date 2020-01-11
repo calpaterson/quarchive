@@ -13,7 +13,7 @@ let listenersEnabled = false;
 // eslint-disable-next-line no-unused-vars
 var periodicFullSyncIntervalId;
 
-class Bookmark {
+export class Bookmark {
     url: string;
     title: string;
     description: string;
@@ -501,30 +501,33 @@ function disableListeners() {
     }
 }
 
-const dbOpenRequest = window.indexedDB.open("quarchive", SCHEMA_VERSION);
-dbOpenRequest.onerror = function(event){
-    console.warn("unable to open database: %o", event);
-}
-dbOpenRequest.onupgradeneeded = function (event) {
-    console.log("upgrade needed: %o", event);
-    let target = <IDBOpenDBRequest> event.target;
-    var db = target.result;
-    var objectStore = db.createObjectStore("bookmarks", {keyPath: "url"});
-    objectStore.createIndex("browserId", "browserId", {unique: true});
-    objectStore.transaction.oncomplete = function(event) {
-        console.log("upgrade transaction complete: %o", event);
+// De facto Main method
+if (typeof window !== 'undefined') {
+    const dbOpenRequest = window.indexedDB.open("quarchive", SCHEMA_VERSION);
+    dbOpenRequest.onerror = function(event){
+        console.warn("unable to open database: %o", event);
     }
-}
-dbOpenRequest.onsuccess = function(event){
-    console.log("opened database: %o, %o", event, dbOpenRequest.result);
-    db = dbOpenRequest.result;
-    db.onerror = function(event) {
-        console.error("db error %o", event);
+    dbOpenRequest.onupgradeneeded = function (event) {
+        console.log("upgrade needed: %o", event);
+        let target = <IDBOpenDBRequest> event.target;
+        var db = target.result;
+        var objectStore = db.createObjectStore("bookmarks", {keyPath: "url"});
+        objectStore.createIndex("browserId", "browserId", {unique: true});
+        objectStore.transaction.oncomplete = function(event){
+            console.log("upgrade transaction complete: %o", event);
+        }
     }
-    fullSync().then(function() {
-        enableListeners();
-        enablePeriodicFullSync();
-    });
-};
+    dbOpenRequest.onsuccess = function(event){
+        console.log("opened database: %o, %o", event, dbOpenRequest.result);
+        db = dbOpenRequest.result;
+        db.onerror = function(event) {
+            console.error("db error %o", event);
+        }
+        fullSync().then(function() {
+            enableListeners();
+            enablePeriodicFullSync();
+        });
+    };
 
-console.log("quarchive loaded");
+    console.log("quarchive loaded");
+};

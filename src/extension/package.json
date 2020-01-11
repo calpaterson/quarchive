@@ -8,6 +8,7 @@
         "@types/firefox-webext-browser": "~70.0.1",
         "@types/jest": "24.0.25",
         "eslint": "~6.7.2",
+        "fake-indexeddb": "~3.0.0",
         "jest": "~24.9.0",
         "ts-jest": "24.3.0",
         "typescript": "~3.7.4",
