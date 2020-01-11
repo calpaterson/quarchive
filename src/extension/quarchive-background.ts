@@ -5,7 +5,7 @@ const SCHEMA_VERSION = 2;
 // An hour
 const PERIODIC_FULL_SYNC_INTERVAL = 60 * 60 * 1000;
 
-var db;
+var db: IDBDatabase;
 
 let listenersEnabled = false;
 
@@ -15,14 +15,23 @@ var periodicFullSyncIntervalId;
 
 class Bookmark {
     url: string;
-    title;
-    description;
-    created;
-    updated;
-    deleted;
-    unread;
-    browserId;
-    constructor(url, title, description, created, updated, deleted, unread, browserId){
+    title: string;
+    description: string;
+    created: Date;
+    updated: Date;
+    deleted: boolean;
+    unread: boolean;
+    browserId: string;
+    constructor(
+        url: string,
+        title: string,
+        description: string,
+        created: Date,
+        updated: Date,
+        deleted: boolean,
+        unread:boolean,
+        browserId: string
+    ){
         this.url = url;
         this.title = title;
         this.description = description,
@@ -37,7 +46,7 @@ class Bookmark {
         // this.tags = tags;
     }
 
-    merge(other) {
+    merge(other: Bookmark): Bookmark {
         let moreRecent;
         let minCreated;
         let maxUpdated;
@@ -76,7 +85,7 @@ class Bookmark {
         )
     }
 
-    equals(other) {
+    equals(other: Bookmark) {
         // this is utterly absurd but seems to be the way people do things in
         // js
         return JSON.stringify(this) == JSON.stringify(other);
@@ -128,7 +137,7 @@ async function getHTTPConfig() {
 }
 
 // Lookup the bookmark from browser.bookmarks
-async function lookupTreeNodeFromBrowser(browserId) {
+async function lookupTreeNodeFromBrowser(browserId: string) {
     // FIXME: this can fail, should check to make sure no more than one
     // treeNode
     const treeNodes = await browser.bookmarks.get(browserId)
@@ -136,7 +145,7 @@ async function lookupTreeNodeFromBrowser(browserId) {
     return treeNode
 }
 
-async function allTreeNodesFromBrowser() {
+async function allTreeNodesFromBrowser(): Promise<Array<browser.bookmarks.BookmarkTreeNode>> {
     // cautiously create a new array rather than reusing because who knows what
     // will happen if we mutate the array returned by getTree
     var unexplored = [(await browser.bookmarks.getTree())[0]];
@@ -156,7 +165,7 @@ async function allTreeNodesFromBrowser() {
     return treeNodes;
 }
 
-async function upsertBookmarkIntoBrowser(bookmark) {
+async function upsertBookmarkIntoBrowser(bookmark: Bookmark) {
     // Unable to read or write tags
     // https://bugzilla.mozilla.org/show_bug.cgi?id=1225916
     const argument = {
@@ -175,7 +184,7 @@ async function upsertBookmarkIntoBrowser(bookmark) {
    }
 }
 
-async function allBookmarksFromLocalDb() {
+async function allBookmarksFromLocalDb(): Promise<Array<Bookmark>> {
     return new Promise(function(resolve, reject) {
         var transaction = db.transaction(["bookmarks"], "readonly");
         transaction.onerror = function(event){
@@ -185,7 +194,7 @@ async function allBookmarksFromLocalDb() {
         var request = objectStore.getAll()
         // eslint-disable-next-line no-unused-vars
         request.onsuccess = function(event){
-            var rv = [];
+            var rv: Array<Bookmark> = [];
             for (var object of request.result){
                 rv.push(Bookmark.from_json(object));
             }
@@ -268,7 +277,7 @@ async function insertBookmarkIntoLocalDb(bookmark: Bookmark){
     });
 }
 
-async function updateBookmarkInLocalDb(bookmark){
+async function updateBookmarkInLocalDb(bookmark: Bookmark){
     return new Promise(function(resolve, reject) {
         var transaction = db.transaction(["bookmarks"], "readwrite");
         transaction.onerror = function(event){
@@ -324,7 +333,7 @@ async function syncBrowserBookmarksToLocalDb() {
 }
 
 // Syncs a bookmark with the API
-async function callSyncAPI(bookmark) {
+async function callSyncAPI(bookmark: Bookmark) {
     const sync_body = {
         "bookmarks": [bookmark.to_json()]};
     console.log("syncing %o", sync_body);
@@ -349,7 +358,7 @@ async function callSyncAPI(bookmark) {
     return returnValue;
 }
 
-async function callFullSyncAPI(bookmarks){
+async function callFullSyncAPI(bookmarks: Array<Bookmark>){
     var body = [];
     for (var bookmark of bookmarks) {
         body.push(bookmark.to_json())
@@ -404,7 +413,7 @@ function enablePeriodicFullSync(){
     periodicFullSyncIntervalId = setInterval(fullSyncWrapper, PERIODIC_FULL_SYNC_INTERVAL);
 }
 
-async function createdListener(browserId, buggyTreeNode) {
+async function createdListener(browserId: string, buggyTreeNode: browser.bookmarks.BookmarkTreeNode) {
     // don't use the second argument, dateAdded is wrong in Firefox - see
     // https://github.com/calpaterson/quarchive/issues/6
     console.log("created: browserId: %s - %o", browserId, buggyTreeNode);
@@ -435,7 +444,7 @@ async function createdListener(browserId, buggyTreeNode) {
     }
 }
 
-async function changeListener(browserId, changeInfo) {
+async function changeListener(browserId: string, changeInfo) {
     console.log("changed: browserId: %s - %o", browserId, changeInfo);
     const treeNode = await lookupTreeNodeFromBrowser(browserId);
     const bookmarkInDb = await lookupBookmarkFromLocalDbByBrowserId(browserId);
@@ -450,7 +459,7 @@ async function changeListener(browserId, changeInfo) {
     }
 }
 
-async function removedListener(browserId, removeInfo) {
+async function removedListener(browserId: string, removeInfo) {
     console.log("removed browserId: %s - %o", browserId, removeInfo);
     const bookmarkFromBrowser = await lookupBookmarkFromLocalDbByBrowserId(browserId)
     bookmarkFromBrowser.deleted = true;
@@ -465,7 +474,7 @@ async function removedListener(browserId, removeInfo) {
     }
 }
 
-async function movedListener(browserId, moveInfo) {
+async function movedListener(browserId: string, moveInfo) {
     console.log("moved: browserId: %s - %o", browserId, moveInfo);
     // Nothing to do
 }

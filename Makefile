@@ -29,7 +29,7 @@ dist/$(artefact): $(py_files) $(server_version_file) | dist
 dist/quarchive-$(extension_version).zip: $(web_ext) $(js_files) $(extension_manifest) | dist
 	$(web_ext) build -a dist -s src/extension/ -i package.json -i package-lock.json -i manifest.json.template -i VERSION --overwrite-dest
 
-$(js_files): src/extension/tsconfig.json
+$(js_files): src/extension/tsconfig.json $(ts_files)
 	$(tsc) --build src/extension/tsconfig.json
 
 src/extension/.eslint-sentinel: $(eslint) $(js_files)

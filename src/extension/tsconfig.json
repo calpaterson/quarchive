@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
         "noEmitOnError": true,
-        "target": "es6",
+        "target": "ES2019",
         "moduleResolution": "node",
         "module": "commonjs",
         "esModuleInterop": true,
@@ -13,5 +13,5 @@
     "exclude": [
         "node_modules"
     ],
-  "lib": ["es2015"]
+  "lib": ["ES2018"]
 }
