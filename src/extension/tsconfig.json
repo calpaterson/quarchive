@@ -3,15 +3,17 @@
         "noEmitOnError": true,
         "target": "ES2019",
         "moduleResolution": "node",
-        "module": "commonjs",
+        "module": "es6",
         "esModuleInterop": true,
-        "sourceMap": true
+        "sourceMap": true,
+        "outDir": "build/",
     },
     "include": [
-        "*.ts"
+        "src/*.ts"
     ],
     "exclude": [
-        "node_modules"
+        // FIXME: exclude tests
+        // "src/*.test.ts",
     ],
   "lib": ["ES2018"]
 }

@@ -1,5 +1,3 @@
 node_modules
 .eslint-sentinel
-manifest.json
-*.js
-*.js.map
+build
