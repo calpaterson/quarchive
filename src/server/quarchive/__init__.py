@@ -25,42 +25,10 @@ from flask_cors import CORS
 
 log = logging.getLogger("quarchive")
 
-Base: Any = declarative_base()
-
-
-class SQLAUrl(Base):
-    __tablename__ = "urls"
-
-    # Synthetic key for foreign references
-    url_uuid = Column(PGUUID(as_uuid=True), nullable=False, index=True, unique=True)
-
-    # The actual url
-    scheme = Column(satypes.String, nullable=False, index=True, primary_key=True)
-    netloc = Column(satypes.String, nullable=False, index=True, primary_key=True)
-    path = Column(satypes.String, nullable=False, index=True, primary_key=True)
-    query = Column(satypes.String, nullable=False, index=True, primary_key=True)
-    fragment = Column(satypes.String, nullable=False, index=True, primary_key=True)
-
-
-class SQLABookmark(Base):
-    __tablename__ = "bookmarks"
-
-    url_uuid = Column(
-        PGUUID(as_uuid=True), ForeignKey("urls.url_uuid"), primary_key=True
-    )
-
-    title = Column(satypes.String, nullable=False, index=True)
-    description = Column(satypes.String, nullable=False, index=True)
-
-    created = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
-    updated = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
-
-    unread = Column(satypes.Boolean, nullable=False, index=True)
-    deleted = Column(satypes.Boolean, nullable=False, index=True)
-
-    url_obj: RelationshipProperty = relationship(
-        SQLAUrl, uselist=False, backref="bookmark_objs"
-    )
+# fmt: off
+# Dataclasses
+...
+# fmt: on
 
 
 @dataclass(frozen=True)
@@ -79,7 +47,7 @@ class URL:
         )
 
     @classmethod
-    def from_sqla_url(cls, sql_url: SQLAUrl) -> "URL":
+    def from_sqla_url(cls, sql_url: "SQLAUrl") -> "URL":
         # sqlalchemy-stubs can't figure this out
         url_uuid = cast(UUID, sql_url.url_uuid)
         return cls(
@@ -160,12 +128,7 @@ class Bookmark:
         )
 
 
-db = SQLAlchemy()
-cors = CORS()
-blueprint = flask.Blueprint("quarchive", "quarchive")
-
-
-def bookmark_from_sqla(url: str, sqla_obj: SQLABookmark) -> Bookmark:
+def bookmark_from_sqla(url: str, sqla_obj: "SQLABookmark") -> Bookmark:
     return Bookmark(
         url=url,
         created=sqla_obj.created,
@@ -174,6 +137,49 @@ def bookmark_from_sqla(url: str, sqla_obj: SQLABookmark) -> Bookmark:
         unread=sqla_obj.unread,
         deleted=sqla_obj.deleted,
         title=sqla_obj.title,
+    )
+
+
+# fmt: off
+# DB layer
+...
+# fmt: on
+
+Base: Any = declarative_base()
+
+
+class SQLAUrl(Base):
+    __tablename__ = "urls"
+
+    # Synthetic key for foreign references
+    url_uuid = Column(PGUUID(as_uuid=True), nullable=False, index=True, unique=True)
+
+    # The actual url
+    scheme = Column(satypes.String, nullable=False, index=True, primary_key=True)
+    netloc = Column(satypes.String, nullable=False, index=True, primary_key=True)
+    path = Column(satypes.String, nullable=False, index=True, primary_key=True)
+    query = Column(satypes.String, nullable=False, index=True, primary_key=True)
+    fragment = Column(satypes.String, nullable=False, index=True, primary_key=True)
+
+
+class SQLABookmark(Base):
+    __tablename__ = "bookmarks"
+
+    url_uuid = Column(
+        PGUUID(as_uuid=True), ForeignKey("urls.url_uuid"), primary_key=True
+    )
+
+    title = Column(satypes.String, nullable=False, index=True)
+    description = Column(satypes.String, nullable=False, index=True)
+
+    created = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
+    updated = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
+
+    unread = Column(satypes.Boolean, nullable=False, index=True)
+    deleted = Column(satypes.Boolean, nullable=False, index=True)
+
+    url_obj: RelationshipProperty = relationship(
+        SQLAUrl, uselist=False, backref="bookmark_objs"
     )
 
 
@@ -311,6 +317,16 @@ def all_bookmarks(session) -> Iterable[Bookmark]:
             ]
         )
         yield bookmark_from_sqla(url, sqla_bookmark)
+
+
+# fmt: off
+# # Web layer
+...
+# fmt: on
+
+db = SQLAlchemy()
+cors = CORS()
+blueprint = flask.Blueprint("quarchive", "quarchive")
 
 
 # Flask's "views" are quite variable
@@ -578,6 +594,12 @@ def init_app(db_uri: str, password: str, secret_key: str) -> flask.Flask:
         return "?%s" % url_encode(args)
 
     return app
+
+
+# fmt: off
+# Entry points
+...
+# fmt: on
 
 
 def main() -> None:
