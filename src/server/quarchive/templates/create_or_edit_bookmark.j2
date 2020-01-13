@@ -8,7 +8,7 @@
     <h1>Create a bookmark</h1>
     <form method="POST" action="{{  url_for('quarchive.create_bookmark', redirect_to=request.url) }}">
   {% endif %}
-  {% if bookmark.deleted %}
+  {% if bookmark and bookmark.deleted %}
     <p>
       (deleted)
     </p>
@@ -40,11 +40,11 @@
   </p>
   <textarea name="description">{% if bookmark %}{{ bookmark.description }}{% endif %}</textarea>
   <p>
-    <input name="unread" type="checkbox"{% if bookmark.unread %}checked{% endif %}>
+    <input name="unread" type="checkbox"{% if bookmark and bookmark.unread %}checked{% endif %}>
     <label for="unread">Unread</label>
   </p>
   <p>
-    {% if bookmark.deleted %}
+    {% if bookmark and bookmark.deleted %}
       <button>Undelete</button>
     {% else %}
       <button name="deleted" value="on">Delete</button>

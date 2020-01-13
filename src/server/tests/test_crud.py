@@ -13,6 +13,11 @@ from .utils import sync_bookmarks
 pytestmark = pytest.mark.web
 
 
+def test_create_bookmark_form(signed_in_client):
+    response = signed_in_client.get(flask.url_for("quarchive.create_bookmark_form"))
+    assert response.status_code == 200
+
+
 @freeze_time("2018-01-03")
 @pytest.mark.parametrize("unread", [True, False])
 def test_creating_a_bookmark(signed_in_client, session, unread):
