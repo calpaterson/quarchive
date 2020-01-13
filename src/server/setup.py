@@ -17,6 +17,9 @@ setup(
         "babel~=2.7.0",
         "click~=7.0.0",
         "python-dateutil~=2.8.1",
+        "celery~=4.4.0",
+        "requests~=2.22.0",
+        "boto3~=1.11.0",
     ],
     extras_require={
         "tests": [
@@ -28,6 +31,8 @@ setup(
             "lxml~=4.4.2",
             "cssselect~=1.1.0",
             "freezegun~=0.3.12",
+            "responses~=0.10.9",
+            "moto~=1.3.14",
         ],
         "dev": [
             "wheel~=0.33.6",

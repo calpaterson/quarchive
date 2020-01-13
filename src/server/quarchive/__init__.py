@@ -1,7 +1,8 @@
 from dataclasses import dataclass, asdict as dataclass_as_dict
 import re
+import contextlib
 from datetime import datetime, timezone, timedelta
-from functools import wraps
+from functools import wraps, lru_cache
 import itertools
 import logging
 from uuid import uuid4, UUID
@@ -11,13 +12,21 @@ from urllib.parse import urlsplit, urlunsplit
 import json
 
 import click
+import boto3
+import requests
 from werkzeug import exceptions as exc
 from werkzeug.urls import url_encode
 from dateutil.parser import isoparse
 from babel.dates import format_timedelta
-from sqlalchemy import Column, ForeignKey, types as satypes, func
-from sqlalchemy.orm import relationship, RelationshipProperty, Session
-from sqlalchemy.dialects.postgresql import UUID as PGUUID, insert as pg_insert
+from sqlalchemy import Column, ForeignKey, types as satypes, func, create_engine
+from sqlalchemy.orm import (
+    relationship,
+    RelationshipProperty,
+    Session,
+    sessionmaker,
+    scoped_session,
+)
+from sqlalchemy.dialects.postgresql import UUID as PGUUID, insert as pg_insert, JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from flask_sqlalchemy import SQLAlchemy
 import flask
@@ -183,6 +192,30 @@ class SQLABookmark(Base):
     )
 
 
+class CrawlRequest(Base):
+    __tablename__ = "crawl_requests"
+
+    crawl_uuid = Column(PGUUID(as_uuid=True), primary_key=True)
+    url_uuid = Column(PGUUID(as_uuid=True), ForeignKey("urls.url_uuid"), index=True)
+    requested = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
+    got_response = Column(satypes.Boolean, index=True)
+
+
+class CrawlResponse(Base):
+    __tablename__ = "crawl_responses"
+
+    crawl_uuid = Column(
+        PGUUID(as_uuid=True), ForeignKey("crawl_requests.crawl_uuid"), primary_key=True
+    )
+    body_uuid = Column(PGUUID(as_uuid=True), unique=True, nullable=False)
+    headers = Column(JSONB(), nullable=False, index=True)
+    status_code = Column(satypes.SmallInteger, nullable=False, index=True)
+
+    request_obj: RelationshipProperty = relationship(
+        CrawlRequest, uselist=False, backref="response_obj"
+    )
+
+
 def get_bookmark_by_url(session: Session, url: str) -> Optional[Bookmark]:
     scheme, netloc, path, query, fragment = urlsplit(url)
     sqla_bookmark = (
@@ -209,6 +242,47 @@ def get_bookmark_by_url_uuid(session, url_uuid: UUID) -> Optional[Bookmark]:
         return None
     url = URL.from_sqla_url(sqla_bookmark.url_obj).to_url()
     return bookmark_from_sqla(url, sqla_bookmark)
+
+
+def upsert_url(session, url) -> UUID:
+    scheme, netloc, path, query, fragment = urlsplit(url)
+    proposed_uuid = uuid4()
+    url_stmt = (
+        pg_insert(SQLAUrl.__table__)
+        .values(
+            url_uuid=proposed_uuid,
+            scheme=scheme,
+            netloc=netloc,
+            path=path,
+            query=query,
+            fragment=fragment,
+        )
+        .on_conflict_do_nothing(
+            index_elements=["scheme", "netloc", "path", "query", "fragment"]
+        )
+        .returning(SQLAUrl.__table__.c.url_uuid)
+    )
+    upsert_result_set = session.execute(url_stmt).fetchone()
+
+    url_uuid: UUID
+    if upsert_result_set is None:
+        # The update didn't happen, but we still need to know what the url uuid
+        # is...
+        (url_uuid,) = (
+            session.query(SQLAUrl.url_uuid)
+            .filter(
+                SQLAUrl.scheme == scheme,
+                SQLAUrl.netloc == netloc,
+                SQLAUrl.path == path,
+                SQLAUrl.query == query,
+                SQLAUrl.fragment == fragment,
+            )
+            .one()
+        )
+    else:
+        # If the update did happen, we know our proposed uuid was used
+        url_uuid = proposed_uuid
+    return url_uuid
 
 
 def set_bookmark(session: Session, bookmark: Bookmark) -> UUID:
@@ -594,6 +668,65 @@ def init_app(db_uri: str, password: str, secret_key: str) -> flask.Flask:
         return "?%s" % url_encode(args)
 
     return app
+
+
+# fmt: off
+# Crawling / background tasks
+...
+# fmt: on
+
+
+@lru_cache(1)
+def get_session_cls() -> Session:
+    session_factory = sessionmaker(bind=create_engine(environ["QM_SQL_URL"]))
+    Session = scoped_session(session_factory)
+    return Session
+
+
+@lru_cache(1)
+def get_client() -> requests.Session:
+    return requests.Session()
+
+
+@lru_cache(1)
+def get_s3():
+    return boto3.resource("s3")
+
+
+@lru_cache(1)
+def get_response_body_bucket():
+    return get_s3().Bucket("test_bucket")
+
+
+def crawl_url(crawl_uuid: UUID, url: str):
+    client = get_client()
+    bucket = get_response_body_bucket()
+    with contextlib.closing(get_session_cls()) as session:
+        url_uuid = upsert_url(session, url)
+        crawl_request = CrawlRequest(
+            crawl_uuid=crawl_uuid,
+            url_uuid=url_uuid,
+            requested=datetime.utcnow().replace(tzinfo=timezone.utc),
+            got_response=False,
+        )
+        session.add(crawl_request)
+        response = client.get(url, stream=True)
+        crawl_request.got_response = True
+
+        body_uuid = uuid4()
+        # Typeshed type looks wrong, proposed a fix in https://github.com/python/typeshed/pull/3610
+        headers = cast(requests.structures.CaseInsensitiveDict, response.headers)
+        session.add(
+            CrawlResponse(
+                crawl_uuid=crawl_uuid,
+                body_uuid=body_uuid,
+                headers=dict(headers.lower_items()),
+                status_code=response.status_code,
+            )
+        )
+
+        bucket.upload_fileobj(response.raw, Key=str(body_uuid))
+        session.commit()
 
 
 # fmt: off
