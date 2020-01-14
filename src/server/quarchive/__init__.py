@@ -35,6 +35,24 @@ from flask_cors import CORS
 log = logging.getLogger("quarchive")
 
 # fmt: off
+# Config loading
+...
+# fmt: on
+
+REQUIRED_CONFIG_KEYS = {
+    "QM_SQL_URL",
+    "QM_PASSWORD",
+    "QM_SECRET_KEY",
+}
+
+
+def load_config() -> None:
+    if not REQUIRED_CONFIG_KEYS.issubset(set(environ.keys())):
+        missing_keys = REQUIRED_CONFIG_KEYS.difference(set(environ.keys()))
+        raise RuntimeError("incomplete configuration! missing keys: %s" % missing_keys)
+
+
+# fmt: off
 # Dataclasses
 ...
 # fmt: on
