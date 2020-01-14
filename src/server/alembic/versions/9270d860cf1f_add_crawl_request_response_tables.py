@@ -70,4 +70,3 @@ def downgrade():
     op.drop_index(op.f("ix_crawl_requests_requested"), table_name="crawl_requests")
     op.drop_index(op.f("ix_crawl_requests_got_response"), table_name="crawl_requests")
     op.drop_table("crawl_requests")
-
