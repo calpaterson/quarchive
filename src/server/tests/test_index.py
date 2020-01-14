@@ -72,10 +72,10 @@ def test_index_excludes_deleted_bookmarks(signed_in_client):
 def test_index_paging(app, signed_in_client):
     page_size = app.config["PAGE_SIZE"]
 
-    bms = [
+    bms = (
         make_bookmark(url="http://example.com/%s" % i)
         for i in range(math.floor(page_size * 2.5))
-    ]
+    )
 
     sync_bookmarks(signed_in_client, bms)
 

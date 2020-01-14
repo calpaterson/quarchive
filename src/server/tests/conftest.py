@@ -1,5 +1,5 @@
 from os import environ, path
-from typing import MutableMapping, Any
+from typing import Mapping, Any
 from datetime import datetime, timezone
 from unittest import mock
 
@@ -42,7 +42,7 @@ def app(sql_db):
 
 
 def make_bookmark(**kwargs):
-    values: MutableMapping[str, Any] = {
+    bookmark_defaults: Mapping[str, Any] = {
         "url": "http://example.com",
         "title": "Example",
         "created": datetime(1970, 1, 1, tzinfo=timezone.utc),
@@ -51,8 +51,7 @@ def make_bookmark(**kwargs):
         "unread": False,
         "deleted": False,
     }
-    values.update(kwargs)
-    return sut.Bookmark(**values)
+    return sut.Bookmark(**{**bookmark_defaults, **kwargs})
 
 
 @pytest.fixture()

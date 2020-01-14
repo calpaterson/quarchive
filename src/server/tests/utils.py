@@ -1,7 +1,11 @@
+from typing import Iterable
+
+from quarchive import Bookmark
+
 from .conftest import working_cred_headers
 
 
-def sync_bookmarks(client, bookmarks):
+def sync_bookmarks(client, bookmarks: Iterable[Bookmark]):
     response = client.post(
         "/sync",
         json={"bookmarks": [bookmark.to_json() for bookmark in bookmarks]},
