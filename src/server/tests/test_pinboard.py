@@ -23,7 +23,7 @@ def environment_variables():
 
 @pytest.mark.pinboard_import
 @freeze_time("2018-01-03")
-def test_pinboard_bookmark():
+def test_pinboard_bookmark(session):
     runner = CliRunner()
     json_path = path.join(test_data_path, "pinboard-bookmark.json")
     result = runner.invoke(pinboard_import, json_path, catch_exceptions=False)
@@ -46,7 +46,7 @@ def test_pinboard_bookmark():
 
 @pytest.mark.pinboard_import
 @freeze_time("2018-01-03")
-def test_pinboard_with_note():
+def test_pinboard_with_note(session):
     runner = CliRunner()
     json_path = path.join(test_data_path, "pinboard-note.json")
     result = runner.invoke(pinboard_import, json_path, catch_exceptions=False)

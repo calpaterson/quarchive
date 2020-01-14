@@ -9,12 +9,12 @@ import pytest
 from .conftest import make_bookmark, working_cred_headers
 
 
-def test_no_credentials(client):
+def test_no_credentials(client, session):
     response = client.post("/sync", json={"bookmarks": []},)
     assert response.status_code == 400
 
 
-def test_wrong_credentials(client):
+def test_wrong_credentials(client, session):
     response = client.post(
         "/sync",
         json={"bookmarks": []},
@@ -24,7 +24,7 @@ def test_wrong_credentials(client):
 
 
 @pytest.mark.sync
-def test_adding_new_bookmark(client):
+def test_adding_new_bookmark(client, session):
     response = client.post(
         "/sync",
         json={"bookmarks": [make_bookmark().to_json()]},
@@ -35,7 +35,7 @@ def test_adding_new_bookmark(client):
 
 
 @pytest.mark.sync
-def test_syncing_bookmark_that_already_exists_with_no_changes(client):
+def test_syncing_bookmark_that_already_exists_with_no_changes(client, session):
     bm = make_bookmark()
     client.post(
         "/sync", json={"bookmarks": [bm.to_json()]}, headers=working_cred_headers
@@ -49,7 +49,7 @@ def test_syncing_bookmark_that_already_exists_with_no_changes(client):
 
 
 @pytest.mark.sync
-def test_syncing_bookmark_that_already_exists_but_has_changed(client):
+def test_syncing_bookmark_that_already_exists_but_has_changed(client, session):
     bm_1 = make_bookmark()
     bm_2 = make_bookmark(
         title="Example 2",
@@ -69,7 +69,7 @@ def test_syncing_bookmark_that_already_exists_but_has_changed(client):
 
 
 @pytest.mark.sync
-def test_syncing_bookmark_that_already_exists_but_is_old(client):
+def test_syncing_bookmark_that_already_exists_but_is_old(client, session):
     bm_1 = make_bookmark()
     bm_2 = make_bookmark(
         title="Example 2",
@@ -95,7 +95,7 @@ def test_syncing_bookmark_that_already_exists_but_is_old(client):
 
 
 @pytest.mark.full_sync
-def test_full_sync_gets_all(client):
+def test_full_sync_gets_all(client, session):
     bm_1 = make_bookmark()
 
     # First, sync the bookmark
@@ -111,7 +111,7 @@ def test_full_sync_gets_all(client):
 
 
 @pytest.mark.full_sync
-def test_logging_for_bug_6(client, caplog):
+def test_logging_for_bug_6(client, caplog, session):
     bm_json = make_bookmark().to_json()
     bm_json["updated"] = "+051979-10-24T11:59:23.000Z"
 

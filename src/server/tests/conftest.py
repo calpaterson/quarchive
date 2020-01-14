@@ -26,7 +26,7 @@ def sql_db():
         yield
 
 
-@pytest.fixture(autouse=True, scope="function")
+@pytest.fixture(scope="function")
 def session(app, sql_db):
     for table in reversed(sut.Base.metadata.sorted_tables):
         sut.db.session.execute("delete from %s;" % table.name)

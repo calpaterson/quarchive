@@ -55,7 +55,7 @@ def test_index(signed_in_client):
     assert bookmark is not None
 
 
-def test_index_excludes_deleted_bookmarks(signed_in_client):
+def test_index_excludes_deleted_bookmarks(signed_in_client, session):
     bm = make_bookmark(deleted=True)
 
     sync_bookmarks(signed_in_client, [bm])
@@ -69,7 +69,7 @@ def test_index_excludes_deleted_bookmarks(signed_in_client):
     assert len(bookmarks) == 0
 
 
-def test_index_paging(app, signed_in_client):
+def test_index_paging(app, signed_in_client, session):
     page_size = app.config["PAGE_SIZE"]
 
     bms = (
@@ -101,7 +101,7 @@ def test_index_paging(app, signed_in_client):
     assert len(bookmarks_pg3) == math.floor(0.5 * page_size)
 
 
-def test_index_search(app, signed_in_client):
+def test_index_search(app, signed_in_client, session):
     def get_bookmark_urls(response):
         html_parser = etree.HTMLParser()
         root = etree.fromstring(response.get_data(), html_parser)
