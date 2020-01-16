@@ -1,5 +1,6 @@
 from dataclasses import dataclass, asdict as dataclass_as_dict
 import re
+import configparser
 import contextlib
 from datetime import datetime, timezone, timedelta
 from functools import wraps, lru_cache
@@ -7,7 +8,7 @@ import itertools
 import logging
 from uuid import uuid4, UUID
 from typing import Mapping, Set, Any, Optional, Callable, Iterable, cast, Tuple, TypeVar
-from os import environ
+from os import environ, path
 from urllib.parse import urlsplit, urlunsplit
 import json
 
@@ -46,7 +47,18 @@ REQUIRED_CONFIG_KEYS = {
 }
 
 
-def load_config() -> None:
+def load_config(env_ini: Optional[str] = None) -> None:
+    if env_ini is not None:
+        log.info("loading from %s", path.abspath(env_ini))
+        parser = configparser.ConfigParser()
+        # mypy confused by this unusual pattern
+        # https://github.com/python/mypy/issues/708
+        parser.optionxform = str  # type: ignore
+        parser.read(env_ini)
+        environ.update(parser["env"].items())
+    else:
+        log.warning("not loading env from any config file")
+
     if not REQUIRED_CONFIG_KEYS.issubset(set(environ.keys())):
         missing_keys = REQUIRED_CONFIG_KEYS.difference(set(environ.keys()))
         raise RuntimeError("incomplete configuration! missing keys: %s" % missing_keys)
@@ -459,6 +471,7 @@ def api_key_required(handler: V) -> V:
         except KeyError:
             flask.current_app.logger.info("no api credentials")
             return flask.jsonify({"error": "no api credentials"}), 400
+        # FIXME: Should reference config, not flask.current_app.config["PASSWORD"]
         if (
             username == "calpaterson"
             and api_key == flask.current_app.config["PASSWORD"]
@@ -732,7 +745,8 @@ def crawl_url(crawl_uuid: UUID, url: str):
         crawl_request.got_response = True
 
         body_uuid = uuid4()
-        # Typeshed type looks wrong, proposed a fix in https://github.com/python/typeshed/pull/3610
+        # Typeshed type looks wrong, proposed a fix in
+        # https://github.com/python/typeshed/pull/3610
         headers = cast(requests.structures.CaseInsensitiveDict, response.headers)
         session.add(
             CrawlResponse(
