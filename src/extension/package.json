@@ -10,6 +10,7 @@
         "eslint": "~6.7.2",
         "fake-indexeddb": "~3.0.0",
         "jest": "~24.9.0",
+        "sinon-chrome": "~3.0.1",
         "ts-jest": "24.3.0",
         "typescript": "~3.7.4",
         "web-ext": "~3.2.1"
