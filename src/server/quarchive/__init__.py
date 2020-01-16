@@ -44,6 +44,7 @@ REQUIRED_CONFIG_KEYS = {
     "QM_SQL_URL",
     "QM_PASSWORD",
     "QM_SECRET_KEY",
+    "QM_RESPONSE_BODY_BUCKET_NAME",
 }
 
 
@@ -657,10 +658,11 @@ def sync() -> flask.Response:
     return flask.json.jsonify({"bookmarks": [b.to_json() for b in response_bookmarks]})
 
 
-def init_app(db_uri: str, password: str, secret_key: str) -> flask.Flask:
+def init_app() -> flask.Flask:
+    load_config(env_ini=environ.get("QM_ENV_INI", None))
     app = flask.Flask("quarchive")
-    app.config["SECRET_KEY"] = secret_key
-    app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
+    app.config["SECRET_KEY"] = environ["QM_SECRET_KEY"]
+    app.config["SQLALCHEMY_DATABASE_URI"] = environ["QM_SQL_URL"]
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     # By default Postgres will consult the locale to decide what timezone to
@@ -670,7 +672,7 @@ def init_app(db_uri: str, password: str, secret_key: str) -> flask.Flask:
     }
 
     app.config["PAGE_SIZE"] = 30
-    app.config["PASSWORD"] = password
+    app.config["PASSWORD"] = environ["QM_PASSWORD"]
     db.init_app(app)
     cors.init_app(app)
     app.register_blueprint(blueprint)
@@ -726,7 +728,7 @@ def get_s3():
 
 @lru_cache(1)
 def get_response_body_bucket():
-    return get_s3().Bucket("test_bucket")
+    return get_s3().Bucket(environ["QM_RESPONSE_BODY_BUCKET_NAME"])
 
 
 def crawl_url(crawl_uuid: UUID, url: str):
@@ -768,9 +770,7 @@ def crawl_url(crawl_uuid: UUID, url: str):
 
 
 def main() -> None:
-    app = init_app(
-        environ["QM_SQL_URL"], environ["QM_PASSWORD"], environ["QM_SECRET_KEY"]
-    )
+    app = init_app()
     logging.basicConfig(level=logging.INFO)
     app.run()
 
@@ -793,9 +793,7 @@ def pinboard_import(json_file):
     document = json.load(json_file)
     keys = set(itertools.chain(*[item.keys() for item in document]))
     log.info("keys = %s", keys)
-    app = init_app(
-        environ["QM_SQL_URL"], environ["QM_PASSWORD"], environ["QM_SECRET_KEY"]
-    )
+    app = init_app()
     with app.app_context():
         for pinboard_bookmark in document:
             set_bookmark(db.session, pinboard_bookmark_to_bookmark(pinboard_bookmark))

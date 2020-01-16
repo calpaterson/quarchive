@@ -20,14 +20,22 @@ working_cred_headers = {
 test_data_path = path.join(path.dirname(__file__), "test-data")
 
 
-@pytest.fixture(scope="session")
-def sql_db():
-    with mock.patch.dict(environ, {"QM_SQL_URL": environ["QM_SQL_URL_TEST"]}):
-        yield
+# @pytest.fixture(scope="session")
+# def sql_db():
+#     with mock.patch.dict(environ, {"QM_SQL_URL": environ["QM_SQL_URL_TEST"]}):
+#         yield
 
 
 @pytest.fixture(scope="function")
-def session(app, sql_db):
+def config(monkeypatch):
+    monkeypatch.setenv("QM_SQL_URL", environ["QM_SQL_URL_TEST"])
+    monkeypatch.setenv("QM_PASSWORD", "test_password")
+    monkeypatch.setenv("QM_SECRET_KEY", "secret_key")
+    monkeypatch.setenv("QM_RESPONSE_BODY_BUCKET_NAME", "test_body_bucket")
+
+
+@pytest.fixture(scope="function")
+def session(app, config):
     for table in reversed(sut.Base.metadata.sorted_tables):
         sut.db.session.execute("delete from %s;" % table.name)
     sut.db.session.commit()
@@ -35,8 +43,8 @@ def session(app, sql_db):
 
 
 @pytest.fixture()
-def app(sql_db):
-    a = sut.init_app(environ["QM_SQL_URL"], "test_password", "secret_key")
+def app(config):
+    a = sut.init_app()
     a.config["TESTING"] = True
     return a
 

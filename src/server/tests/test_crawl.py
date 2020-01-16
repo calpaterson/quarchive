@@ -1,5 +1,6 @@
 from uuid import UUID
 from datetime import datetime, timezone
+from os import environ
 
 import boto3
 
@@ -16,9 +17,7 @@ pytestmark = pytest.mark.crawler
 @pytest.fixture(scope="function")
 def mock_s3():
     with moto.mock_s3():
-
-        sut.get_s3().create_bucket(Bucket="test_bucket")
-
+        sut.get_s3().create_bucket(Bucket=environ["QM_RESPONSE_BODY_BUCKET_NAME"])
         yield
 
 
@@ -41,6 +40,10 @@ def test_crawl_when_response_is_recieved(session, status_code, mock_s3):
     assert response.crawl_uuid == crawl_uuid
     assert response.headers == {"content-type": "text/plain"}
 
-    s3_obj = sut.get_s3().Object("test_bucket", str(response.body_uuid)).get()
+    s3_obj = (
+        sut.get_s3()
+        .Object(environ["QM_RESPONSE_BODY_BUCKET_NAME"], str(response.body_uuid))
+        .get()
+    )
     response_body = s3_obj["Body"].read()
     assert response_body == b"hello"

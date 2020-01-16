@@ -18,7 +18,14 @@ def test_load_config_with_incomplete_config():
 
 def test_load_config_with_test_config():
     with patch.dict(
-        environ, {"QM_PASSWORD": "", "QM_SECRET_KEY": "", "QM_SQL_URL": ""}, clear=True
+        environ,
+        {
+            "QM_PASSWORD": "",
+            "QM_SECRET_KEY": "",
+            "QM_SQL_URL": "",
+            "QM_RESPONSE_BODY_BUCKET_NAME": "",
+        },
+        clear=True,
     ):
         sut.load_config()
 
