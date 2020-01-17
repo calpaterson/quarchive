@@ -768,17 +768,13 @@ def crawl_url(crawl_uuid: UUID, url: str):
             )
         )
 
+        # Otherwise we'll get the raw stream (often gzipped) rather than the
+        # raw payload (usually html bytes)
+        response.raw.decode_content = True
+
         with tempfile.TemporaryFile(mode="w+b") as temp_file:
             gzip_fileobj = gzip.GzipFile(mode="w+b", fileobj=temp_file)
-
-            # Need to decode the content in case there is an unusual content
-            # encoding
-            while 1:
-                buf = response.raw.read(16*1024, decode_content=True)
-                if not buf:
-                    break
-                gzip_fileobj.write(buf)
-
+            shutil.copyfileobj(response.raw, gzip_fileobj)
             gzip_fileobj.close()
             temp_file.seek(0)
             bucket.upload_fileobj(temp_file, Key=str(body_uuid))
