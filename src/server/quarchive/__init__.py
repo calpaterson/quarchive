@@ -1,20 +1,24 @@
 from dataclasses import dataclass, asdict as dataclass_as_dict
-import re
 import configparser
 import contextlib
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
+import gzip
 from functools import wraps, lru_cache
 import itertools
 import logging
 from uuid import uuid4, UUID
-from typing import Mapping, Set, Any, Optional, Callable, Iterable, cast, Tuple, TypeVar
+from typing import Mapping, Set, Any, Optional, Callable, Iterable, cast, TypeVar, Tuple
 from os import environ, path
 from urllib.parse import urlsplit, urlunsplit
 import json
+import tempfile
+import shutil
 
 import click
 import boto3
+from botocore.utils import fix_s3_host
 import requests
+from celery import Celery
 from werkzeug import exceptions as exc
 from werkzeug.urls import url_encode
 from dateutil.parser import isoparse
@@ -708,6 +712,7 @@ def init_app() -> flask.Flask:
 ...
 # fmt: on
 
+celery_app = Celery("quarchive")
 
 @lru_cache(1)
 def get_session_cls() -> Session:
@@ -730,6 +735,10 @@ def get_s3():
 def get_response_body_bucket():
     return get_s3().Bucket(environ["QM_RESPONSE_BODY_BUCKET_NAME"])
 
+
+@celery_app.task
+def ok():
+    log.info("ok")
 
 def crawl_url(crawl_uuid: UUID, url: str):
     client = get_client()
@@ -759,7 +768,21 @@ def crawl_url(crawl_uuid: UUID, url: str):
             )
         )
 
-        bucket.upload_fileobj(response.raw, Key=str(body_uuid))
+        with tempfile.TemporaryFile(mode="w+b") as temp_file:
+            gzip_fileobj = gzip.GzipFile(mode="w+b", fileobj=temp_file)
+
+            # Need to decode the content in case there is an unusual content
+            # encoding
+            while 1:
+                buf = response.raw.read(16*1024, decode_content=True)
+                if not buf:
+                    break
+                gzip_fileobj.write(buf)
+
+            gzip_fileobj.close()
+            temp_file.seek(0)
+            bucket.upload_fileobj(temp_file, Key=str(body_uuid))
+
         session.commit()
 
 

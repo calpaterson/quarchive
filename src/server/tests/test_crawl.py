@@ -1,8 +1,7 @@
 from uuid import UUID
 from datetime import datetime, timezone
 from os import environ
-
-import boto3
+import gzip
 
 import responses
 import moto
@@ -46,4 +45,4 @@ def test_crawl_when_response_is_recieved(session, status_code, mock_s3):
         .get()
     )
     response_body = s3_obj["Body"].read()
-    assert response_body == b"hello"
+    assert response_body == gzip.compress(b"hello")
