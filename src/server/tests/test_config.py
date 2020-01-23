@@ -24,6 +24,10 @@ def test_load_config_with_test_config():
             "QM_SECRET_KEY": "",
             "QM_SQL_URL": "",
             "QM_RESPONSE_BODY_BUCKET_NAME": "",
+            "QM_AWS_SECRET_ACCESS_KEY": "",
+            "QM_AWS_ACCESS_KEY": "",
+            "QM_AWS_REGION_NAME": "",
+            "QM_AWS_S3_ENDPOINT_URL": "",
         },
         clear=True,
     ):

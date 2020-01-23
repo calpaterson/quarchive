@@ -49,6 +49,10 @@ REQUIRED_CONFIG_KEYS = {
     "QM_PASSWORD",
     "QM_SECRET_KEY",
     "QM_RESPONSE_BODY_BUCKET_NAME",
+    "QM_AWS_ACCESS_KEY",
+    "QM_AWS_REGION_NAME",
+    "QM_AWS_SECRET_ACCESS_KEY",
+    "QM_AWS_S3_ENDPOINT_URL",
 }
 
 
@@ -714,6 +718,7 @@ def init_app() -> flask.Flask:
 
 celery_app = Celery("quarchive")
 
+
 @lru_cache(1)
 def get_session_cls() -> Session:
     session_factory = sessionmaker(bind=create_engine(environ["QM_SQL_URL"]))
@@ -728,7 +733,20 @@ def get_client() -> requests.Session:
 
 @lru_cache(1)
 def get_s3():
-    return boto3.resource("s3")
+    session = boto3.Session(
+        aws_access_key_id=environ["QM_AWS_ACCESS_KEY"],
+        aws_secret_access_key=environ["QM_AWS_SECRET_ACCESS_KEY"],
+        region_name=environ["QM_AWS_REGION_NAME"],
+    )
+
+    # This is a magic value to facilitate testing
+    resource_kwargs = {}
+    if environ["QM_AWS_S3_ENDPOINT_URL"] != "UNSET":
+        resource_kwargs["endpoint_url"] = environ["QM_AWS_S3_ENDPOINT_URL"]
+
+    resource = session.resource("s3", **resource_kwargs)
+    resource.meta.client.meta.events.unregister("before-sign.s3", fix_s3_host)
+    return resource
 
 
 @lru_cache(1)
@@ -737,10 +755,60 @@ def get_response_body_bucket():
 
 
 @celery_app.task
-def ok():
+def celery_ok():
     log.info("ok")
 
-def crawl_url(crawl_uuid: UUID, url: str):
+
+@celery_app.on_after_configure.connect
+def setup_periodic_tasks(sender, **kwargs):
+    # FIXME: add periodic tasks here
+    pass
+
+
+def enqueue_crawls_for_uncrawled_urls():
+    with contextlib.closing(get_session_cls()) as sesh:
+        rs = (
+            sesh.query(
+                SQLAUrl.scheme,
+                SQLAUrl.netloc,
+                SQLAUrl.path,
+                SQLAUrl.query,
+                SQLAUrl.fragment,
+            )
+            .leftjoin(CrawlRequest, SQLAUrl.url_uuid == CrawlRequest.url_uuid)
+            .filter(CrawlRequest.crawl_uuid.is_(None))
+        )
+        uncrawled_urls = (urlunsplit(*tup) for tup in rs)
+        for uncrawled_url in uncrawled_urls:
+            crawl_url_if_uncrawled.delay(uncrawled_url)
+
+
+@celery_app.task
+def crawl_url_if_uncrawled(url: str) -> None:
+    """Crawl a url only if it has never been crawled before.
+
+    For use from celery beat"""
+    scheme, netloc, path, query, fragment = urlsplit(url)
+    with contextlib.closing(get_session_cls()) as sesh:
+        is_crawled: bool = sesh.query(
+            sesh.query(CrawlRequest)
+            .join(SQLAUrl)
+            .filter(
+                SQLAUrl.scheme == scheme,
+                SQLAUrl.netloc == netloc,
+                SQLAUrl.path == path,
+                SQLAUrl.query == query,
+                SQLAUrl.fragment == fragment,
+            )
+            .exists()
+        ).scalar()
+    if not is_crawled:
+        crawl_uuid = uuid4()
+        crawl_url(crawl_uuid, url)
+
+
+@celery_app.task
+def crawl_url(crawl_uuid: UUID, url: str) -> None:
     client = get_client()
     bucket = get_response_body_bucket()
     with contextlib.closing(get_session_cls()) as session:

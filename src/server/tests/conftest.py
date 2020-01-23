@@ -20,18 +20,16 @@ working_cred_headers = {
 test_data_path = path.join(path.dirname(__file__), "test-data")
 
 
-# @pytest.fixture(scope="session")
-# def sql_db():
-#     with mock.patch.dict(environ, {"QM_SQL_URL": environ["QM_SQL_URL_TEST"]}):
-#         yield
-
-
 @pytest.fixture(scope="function")
 def config(monkeypatch):
     monkeypatch.setenv("QM_SQL_URL", environ["QM_SQL_URL_TEST"])
     monkeypatch.setenv("QM_PASSWORD", "test_password")
     monkeypatch.setenv("QM_SECRET_KEY", "secret_key")
     monkeypatch.setenv("QM_RESPONSE_BODY_BUCKET_NAME", "test_body_bucket")
+    monkeypatch.setenv("QM_AWS_SECRET_ACCESS_KEY", "123")
+    monkeypatch.setenv("QM_AWS_ACCESS_KEY", "abc")
+    monkeypatch.setenv("QM_AWS_REGION_NAME", "moon")
+    monkeypatch.setenv("QM_AWS_S3_ENDPOINT_URL", "UNSET")
 
 
 @pytest.fixture(scope="function")

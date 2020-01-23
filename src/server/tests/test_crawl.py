@@ -46,3 +46,21 @@ def test_crawl_when_response_is_recieved(session, status_code, mock_s3):
     )
     response_body = s3_obj["Body"].read()
     assert response_body == gzip.compress(b"hello")
+
+
+def test_crawl_url_if_uncrawled_fresh(session, mock_s3):
+    url = "http://example.com"
+
+    responses.add(responses.GET, url, body=b"hello", stream=True)
+
+    sut.crawl_url_if_uncrawled(url)
+
+    # Effectively assert that there's only one
+    pairs = session.query(sut.CrawlRequest, sut.CrawlResponse).all()
+    assert len(pairs) == 1
+
+    sut.crawl_url_if_uncrawled(url)
+
+    # Assert again
+    pairs = session.query(sut.CrawlRequest, sut.CrawlResponse).all()
+    assert len(pairs) == 1
