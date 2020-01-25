@@ -247,7 +247,7 @@ class CrawlResponse(Base):
         PGUUID(as_uuid=True), ForeignKey("crawl_requests.crawl_uuid"), primary_key=True
     )
     body_uuid = Column(PGUUID(as_uuid=True), unique=True, nullable=False)
-    headers = Column(JSONB(), nullable=False, index=True)
+    headers = Column(JSONB(), nullable=False, index=False)
     status_code = Column(satypes.SmallInteger, nullable=False, index=True)
 
     request_obj: RelationshipProperty = relationship(
