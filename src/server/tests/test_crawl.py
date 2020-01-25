@@ -67,7 +67,9 @@ def test_crawl_when_response_is_recieved(session, status_code, mock_s3):
 @responses.activate
 def test_crawl_when_no_response(session):
     url = "http://example.com"
-    responses.add(responses.GET, url, body=requests.exceptions.ConnectTimeout("connect timeout"))
+    responses.add(
+        responses.GET, url, body=requests.exceptions.ConnectTimeout("connect timeout")
+    )
 
     crawl_uuid = UUID("f" * 32)
     sut.crawl_url(crawl_uuid, url)
@@ -101,13 +103,11 @@ def test_crawl_url_if_uncrawled(session, mock_s3):
 def test_enqueue_of_uncrawled(session, eager_celery, mock_s3):
     url = "http://example.com"
     s, n, p, q, f = urlsplit(url)
-    session.add(sut.SQLAUrl(
-        url_uuid=UUID("f" * 32),
-        scheme=s,
-        netloc=n,
-        path=p,
-        query=q,
-        fragment=f))
+    session.add(
+        sut.SQLAUrl(
+            url_uuid=UUID("f" * 32), scheme=s, netloc=n, path=p, query=q, fragment=f
+        )
+    )
     session.commit()
 
     responses.add(responses.GET, url, body=b"hello", stream=True)
