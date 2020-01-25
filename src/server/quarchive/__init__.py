@@ -775,10 +775,10 @@ def enqueue_crawls_for_uncrawled_urls():
                 SQLAUrl.query,
                 SQLAUrl.fragment,
             )
-            .leftjoin(CrawlRequest, SQLAUrl.url_uuid == CrawlRequest.url_uuid)
+            .outerjoin(CrawlRequest, SQLAUrl.url_uuid == CrawlRequest.url_uuid)
             .filter(CrawlRequest.crawl_uuid.is_(None))
         )
-        uncrawled_urls = (urlunsplit(*tup) for tup in rs)
+        uncrawled_urls = (urlunsplit(tup) for tup in rs)
         for uncrawled_url in uncrawled_urls:
             crawl_url_if_uncrawled.delay(uncrawled_url)
 

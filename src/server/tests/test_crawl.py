@@ -1,7 +1,9 @@
 from uuid import UUID
+from unittest import mock
 from datetime import datetime, timezone
 from os import environ
 import gzip
+from urllib.parse import urlsplit
 
 import responses
 import moto
@@ -18,6 +20,13 @@ def mock_s3():
     with moto.mock_s3():
         sut.get_s3().create_bucket(Bucket=environ["QM_RESPONSE_BODY_BUCKET_NAME"])
         yield
+
+
+@pytest.fixture(scope="function")
+def eager_celery():
+    sut.celery_app.conf.update(CELERY_ALWAYS_EAGER=True)
+    yield
+    sut.celery_app.conf.update(CELERY_ALWAYS_EAGER=False)
 
 
 @responses.activate
@@ -48,7 +57,7 @@ def test_crawl_when_response_is_recieved(session, status_code, mock_s3):
     assert response_body == gzip.compress(b"hello")
 
 
-def test_crawl_url_if_uncrawled_fresh(session, mock_s3):
+def test_crawl_url_if_uncrawled(session, mock_s3):
     url = "http://example.com"
 
     responses.add(responses.GET, url, body=b"hello", stream=True)
@@ -63,4 +72,23 @@ def test_crawl_url_if_uncrawled_fresh(session, mock_s3):
 
     # Assert again
     pairs = session.query(sut.CrawlRequest, sut.CrawlResponse).all()
+    assert len(pairs) == 1
+
+
+def test_enqueue_of_uncrawled(session, eager_celery, mock_s3):
+    url = "http://example.com"
+    s, n, p, q, f = urlsplit(url)
+    session.add(sut.SQLAUrl(
+        url_uuid=UUID("f" * 32),
+        scheme=s,
+        netloc=n,
+        path=p,
+        query=q,
+        fragment=f))
+    session.commit()
+
+    responses.add(responses.GET, url, body=b"hello", stream=True)
+    sut.enqueue_crawls_for_uncrawled_urls()
+
+    pairs = session.query(sut.CrawlRequest, sut.CrawlRequest).all()
     assert len(pairs) == 1
