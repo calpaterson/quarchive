@@ -5,6 +5,7 @@ from os import environ
 import gzip
 from urllib.parse import urlsplit
 
+import requests
 import responses
 import moto
 from freezegun import freeze_time
@@ -24,9 +25,15 @@ def mock_s3():
 
 @pytest.fixture(scope="function")
 def eager_celery():
-    sut.celery_app.conf.update(CELERY_ALWAYS_EAGER=True)
+    sut.celery_app.conf.update(task_always_eager=True)
     yield
-    sut.celery_app.conf.update(CELERY_ALWAYS_EAGER=False)
+    sut.celery_app.conf.update(task_always_eager=False)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def lower_requests_timeout():
+    with mock.patch.object(sut, "REQUESTS_TIMEOUT", 0.1):
+        yield
 
 
 @responses.activate
@@ -57,6 +64,21 @@ def test_crawl_when_response_is_recieved(session, status_code, mock_s3):
     assert response_body == gzip.compress(b"hello")
 
 
+@responses.activate
+def test_crawl_when_no_response(session):
+    url = "http://example.com"
+    responses.add(responses.GET, url, body=requests.exceptions.ConnectTimeout("connect timeout"))
+
+    crawl_uuid = UUID("f" * 32)
+    sut.crawl_url(crawl_uuid, url)
+
+    request = session.query(sut.CrawlRequest).one()
+    response = session.query(sut.CrawlResponse).first()
+    assert request is not None
+    assert response is None
+
+
+@responses.activate
 def test_crawl_url_if_uncrawled(session, mock_s3):
     url = "http://example.com"
 
@@ -75,6 +97,7 @@ def test_crawl_url_if_uncrawled(session, mock_s3):
     assert len(pairs) == 1
 
 
+@responses.activate
 def test_enqueue_of_uncrawled(session, eager_celery, mock_s3):
     url = "http://example.com"
     s, n, p, q, f = urlsplit(url)

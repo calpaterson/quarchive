@@ -726,6 +726,9 @@ def get_session_cls() -> Session:
     return Session
 
 
+REQUESTS_TIMEOUT = 30
+
+
 @lru_cache(1)
 def get_client() -> requests.Session:
     return requests.Session()
@@ -779,8 +782,9 @@ def enqueue_crawls_for_uncrawled_urls():
             .filter(CrawlRequest.crawl_uuid.is_(None))
         )
         uncrawled_urls = (urlunsplit(tup) for tup in rs)
-        for uncrawled_url in uncrawled_urls:
-            crawl_url_if_uncrawled.delay(uncrawled_url)
+    for uncrawled_url in uncrawled_urls:
+        log.info("enqueuing %s for crawl", uncrawled_url)
+        crawl_url_if_uncrawled.delay(uncrawled_url)
 
 
 @celery_app.task
@@ -820,7 +824,15 @@ def crawl_url(crawl_uuid: UUID, url: str) -> None:
             got_response=False,
         )
         session.add(crawl_request)
-        response = client.get(url, stream=True)
+
+        try:
+            response = client.get(url, stream=True, timeout=REQUESTS_TIMEOUT)
+        except requests.exceptions.RequestException as e:
+            log.warning("unable to request %s - %s", url, e)
+            session.commit()
+            return
+        log.info("crawled %s", url)
+
         crawl_request.got_response = True
 
         body_uuid = uuid4()
