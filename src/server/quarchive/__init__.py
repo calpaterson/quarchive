@@ -23,7 +23,7 @@ from werkzeug import exceptions as exc
 from werkzeug.urls import url_encode
 from dateutil.parser import isoparse
 from babel.dates import format_timedelta
-from sqlalchemy import Column, ForeignKey, types as satypes, func, create_engine
+from sqlalchemy import Column, ForeignKey, types as satypes, func, create_engine, Index
 from sqlalchemy.orm import (
     relationship,
     RelationshipProperty,
@@ -31,7 +31,12 @@ from sqlalchemy.orm import (
     sessionmaker,
     scoped_session,
 )
-from sqlalchemy.dialects.postgresql import UUID as PGUUID, insert as pg_insert, JSONB
+from sqlalchemy.dialects.postgresql import (
+    UUID as PGUUID,
+    insert as pg_insert,
+    JSONB,
+    TSVECTOR,
+)
 from sqlalchemy.ext.declarative import declarative_base
 from flask_sqlalchemy import SQLAlchemy
 import flask
@@ -252,6 +257,29 @@ class CrawlResponse(Base):
 
     request_obj: RelationshipProperty = relationship(
         CrawlRequest, uselist=False, backref="response_obj"
+    )
+
+
+class FullText(Base):
+    __tablename__ = "full_text"
+
+    url_uuid = Column(
+        PGUUID(as_uuid=True), ForeignKey("urls.url_uuid"), primary_key=True
+    )
+    crawl_uuid = Column(
+        PGUUID(as_uuid=True),
+        ForeignKey("crawl_requests.crawl_uuid"),
+        nullable=False,
+        index=True,
+    )
+    inserted = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
+    full_text = Column(satypes.String(), nullable=False)
+    tsvector = Column(TSVECTOR, nullable=False)
+
+    # __table_args__ = (Index("abc", "tsvector", postgresql_using="gin"),)
+
+    url_obj: RelationshipProperty = relationship(
+        SQLAUrl, uselist=False, backref="full_text_obj"
     )
 
 
