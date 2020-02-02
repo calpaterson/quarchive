@@ -7,7 +7,18 @@ from functools import wraps, lru_cache
 import itertools
 import logging
 from uuid import uuid4, UUID
-from typing import Mapping, Set, Any, Optional, Callable, Iterable, cast, TypeVar, Tuple
+from typing import (
+    Mapping,
+    Set,
+    Any,
+    Optional,
+    Callable,
+    Iterable,
+    cast,
+    TypeVar,
+    Tuple,
+    BinaryIO,
+)
 from os import environ, path
 from urllib.parse import urlsplit, urlunsplit
 import json
@@ -888,6 +899,10 @@ def crawl_url(crawl_uuid: UUID, url: str) -> None:
             bucket.upload_fileobj(temp_file, Key=str(body_uuid))
 
         session.commit()
+
+
+def extract_full_text(filelike: BinaryIO) -> str:
+    pass
 
 
 # fmt: off
