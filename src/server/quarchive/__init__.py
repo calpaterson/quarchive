@@ -821,9 +821,10 @@ def enqueue_crawls_for_uncrawled_urls():
             .filter(CrawlRequest.crawl_uuid.is_(None))
         )
         uncrawled_urls = (urlunsplit(tup) for tup in rs)
-    for uncrawled_url in uncrawled_urls:
+    for index, uncrawled_url in enumerate(uncrawled_urls, start=1):
         log.info("enqueuing %s for crawl", uncrawled_url)
         crawl_url_if_uncrawled.delay(uncrawled_url)
+    log.info("enqueued %d urls", index)
 
 
 @celery_app.task
