@@ -1,4 +1,5 @@
 from dataclasses import dataclass, asdict as dataclass_as_dict
+import re
 import configparser
 import contextlib
 from datetime import datetime, timezone
@@ -541,12 +542,12 @@ def index() -> Tuple[flask.Response, int]:
     query = db.session.query(SQLABookmark).filter(~SQLABookmark.deleted)
 
     if "q" in flask.request.args:
-        search_query = flask.request.args["q"]
+        search_str = flask.request.args["q"]
         combined_tsvector = func.to_tsvector(SQLABookmark.title).op("||")(
             func.to_tsvector(SQLABookmark.description)
         )
         query = query.filter(
-            combined_tsvector.op("@@")(func.websearch_to_tsquery(search_query))
+            combined_tsvector.op("@@")(func.websearch_to_tsquery(search_str))
         )
 
     sqla_objs = (
@@ -905,6 +906,28 @@ def crawl_url(crawl_uuid: UUID, url: str) -> None:
 def extract_full_text(filelike: BinaryIO) -> str:
     pass
 
+# fmt: off
+# Search
+...
+# fmt: on
+
+LEXER_REGEX = re.compile("[0-9A-z]+")
+
+def parse_search_str(search_str: str) -> str:
+    token_iterator = LEXER_REGEX.finditer(search_str)
+    output_words = []
+    loop_index = 0
+    while True:
+        try:
+            token = next(token_iterator).group(0)
+        except StopIteration:
+            break
+        if loop_index > 0:
+            output_words.append("|")
+        output_words.append("'" + token + "'")
+        loop_index += 1
+
+    return " ".join(output_words)
 
 # fmt: off
 # Entry points

@@ -101,7 +101,15 @@ def test_index_paging(app, signed_in_client, session):
     assert len(bookmarks_pg3) == math.floor(0.5 * page_size)
 
 
-def test_index_search(app, signed_in_client, session):
+@pytest.mark.parametrize(
+    "title,search_str,result_count",
+    [
+        ("Test", "test", 1),
+        ("Star wars", "star", 1),
+        pytest.param("Star wars", "star trek", 1, marks=pytest.mark.xfail),
+    ],
+)
+def test_index_search(app, signed_in_client, session, title, search_str, result_count):
     def get_bookmark_urls(response):
         html_parser = etree.HTMLParser()
         root = etree.fromstring(response.get_data(), html_parser)
@@ -109,12 +117,14 @@ def test_index_search(app, signed_in_client, session):
         return [b.text for b in bookmarks]
 
     bm1 = make_bookmark()
-    bm2 = make_bookmark(url="http://test.com", title="Test")
+    bm2 = make_bookmark(url="http://test.com", title=title)
 
     sync_bookmarks(signed_in_client, [bm1, bm2])
 
     normal_response = signed_in_client.get(flask.url_for("quarchive.index"))
     assert len(get_bookmark_urls(normal_response)) == 2
 
-    search_response = signed_in_client.get(flask.url_for("quarchive.index", q="test"))
-    assert get_bookmark_urls(search_response) == ["http://test.com"]
+    search_response = signed_in_client.get(
+        flask.url_for("quarchive.index", q=search_str)
+    )
+    assert len(get_bookmark_urls(search_response)) == result_count
