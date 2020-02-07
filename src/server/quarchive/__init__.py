@@ -15,6 +15,7 @@ from typing import (
     Optional,
     Callable,
     Iterable,
+    MutableSequence,
     cast,
     TypeVar,
     Tuple,
@@ -25,6 +26,7 @@ from urllib.parse import urlsplit, urlunsplit
 import json
 import tempfile
 import shutil
+from abc import ABCMeta, abstractmethod
 
 import click
 import boto3
@@ -906,28 +908,72 @@ def crawl_url(crawl_uuid: UUID, url: str) -> None:
 def extract_full_text(filelike: BinaryIO) -> str:
     pass
 
+
 # fmt: off
 # Search
 ...
 # fmt: on
 
-LEXER_REGEX = re.compile("[0-9A-z]+")
+LEXER_REGEX = re.compile("[0-9A-z]+|'")
+
+
+class Term(metaclass=ABCMeta):
+    @abstractmethod
+    def render(self) -> str:
+        pass
+
+
+class Conjunction(Term):
+    elems: MutableSequence[Term]
+
+    def __init__(self):
+        self.elems = []
+
+    def render(self):
+        return " | ".join
+
+
+class Literal(Term):
+    def __init__(self, word: str) -> None:
+        self.word = word
+
+
+class Quote(Term):
+    literals: MutableSequence[Literal]
+
+    def __init__(self) -> None:
+        self.literals = []
+
+    def append(self, literal: Literal):
+        self.literals.append(literal)
+
 
 def parse_search_str(search_str: str) -> str:
     token_iterator = LEXER_REGEX.finditer(search_str)
-    output_words = []
+    output_words: MutableSequence[str] = []
     loop_index = 0
+    quote_mode = False
     while True:
         try:
             token = next(token_iterator).group(0)
+            log.debug("token = %s", token)
         except StopIteration:
             break
-        if loop_index > 0:
-            output_words.append("|")
-        output_words.append("'" + token + "'")
+        if token == "'":
+            quote_mode ^= True
+            log.debug("quote_mode = %s", quote_mode)
+        else:
+            if len(output_words) > 0:
+                if quote_mode:
+                    output_words.append("<->")
+                else:
+                    output_words.append("|")
+
+            output_words.append("'" + token + "'")
         loop_index += 1
 
     return " ".join(output_words)
+
 
 # fmt: off
 # Entry points
