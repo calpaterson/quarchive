@@ -16,7 +16,11 @@
         <nav>
             <span style="background-color: grey"><strong><span style="color: purple">Qu</span><span style="color: white">archive.com</span></strong></span>
             |
-            {{ header_item(request, 'quarchive.index', "Index") }}
+            {% if request.endpoint == 'quarchive.index' %}
+              {{ header_item(request, 'quarchive.index', "Quarchive") }}
+            {% else %}
+              {{ header_item(request, 'quarchive.index', "Home") }}
+            {% endif %}
             {{ header_item(request, 'quarchive.create_bookmark_form', "Create a bookmark") }}
         </nav>
         <main>
