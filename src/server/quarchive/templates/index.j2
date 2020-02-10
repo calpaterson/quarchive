@@ -59,12 +59,6 @@
     </p>
     <p>
       <a href="{{ url_for('quarchive.edit_bookmark', url_uuid=url.url_uuid) }}">Edit</a>
-      <form
-        method="POST"
-        action="{{ url_for('quarchive.edit_bookmark', url_uuid=url.url_uuid, redirect_to=request.url) }}">
-        <input type="hidden" name="deleted" value="on">
-        <button>Delete</button>
-      </form>
     </p>
   </div>
 {% endmacro %}
