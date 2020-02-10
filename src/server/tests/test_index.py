@@ -113,7 +113,8 @@ def test_index_search(app, signed_in_client, session, title, search_str, result_
     def get_bookmark_urls(response):
         html_parser = etree.HTMLParser()
         root = etree.fromstring(response.get_data(), html_parser)
-        bookmarks = CSSSelector("div.bookmark>p:nth-child(2)>a")(root)
+        # Perhaps there should be a class used in the html for this
+        bookmarks = CSSSelector("div.bookmark>p:nth-child(1)>a:nth-child(1)")(root)
         return [b.text for b in bookmarks]
 
     bm1 = make_bookmark()
