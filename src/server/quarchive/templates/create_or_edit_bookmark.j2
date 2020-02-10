@@ -1,55 +1,78 @@
 {# -*- mode: jinja2 -*- #}
 {% extends "base.j2" %}
 {% block main %}
-  {% if bookmark %}
-    <h1>Edit bookmark</h1>
-    <form method="POST" action="{{  url_for('quarchive.edit_bookmark', url_uuid=url_uuid, redirect_to=request.url) }}">
-  {% else %}
-    <h1>Create a bookmark</h1>
-    <form method="POST" action="{{  url_for('quarchive.create_bookmark', redirect_to=request.url) }}">
-  {% endif %}
-  {% if bookmark and bookmark.deleted %}
-    <p>
-      (deleted)
-    </p>
-  {% endif %}
-
-  <p>
-    <label>URL</label>
-    <input
-      name="url"
-      type="text"
-      {% if bookmark %}
-        disabled
-        value="{{bookmark.url}}"
-      {% endif %}
-      >
-  </p>
-  <p>
-    <label for="title">Title</label>
-    <input
-      name="title"
-      type="text"
-      {% if bookmark %}
-        value="{{bookmark.title}}"3
-      {% endif %}
-      >
-  </p>
-  <p>
-    <label for="description">Description</label>
-  </p>
-  <textarea name="description">{% if bookmark %}{{ bookmark.description }}{% endif %}</textarea>
-  <p>
-    <input name="unread" type="checkbox"{% if bookmark and bookmark.unread %}checked{% endif %}>
-    <label for="unread">Unread</label>
-  </p>
-  <p>
-    {% if bookmark and bookmark.deleted %}
-      <button>Undelete</button>
+  <form
+    method="POST"
+    {% if bookmark %}
+      action="{{  url_for('quarchive.edit_bookmark', url_uuid=url_uuid, redirect_to=request.url) }}"
     {% else %}
-      <button name="deleted" value="on">Delete</button>
+      action="{{  url_for('quarchive.create_bookmark', redirect_to=request.url) }}"
     {% endif %}
-    <button>{% if bookmark %}Save changes{% else %}Create{% endif %}</button>
-  </p>
-    </form>
-  {% endblock %}
+    >
+
+    {% if bookmark %}
+      <h1>Edit bookmark</h1>
+    {% else %}
+      <h1>Create a bookmark</h1>
+    {% endif %}
+
+    {% if bookmark and bookmark.deleted %}
+      <p>
+        (deleted)
+      </p>
+    {% endif %}
+
+    {% if bookmark %}
+      <h2>{{ bookmark.url }}</h2>
+    {% endif %}
+
+    <p>
+      <input
+        name="url"
+        type="text"
+        hidden
+        {% if bookmark %}
+          disabled
+          value="{{bookmark.url}}"
+        {% endif %}
+        >
+    </p>
+
+    {# Editing #}
+    <fieldset>
+      <legend>Edit</legend>
+      <p>
+        <label for="title">Title</label>
+        <input
+          name="title"
+          type="text"
+          {% if bookmark %}
+            value="{{bookmark.title}}"3
+          {% endif %}
+          >
+      </p>
+      <p>
+        <label for="description">Description</label>
+      </p>
+      <textarea name="description">{% if bookmark %}{{ bookmark.description }}{% endif %}</textarea>
+      <p>
+        <input name="unread" type="checkbox"{% if bookmark and bookmark.unread %}checked{% endif %}>
+        <label for="unread">Unread</label>
+      </p>
+      <p>
+        <button>{% if bookmark %}Save changes{% else %}Create{% endif %}</button>
+      </p>
+    </fieldset>
+
+    {# Deletion #}
+    <fieldset>
+      <legend>Delete</legend>
+      {% if bookmark and bookmark.deleted %}
+        <button>Undelete</button>
+      {% else %}
+        <button name="deleted" value="on">Delete</button>
+      {% endif %}
+    </fieldset>
+
+  </form>
+{% endblock %}
