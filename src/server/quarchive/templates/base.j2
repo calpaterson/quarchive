@@ -1,11 +1,7 @@
 {# -*- mode: jinja2 -*- #}
 
 {% macro header_item(req, route, text) %}
-    {% if req.endpoint == route %}
-        <em>{{ text }}</em>
-    {% else %}
-        <a href="{{ url_for(route) }}">{{ text }}</a>
-    {% endif %}
+  <a href="{{ url_for(route) }}">{{ text }}</a>
 {% endmacro %}
 
 <!doctype html>
