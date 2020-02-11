@@ -973,13 +973,10 @@ def parse_search_str(search_str: str) -> str:
 
     current_term: CompoundTerm = Conjunction()
     base_term = current_term
-    while True:
+    for match_obj in token_iterator:
+        token = match_obj.group(0)
+        log.debug("token = %s", token)
         log.debug("base_term = %s", base_term.render())
-        try:
-            token = next(token_iterator).group(0)
-            log.debug("token = %s", token)
-        except StopIteration:
-            break
         if token == "'":
             if isinstance(current_term, Quote):
                 current_term = current_term.parent
