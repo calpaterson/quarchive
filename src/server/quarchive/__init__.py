@@ -923,46 +923,75 @@ class Term(metaclass=ABCMeta):
         pass
 
 
-class Conjunction(Term):
-    elems: MutableSequence[Term]
-
-    def __init__(self):
-        self.elems = []
-
-    def render(self):
-        return " | ".join
-
-
 class Literal(Term):
     def __init__(self, word: str) -> None:
         self.word = word
 
+    def render(self):
+        return "'" + self.word + "'"
 
-class Quote(Term):
-    literals: MutableSequence[Literal]
+
+class CompoundTerm(Term, metaclass=ABCMeta):
+    @abstractmethod
+    def append(self, term: Term) -> None:
+        pass
+
+
+class Conjunction(CompoundTerm):
+    elems: MutableSequence[Term]
 
     def __init__(self) -> None:
-        self.literals = []
+        self.elems = []
 
-    def append(self, literal: Literal):
+    def append(self, term: Term) -> None:
+        self.elems.append(term)
+
+    def render(self) -> str:
+        return " | ".join(e.render() for e in self.elems)
+
+
+class Quote(CompoundTerm):
+    literals: MutableSequence[Term]
+    parent: CompoundTerm
+
+    def __init__(self, parent: CompoundTerm) -> None:
+        self.literals = []
+        self.parent = parent
+
+    def append(self, literal: Term) -> None:
         self.literals.append(literal)
+
+    def render(self) -> str:
+        return " <-> ".join(l.render() for l in self.literals)
 
 
 def parse_search_str(search_str: str) -> str:
     token_iterator = LEXER_REGEX.finditer(search_str)
+
     output_words: MutableSequence[str] = []
     loop_index = 0
     quote_mode = False
+    current_term: CompoundTerm = Conjunction()
+    base_term = current_term
     while True:
+        log.info("base_term = %s", base_term.render())
         try:
             token = next(token_iterator).group(0)
             log.debug("token = %s", token)
         except StopIteration:
             break
         if token == "'":
+            if not isinstance(current_term, Quote):
+                quote = Quote(current_term)
+                current_term.append(quote)
+                current_term = quote
+            else:
+                current_term = current_term.parent
             quote_mode ^= True
             log.debug("quote_mode = %s", quote_mode)
         else:
+            term = Literal(token)
+            current_term.append(term)
             if len(output_words) > 0:
                 if quote_mode:
                     output_words.append("<->")
@@ -972,7 +1001,8 @@ def parse_search_str(search_str: str) -> str:
             output_words.append("'" + token + "'")
         loop_index += 1
 
-    return " ".join(output_words)
+    # return " ".join(output_words)
+    return base_term.render()
 
 
 # fmt: off

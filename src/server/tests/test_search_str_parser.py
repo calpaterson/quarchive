@@ -9,13 +9,12 @@ import quarchive as sut
         ("star", "'star'"),
         ("star trek", "'star' | 'trek'"),
         ("'star trek'", "'star' <-> 'trek'"),
-        # FIXME: need to do proper parsing to solve this problem
-        pytest.param(
-            "'star wars' 'star trek'",
-            "'star' <-> 'wars' | 'star' <-> 'trek'",
-            marks=pytest.mark.xfail,
-        ),
+        ("'star wars' 'star trek'", "'star' <-> 'wars' | 'star' <-> 'trek'",),
     ],
 )
 def test_search_str_parser(session, inp, expected):
-    assert sut.parse_search_str(inp) == expected
+    output = sut.parse_search_str(inp)
+    assert output == expected
+
+    (rv,) = session.execute("select to_tsquery(:tq_str)", {"tq_str": output}).fetchall()
+    assert len(rv) > 0
