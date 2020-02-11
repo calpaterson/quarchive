@@ -103,11 +103,7 @@ def test_index_paging(app, signed_in_client, session):
 
 @pytest.mark.parametrize(
     "title,search_str,result_count",
-    [
-        ("Test", "test", 1),
-        ("Star wars", "star", 1),
-        pytest.param("Star wars", "star trek", 1, marks=pytest.mark.xfail),
-    ],
+    [("Test", "test", 1), ("Star wars", "star", 1), ("Star wars", "star trek", 1),],
 )
 def test_index_search(app, signed_in_client, session, title, search_str, result_count):
     def get_bookmark_urls(response):

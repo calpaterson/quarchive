@@ -545,12 +545,12 @@ def index() -> Tuple[flask.Response, int]:
 
     if "q" in flask.request.args:
         search_str = flask.request.args["q"]
+        tquery_str = parse_search_str(search_str)
+        log.info('tquery_str = "%s"', tquery_str)
         combined_tsvector = func.to_tsvector(SQLABookmark.title).op("||")(
             func.to_tsvector(SQLABookmark.description)
         )
-        query = query.filter(
-            combined_tsvector.op("@@")(func.websearch_to_tsquery(search_str))
-        )
+        query = query.filter(combined_tsvector.op("@@")(func.to_tsquery(tquery_str)))
 
     sqla_objs = (
         query.order_by(SQLABookmark.created.desc()).offset(offset).limit(page_size)
