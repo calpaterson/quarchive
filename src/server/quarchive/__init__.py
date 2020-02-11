@@ -924,6 +924,8 @@ class Term(metaclass=ABCMeta):
 
 
 class Literal(Term):
+    word: str
+
     def __init__(self, word: str) -> None:
         self.word = word
 
@@ -966,42 +968,29 @@ class Quote(CompoundTerm):
 
 
 def parse_search_str(search_str: str) -> str:
+    """Parse a web search string into tquery format"""
     token_iterator = LEXER_REGEX.finditer(search_str)
 
-    output_words: MutableSequence[str] = []
-    loop_index = 0
-    quote_mode = False
     current_term: CompoundTerm = Conjunction()
     base_term = current_term
     while True:
-        log.info("base_term = %s", base_term.render())
+        log.debug("base_term = %s", base_term.render())
         try:
             token = next(token_iterator).group(0)
             log.debug("token = %s", token)
         except StopIteration:
             break
         if token == "'":
-            if not isinstance(current_term, Quote):
+            if isinstance(current_term, Quote):
+                current_term = current_term.parent
+            else:
                 quote = Quote(current_term)
                 current_term.append(quote)
                 current_term = quote
-            else:
-                current_term = current_term.parent
-            quote_mode ^= True
-            log.debug("quote_mode = %s", quote_mode)
         else:
             term = Literal(token)
             current_term.append(term)
-            if len(output_words) > 0:
-                if quote_mode:
-                    output_words.append("<->")
-                else:
-                    output_words.append("|")
 
-            output_words.append("'" + token + "'")
-        loop_index += 1
-
-    # return " ".join(output_words)
     return base_term.render()
 
 

@@ -10,6 +10,7 @@ import quarchive as sut
         ("star trek", "'star' | 'trek'"),
         ("'star trek'", "'star' <-> 'trek'"),
         ("'star wars' 'star trek'", "'star' <-> 'wars' | 'star' <-> 'trek'",),
+        ("apple 'green red'", "'apple' | 'green' <-> 'red'"),
     ],
 )
 def test_search_str_parser(session, inp, expected):
