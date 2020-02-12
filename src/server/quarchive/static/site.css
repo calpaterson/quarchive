@@ -1,6 +1,26 @@
-/* nothing */
+html {
+    font-family: 'Literata', serif;
+    font-size: 18px;
+}
+
 #qu {
     color: white;
     background-color: purple;
     padding: 0.25em;
+}
+
+@font-face {
+  font-family: 'Literata';
+  font-style: normal;
+  font-weight: 400;
+  src: local(''),
+       url('/static/fonts/literata-v15-latin-regular.woff2') format('woff2'),
+}
+
+@font-face {
+  font-family: 'Literata';
+  font-style: italic;
+  font-weight: 400;
+  src: local(''),
+       url('/static/fonts/literata-v15-latin-italic.woff2') format('woff2'),
 }
