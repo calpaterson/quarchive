@@ -26,21 +26,22 @@
       <h2>{{ bookmark.url }}</h2>
     {% endif %}
 
-    <p>
-      <input
-        name="url"
-        type="text"
-        hidden
-        {% if bookmark %}
-          disabled
-          value="{{bookmark.url}}"
-        {% endif %}
-        >
-    </p>
-
     {# Editing #}
     <fieldset>
       <legend>Edit</legend>
+
+      <p>
+      <label for="url">URL</label>
+        <input
+          name="url"
+          type="text"
+          {% if bookmark %}
+            disabled
+            value="{{bookmark.url}}"
+          {% endif %}
+          >
+      </p>
+
       <p>
         <label for="title">Title</label>
         <input

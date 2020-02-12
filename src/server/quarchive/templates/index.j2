@@ -10,6 +10,7 @@
       {% if q %}
       value="{{ q }}"
       {% endif %}
+      autofocus
       >
     <button>Search</button>
   </form>
@@ -49,15 +50,17 @@
 {% macro render_bookmark(url, bookmark) -%}
   <div class="bookmark">
     <p>
-      <a href="{{url.to_url()}}">{{bookmark.title|e}}</a> (<a href="{{ url_for('quarchive.view_netloc', netloc=url.netloc) }}">{{ url.netloc }}</a>)
+      <a href="{{url.to_url()}}">{{bookmark.title|e}}</a>
+      <a
+        class="netloc"
+        href="{{ url_for('quarchive.view_netloc', netloc=url.netloc) }}"
+        >{{ url.netloc }}</a>
     </p>
     <blockquote>
       {{ bookmark.description|e }}
     </blockquote>
-    <p>
+    <p class="bookmark-details">
       <em>created <span title="{{bookmark.created}}">{{bookmark.created|relativetime}}</span></em> {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
-    </p>
-    <p>
       <a href="{{ url_for('quarchive.edit_bookmark', url_uuid=url.url_uuid) }}">Edit</a>
       <a href="{{ url_for('quarchive.view_url', url_uuid=url.url_uuid) }}">See URL</a>
     </p>

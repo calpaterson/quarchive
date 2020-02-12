@@ -20,14 +20,15 @@
     </head>
     <body>
         <nav>
-            <span id="qu">Qu</span>
-            |
+          <img id="nav-logo" src="{{ url_for('static', filename='icons/quarchive-192px.png') }}">
+          <span id="nav-links">
             {% if request.endpoint == 'quarchive.index' %}
               {{ header_item(request, 'quarchive.index', "QuArchive") }}
             {% else %}
               {{ header_item(request, 'quarchive.index', "Home") }}
             {% endif %}
             {{ header_item(request, 'quarchive.create_bookmark_form', "Create") }}
+          </span>
         </nav>
         <main>
 

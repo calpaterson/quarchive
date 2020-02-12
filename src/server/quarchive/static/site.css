@@ -1,12 +1,83 @@
-html {
-    font-family: 'Literata', serif;
-    font-size: 18px;
+:root {
+    --bg: #fff;
+    --border: #e6e6e6;
+    --fresh: #0645ad;
+    --light: #666;
+    --lighter: #f3f3f3;
+    --main: #333;
+    --visited: #AE00AE;
 }
 
-#qu {
-    color: white;
-    background-color: purple;
-    padding: 0.25em;
+body {
+    display: block;
+    background: var(--bg);
+    color: var(--main);
+    font-family: 'Literata', serif;
+    font-size: 18px;
+    max-width: 80rem;
+    padding-right: 1rem;
+    padding-left: 1rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+a:link {
+    color: var(--fresh);
+}
+
+a:visited {
+    color: var(--visited);
+}
+
+#nav-logo {
+    height: 2rem;
+    width: 2rem;
+}
+
+#nav-links {
+    vertical-align: top;
+}
+
+nav > a {
+    color: var(--main);
+}
+
+#nav-links > a:link {
+    color: inherit;
+}
+
+#nav-links > a:visited {
+    color: inherit;
+}
+
+.bookmark blockquote {
+    color: var(--light);
+    margin: 1em;
+    border-left: 0.2em solid var(--light);
+    padding-left: 1em;
+    font-style: oblique;
+}
+
+.bookmark-details a:link {
+    color: inherit;
+}
+
+.bookmark-details a:visited {
+    color: inherit;
+}
+
+.netloc {
+    color: var(--light);
+    font-size: small;
+    text-decoration: none;
+}
+
+.netloc:visited {
+    color: inherit;
+}
+
+.netloc:link {
+    color: inherit;
 }
 
 @font-face {
