@@ -9,7 +9,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="stylesheet" href="static/site.css">
+        <link rel="stylesheet" href="{{ url_for('static', filename='site.css' ) }}">
         <title>QM</title>
     </head>
     <body>
@@ -21,7 +21,7 @@
             {% else %}
               {{ header_item(request, 'quarchive.index', "Home") }}
             {% endif %}
-            {{ header_item(request, 'quarchive.create_bookmark_form', "Create a bookmark") }}
+            {{ header_item(request, 'quarchive.create_bookmark_form', "Create") }}
         </nav>
         <main>
 
