@@ -61,8 +61,8 @@
     </blockquote>
     <p class="bookmark-details">
       <em>created <span title="{{bookmark.created}}">{{bookmark.created|relativetime}}</span></em> {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
-      <a href="{{ url_for('quarchive.edit_bookmark', url_uuid=url.url_uuid) }}">Edit</a>
-      <a href="{{ url_for('quarchive.view_url', url_uuid=url.url_uuid) }}">See URL</a>
+      <a href="{{ url_for('quarchive.edit_bookmark', url_uuid=url.url_uuid) }}">edit</a>
+      <a href="{{ url_for('quarchive.view_url', url_uuid=url.url_uuid) }}">url metadata</a>
     </p>
   </div>
 {% endmacro %}
