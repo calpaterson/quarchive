@@ -3,7 +3,9 @@ import json
 from uuid import UUID
 import re
 from urllib.parse import urlsplit
-from datetime import datetime
+from datetime import datetime, timezone
+
+from freezegun import freeze_time
 
 import quarchive as sut
 
@@ -31,6 +33,7 @@ def test_calpaterson():
     assert len(words) > 0
 
 
+@freeze_time("2018-01-03")
 def test_celery_task(session, eager_celery, mock_s3):
     url_str = "http://example.com"
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
@@ -69,4 +72,8 @@ def test_celery_task(session, eager_celery, mock_s3):
     sut.ensure_fulltext(crawl_uuid)
 
     fulltext_obj = session.query(sut.FullText).get(url_uuid)
-    assert fulltext_obj is not None
+    assert fulltext_obj.url_uuid == url_uuid
+    assert fulltext_obj.crawl_uuid == crawl_uuid
+    assert fulltext_obj.inserted == datetime(2018, 1, 3, tzinfo=timezone.utc)
+    assert len(fulltext_obj.tsvector.split(" ")) == 6
+    assert len(fulltext_obj.full_text) > 0
