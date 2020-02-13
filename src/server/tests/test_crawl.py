@@ -16,20 +16,6 @@ import quarchive as sut
 pytestmark = pytest.mark.crawler
 
 
-@pytest.fixture(scope="function")
-def mock_s3():
-    with moto.mock_s3():
-        sut.get_s3().create_bucket(Bucket=environ["QM_RESPONSE_BODY_BUCKET_NAME"])
-        yield
-
-
-@pytest.fixture(scope="function")
-def eager_celery():
-    sut.celery_app.conf.update(task_always_eager=True)
-    yield
-    sut.celery_app.conf.update(task_always_eager=False)
-
-
 @pytest.fixture(scope="session", autouse=True)
 def lower_requests_timeout():
     with mock.patch.object(sut, "REQUESTS_TIMEOUT", 0.1):

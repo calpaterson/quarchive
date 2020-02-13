@@ -261,6 +261,10 @@ class CrawlRequest(Base):
     requested = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
     got_response = Column(satypes.Boolean, index=True)
 
+    url_obj: RelationshipProperty = relationship(
+        SQLAUrl, uselist=False, backref="crawl_reqs"
+    )
+
 
 class CrawlResponse(Base):
     __tablename__ = "crawl_responses"
@@ -833,6 +837,22 @@ def enqueue_crawls_for_uncrawled_urls():
     log.info("enqueued %d urls", index)
 
 
+def get_meta_descriptions(root: lxml.html.HtmlElement) -> List[str]:
+    meta_description_elements = root.xpath("//meta[@name='description']")
+    if len(meta_description_elements) == 0:
+        return []
+    else:
+        return [e.attrib.get("content", "") for e in meta_description_elements]
+
+
+def extract_full_text(filelike: BinaryIO) -> str:
+    document = lxml.html.parse(filelike)
+    root = document.getroot()
+    meta_descs = get_meta_descriptions(root)
+    text_content = root.text_content()
+    return " ".join(meta_descs + [text_content])
+
+
 @celery_app.task
 def crawl_url_if_uncrawled(url: str) -> None:
     """Crawl a url only if it has never been crawled before.
@@ -855,6 +875,13 @@ def crawl_url_if_uncrawled(url: str) -> None:
     if not is_crawled:
         crawl_uuid = uuid4()
         crawl_url(crawl_uuid, url)
+
+
+@celery_app.task
+def ensure_fulltext(crawl_uuid: UUID) -> None:
+    """Populate full text table for crawl"""
+    with contextlib.closing(get_session_cls()) as sesh:
+        pass
 
 
 @celery_app.task
@@ -906,22 +933,6 @@ def crawl_url(crawl_uuid: UUID, url: str) -> None:
             bucket.upload_fileobj(temp_file, Key=str(body_uuid))
 
         session.commit()
-
-
-def get_meta_descriptions(root: lxml.html.HtmlElement) -> List[str]:
-    meta_description_elements = root.xpath("//meta[@name='description']")
-    if len(meta_description_elements) == 0:
-        return []
-    else:
-        return [e.attrib.get("content", "") for e in meta_description_elements]
-
-
-def extract_full_text(filelike: BinaryIO) -> str:
-    document = lxml.html.parse(filelike)
-    root = document.getroot()
-    meta_descs = get_meta_descriptions(root)
-    text_content = root.text_content()
-    return " ".join(meta_descs + [text_content])
 
 
 # fmt: off

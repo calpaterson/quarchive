@@ -1,10 +1,8 @@
 from os import environ, path
 from typing import Mapping, Any
 from datetime import datetime, timezone
-from unittest import mock
 
-import flask
-from sqlalchemy.engine import create_engine
+import moto
 
 import quarchive as sut
 
@@ -45,6 +43,22 @@ def app(config):
     a = sut.init_app()
     a.config["TESTING"] = True
     return a
+
+
+@pytest.fixture(scope="function")
+def mock_s3():
+    sut.get_s3.cache_clear()
+    with moto.mock_s3():
+        s3_resource = sut.get_s3()
+        s3_resource.create_bucket(Bucket=environ["QM_RESPONSE_BODY_BUCKET_NAME"])
+        yield s3_resource
+
+
+@pytest.fixture(scope="function")
+def eager_celery():
+    sut.celery_app.conf.update(task_always_eager=True)
+    yield
+    sut.celery_app.conf.update(task_always_eager=False)
 
 
 def make_bookmark(**kwargs):
