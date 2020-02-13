@@ -31,10 +31,6 @@ def test_calpaterson():
     assert len(words) > 0
 
 
-import pytest
-
-
-@pytest.mark.xfail(reason="unfinished")
 def test_celery_task(session, eager_celery, mock_s3):
     url_str = "http://example.com"
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
@@ -68,9 +64,9 @@ def test_celery_task(session, eager_celery, mock_s3):
 
     bucket = sut.get_response_body_bucket()
     with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
-        bucket.upload_fileobj(html_f, str(body_uuid))
+        sut.upload_file(bucket, html_f, str(body_uuid))
 
-    # sut.ensure_fulltext(crawl_uuid)
+    sut.ensure_fulltext(crawl_uuid)
 
     fulltext_obj = session.query(sut.FullText).get(url_uuid)
     assert fulltext_obj is not None

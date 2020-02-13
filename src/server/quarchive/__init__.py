@@ -299,8 +299,9 @@ class FullText(Base):
 
     # __table_args__ = (Index("abc", "tsvector", postgresql_using="gin"),)
 
-    # FIXME: add this
-    # crawl_resp : RelationshipProperty
+    crawl_req: RelationshipProperty = relationship(
+        CrawlRequest, uselist=False, backref="full_text_obj"
+    )
 
     url_obj: RelationshipProperty = relationship(
         SQLAUrl, uselist=False, backref="full_text_obj"
@@ -848,11 +849,13 @@ def get_meta_descriptions(root: lxml.html.HtmlElement) -> List[str]:
         return [e.attrib.get("content", "") for e in meta_description_elements]
 
 
-def extract_full_text(filelike: BinaryIO) -> str:
+def extract_full_text(filelike) -> str:
+    # no type annotation for filelike because instead of a BinaryIO it's a
+    # gzip.GzipFile which doesn't implement the full API required by BinaryIO
     document = lxml.html.parse(filelike)
     root = document.getroot()
     meta_descs = get_meta_descriptions(root)
-    text_content = root.text_content()
+    text_content: str = root.text_content()
     return " ".join(meta_descs + [text_content])
 
 
@@ -866,9 +869,13 @@ def upload_file(bucket, filelike: BinaryIO, filename: str) -> None:
         bucket.upload_fileobj(temp_file, Key=filename)
 
 
-def download_file(bucket, filename: str) -> BinaryIO:
+def download_file(bucket, filename: str) -> gzip.GzipFile:
     """Download a fileobj from a bucket (decompressed)"""
-    ...
+    temp_file = tempfile.TemporaryFile(mode="w+b")
+    bucket.download_fileobj(filename, temp_file)
+    temp_file.seek(0)
+    gzip_fileobj = gzip.GzipFile(mode="r+b", fileobj=temp_file)
+    return gzip_fileobj
 
 
 @celery_app.task
@@ -902,17 +909,25 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
         # FIXME:
         # - skip if present
         # - skip if non html
-        body_uuid = (
-            sesh.query(CrawlResponse.body_uuid)
-            .join(FullText)
+        crawl_response = (
+            sesh.query(CrawlResponse)
+            .outerjoin(FullText, CrawlResponse.crawl_uuid == FullText.crawl_uuid)
             .filter(CrawlResponse.crawl_uuid == crawl_uuid)
             .filter(FullText.url_uuid.is_(None))
             .first()
         )
         bucket = get_response_body_bucket()
-        with tempfile.TemporaryFile(mode="w+b") as temp_file:
-            text = extract_full_text(bucket.download_fileobj(body_uuid, temp_file))
-        pass
+        fileobj = download_file(bucket, str(crawl_response.body_uuid))
+        text = extract_full_text(fileobj)
+        fulltext_obj = FullText(
+            url_uuid=crawl_response.request_obj.url_uuid,
+            crawl_uuid=crawl_response.crawl_uuid,
+            inserted=datetime.utcnow().replace(tzinfo=timezone.utc),
+            full_text=text,
+            tsvector=func.to_tsvector(text),
+        )
+        sesh.add(fulltext_obj)
+        sesh.commit()
 
 
 @celery_app.task
