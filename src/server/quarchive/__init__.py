@@ -299,6 +299,9 @@ class FullText(Base):
 
     # __table_args__ = (Index("abc", "tsvector", postgresql_using="gin"),)
 
+    # FIXME: add this
+    # crawl_resp : RelationshipProperty
+
     url_obj: RelationshipProperty = relationship(
         SQLAUrl, uselist=False, backref="full_text_obj"
     )
@@ -853,6 +856,21 @@ def extract_full_text(filelike: BinaryIO) -> str:
     return " ".join(meta_descs + [text_content])
 
 
+def upload_file(bucket, filelike: BinaryIO, filename: str) -> None:
+    """Upload a fileobj into the bucket (compressed)"""
+    with tempfile.TemporaryFile(mode="w+b") as temp_file:
+        gzip_fileobj = gzip.GzipFile(mode="w+b", fileobj=temp_file)
+        shutil.copyfileobj(filelike, gzip_fileobj)
+        gzip_fileobj.close()
+        temp_file.seek(0)
+        bucket.upload_fileobj(temp_file, Key=filename)
+
+
+def download_file(bucket, filename: str) -> BinaryIO:
+    """Download a fileobj from a bucket (decompressed)"""
+    ...
+
+
 @celery_app.task
 def crawl_url_if_uncrawled(url: str) -> None:
     """Crawl a url only if it has never been crawled before.
@@ -881,6 +899,19 @@ def crawl_url_if_uncrawled(url: str) -> None:
 def ensure_fulltext(crawl_uuid: UUID) -> None:
     """Populate full text table for crawl"""
     with contextlib.closing(get_session_cls()) as sesh:
+        # FIXME:
+        # - skip if present
+        # - skip if non html
+        body_uuid = (
+            sesh.query(CrawlResponse.body_uuid)
+            .join(FullText)
+            .filter(CrawlResponse.crawl_uuid == crawl_uuid)
+            .filter(FullText.url_uuid.is_(None))
+            .first()
+        )
+        bucket = get_response_body_bucket()
+        with tempfile.TemporaryFile(mode="w+b") as temp_file:
+            text = extract_full_text(bucket.download_fileobj(body_uuid, temp_file))
         pass
 
 
@@ -925,12 +956,7 @@ def crawl_url(crawl_uuid: UUID, url: str) -> None:
         # raw payload (usually html bytes)
         response.raw.decode_content = True
 
-        with tempfile.TemporaryFile(mode="w+b") as temp_file:
-            gzip_fileobj = gzip.GzipFile(mode="w+b", fileobj=temp_file)
-            shutil.copyfileobj(response.raw, gzip_fileobj)
-            gzip_fileobj.close()
-            temp_file.seek(0)
-            bucket.upload_fileobj(temp_file, Key=str(body_uuid))
+        upload_file(bucket, response.raw, str(body_uuid))
 
         session.commit()
 

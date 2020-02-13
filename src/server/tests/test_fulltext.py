@@ -37,7 +37,7 @@ import pytest
 @pytest.mark.xfail(reason="unfinished")
 def test_celery_task(session, eager_celery, mock_s3):
     url_str = "http://example.com"
-    scheme, netloc, path, query, fragment = urlsplit(url_str)
+    scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
     crawl_uuid = UUID("f" * 31 + "0")
     url_uuid = UUID("f" * 31 + "1")
     body_uuid = UUID("f" * 31 + "2")
@@ -46,7 +46,7 @@ def test_celery_task(session, eager_celery, mock_s3):
         url_uuid=url_uuid,
         scheme=scheme,
         netloc=netloc,
-        path=path,
+        path=urlpath,
         query=query,
         fragment=fragment,
     )
@@ -65,4 +65,12 @@ def test_celery_task(session, eager_celery, mock_s3):
 
     session.add_all([url_obj, crawl_req, crawl_resp])
     session.commit()
-    assert False
+
+    bucket = sut.get_response_body_bucket()
+    with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
+        bucket.upload_fileobj(html_f, str(body_uuid))
+
+    # sut.ensure_fulltext(crawl_uuid)
+
+    fulltext_obj = session.query(sut.FullText).get(url_uuid)
+    assert fulltext_obj is not None

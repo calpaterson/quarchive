@@ -1,6 +1,7 @@
 from os import environ, path
 from typing import Mapping, Any
 from datetime import datetime, timezone
+import logging
 
 import moto
 
@@ -16,6 +17,14 @@ working_cred_headers = {
 
 
 test_data_path = path.join(path.dirname(__file__), "test-data")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def reduce_boto_logging():
+    # AWS provided libraries have extremely verbose debug logs
+    boto_loggers = ["boto3", "botocore", "s3transfer"]
+    for boto_logger in boto_loggers:
+        logging.getLogger(boto_logger).setLevel(logging.INFO)
 
 
 @pytest.fixture(scope="function")
@@ -47,7 +56,10 @@ def app(config):
 
 @pytest.fixture(scope="function")
 def mock_s3():
+    # Clear out old handles
     sut.get_s3.cache_clear()
+    sut.get_response_body_bucket.cache_clear()
+
     with moto.mock_s3():
         s3_resource = sut.get_s3()
         s3_resource.create_bucket(Bucket=environ["QM_RESPONSE_BODY_BUCKET_NAME"])
