@@ -20,6 +20,7 @@ setup(
         "celery~=4.4.0",
         "requests~=2.22.0",
         "boto3~=1.11.0",
+        "lxml~=4.4.2",
     ],
     extras_require={
         "tests": [
@@ -28,7 +29,6 @@ setup(
             "pytest-flask~=0.15.0",
             "hypothesis~=4.50.6",
             "alembic~=1.3.1",
-            "lxml~=4.4.2",
             "cssselect~=1.1.0",
             "freezegun~=0.3.12",
             "responses~=0.10.9",

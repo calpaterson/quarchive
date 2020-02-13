@@ -906,7 +906,11 @@ def crawl_url(crawl_uuid: UUID, url: str) -> None:
 
 
 def extract_full_text(filelike: BinaryIO) -> str:
-    pass
+    from lxml.html import parse
+
+    document = parse(filelike)
+    root = document.getroot()
+    return root.text_content()
 
 
 # fmt: off
