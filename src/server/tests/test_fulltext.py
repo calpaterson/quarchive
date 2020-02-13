@@ -12,8 +12,10 @@ def test_simple():
     with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
         full_text = extract_full_text(html_f)
 
-    words = WORDS_REGEX.findall(full_text)
-    assert words == ["Simple", "This", "is", "a", "basic", "html", "document"]
+    words = set(WORDS_REGEX.findall(full_text))
+    assert "Simple" in words
+    assert {"This", "is", "a", "basic", "html", "document"} <= words
+    assert {"meta", "description"} <= words
 
 
 def test_calpaterson():

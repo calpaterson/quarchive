@@ -20,6 +20,7 @@ from typing import (
     TypeVar,
     Tuple,
     BinaryIO,
+    List,
 )
 from os import environ, path
 from urllib.parse import urlsplit, urlunsplit
@@ -28,6 +29,8 @@ import tempfile
 import shutil
 from abc import ABCMeta, abstractmethod
 
+import lxml
+import lxml.html
 import click
 import boto3
 from botocore.utils import fix_s3_host
@@ -37,7 +40,7 @@ from werkzeug import exceptions as exc
 from werkzeug.urls import url_encode
 from dateutil.parser import isoparse
 from babel.dates import format_timedelta
-from sqlalchemy import Column, ForeignKey, types as satypes, func, create_engine, Index
+from sqlalchemy import Column, ForeignKey, types as satypes, func, create_engine
 from sqlalchemy.orm import (
     relationship,
     RelationshipProperty,
@@ -905,12 +908,20 @@ def crawl_url(crawl_uuid: UUID, url: str) -> None:
         session.commit()
 
 
-def extract_full_text(filelike: BinaryIO) -> str:
-    from lxml.html import parse
+def get_meta_descriptions(root: lxml.html.HtmlElement) -> List[str]:
+    meta_description_elements = root.xpath("//meta[@name='description']")
+    if len(meta_description_elements) == 0:
+        return []
+    else:
+        return [e.attrib.get("content", "") for e in meta_description_elements]
 
-    document = parse(filelike)
+
+def extract_full_text(filelike: BinaryIO) -> str:
+    document = lxml.html.parse(filelike)
     root = document.getroot()
-    return root.text_content()
+    meta_descs = get_meta_descriptions(root)
+    text_content = root.text_content()
+    return " ".join(meta_descs + [text_content])
 
 
 # fmt: off
