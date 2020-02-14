@@ -28,6 +28,7 @@ import json
 import tempfile
 import shutil
 from abc import ABCMeta, abstractmethod
+import cgi
 
 import lxml
 import lxml.html
@@ -906,22 +907,43 @@ def crawl_url_if_uncrawled(url: str) -> None:
 def ensure_fulltext(crawl_uuid: UUID) -> None:
     """Populate full text table for crawl"""
     with contextlib.closing(get_session_cls()) as sesh:
-        # FIXME:
-        # - skip if present
-        # - skip if non html
-        crawl_response = (
-            sesh.query(CrawlResponse)
+        body_uuid, headers, sqla_url_obj, inserted = (
+            sesh.query(
+                CrawlResponse.body_uuid,
+                CrawlResponse.headers,
+                SQLAUrl,
+                FullText.inserted,
+            )
             .outerjoin(FullText, CrawlResponse.crawl_uuid == FullText.crawl_uuid)
             .filter(CrawlResponse.crawl_uuid == crawl_uuid)
-            .filter(FullText.url_uuid.is_(None))
             .first()
         )
+
+        url = URL.from_sqla_url(sqla_url_obj)
+
+        if inserted is not None:
+            log.info(
+                "%s (%s) already indexed - not indexing again", url.to_url(), crawl_uuid
+            )
+            return
+
+        content_type, _ = cgi.parse_header(json.loads(headers)["content-type"])
+        if content_type != "application/html":
+            log.info(
+                "%s (%s) has wrong content type: %s - skipping",
+                url.to_url(),
+                crawl_uuid,
+                content_type,
+            )
+            return
+
         bucket = get_response_body_bucket()
-        fileobj = download_file(bucket, str(crawl_response.body_uuid))
+        fileobj = download_file(bucket, str(body_uuid))
         text = extract_full_text(fileobj)
+
         fulltext_obj = FullText(
-            url_uuid=crawl_response.request_obj.url_uuid,
-            crawl_uuid=crawl_response.crawl_uuid,
+            url_uuid=sqla_url_obj.url_uuid,
+            crawl_uuid=crawl_uuid,
             inserted=datetime.utcnow().replace(tzinfo=timezone.utc),
             full_text=text,
             tsvector=func.to_tsvector(text),

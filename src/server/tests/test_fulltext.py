@@ -5,6 +5,7 @@ import re
 from urllib.parse import urlsplit
 from datetime import datetime, timezone
 
+from sqlalchemy import func
 from freezegun import freeze_time
 
 import quarchive as sut
@@ -34,7 +35,52 @@ def test_calpaterson():
 
 
 @freeze_time("2018-01-03")
-def test_celery_task(session, eager_celery, mock_s3):
+def test_calculating_fulltext_for_fresh(session, mock_s3):
+    url_str = "http://example.com"
+    scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
+    crawl_uuid = UUID("f" * 31 + "0")
+    url_uuid = UUID("f" * 31 + "1")
+    body_uuid = UUID("f" * 31 + "2")
+
+    url_obj = sut.SQLAUrl(
+        url_uuid=url_uuid,
+        scheme=scheme,
+        netloc=netloc,
+        path=urlpath,
+        query=query,
+        fragment=fragment,
+    )
+    crawl_req = sut.CrawlRequest(
+        crawl_uuid=crawl_uuid,
+        url_uuid=url_uuid,
+        requested=datetime(2018, 1, 3),
+        got_response=True,
+    )
+    crawl_resp = sut.CrawlResponse(
+        crawl_uuid=crawl_uuid,
+        headers=json.dumps({"content-type": "application/html"}),
+        body_uuid=body_uuid,
+        status_code=200,
+    )
+
+    session.add_all([url_obj, crawl_req, crawl_resp])
+    session.commit()
+
+    bucket = sut.get_response_body_bucket()
+    with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
+        sut.upload_file(bucket, html_f, str(body_uuid))
+
+    sut.ensure_fulltext(crawl_uuid)
+
+    fulltext_obj = session.query(sut.FullText).get(url_uuid)
+    assert fulltext_obj.url_uuid == url_uuid
+    assert fulltext_obj.crawl_uuid == crawl_uuid
+    assert fulltext_obj.inserted == datetime(2018, 1, 3, tzinfo=timezone.utc)
+    assert len(fulltext_obj.tsvector.split(" ")) == 6
+    assert len(fulltext_obj.full_text) > 0
+
+
+def test_calculating_fulltext_idempotent(session):
     url_str = "http://example.com"
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
     crawl_uuid = UUID("f" * 31 + "0")
@@ -61,19 +107,53 @@ def test_celery_task(session, eager_celery, mock_s3):
         body_uuid=body_uuid,
         status_code=200,
     )
+    fulltext = sut.FullText(
+        url_uuid=url_uuid,
+        crawl_uuid=crawl_uuid,
+        inserted=datetime(2018, 1, 3, tzinfo=timezone.utc),
+        full_text="hello world",
+        tsvector=func.to_tsvector("hello world"),
+    )
+
+    session.add_all([url_obj, crawl_req, crawl_resp, fulltext])
+    session.commit()
+
+    sut.ensure_fulltext(crawl_uuid)
+
+    assert session.query(sut.FullText).count() == 1
+
+
+def test_calculating_fulltext_non_html(session):
+    url_str = "http://example.com"
+    scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
+    crawl_uuid = UUID("f" * 31 + "0")
+    url_uuid = UUID("f" * 31 + "1")
+    body_uuid = UUID("f" * 31 + "2")
+
+    url_obj = sut.SQLAUrl(
+        url_uuid=url_uuid,
+        scheme=scheme,
+        netloc=netloc,
+        path=urlpath,
+        query=query,
+        fragment=fragment,
+    )
+    crawl_req = sut.CrawlRequest(
+        crawl_uuid=crawl_uuid,
+        url_uuid=url_uuid,
+        requested=datetime(2018, 1, 3),
+        got_response=True,
+    )
+    crawl_resp = sut.CrawlResponse(
+        crawl_uuid=crawl_uuid,
+        headers=json.dumps({"content-type": "application/pdf"}),
+        body_uuid=body_uuid,
+        status_code=200,
+    )
 
     session.add_all([url_obj, crawl_req, crawl_resp])
     session.commit()
 
-    bucket = sut.get_response_body_bucket()
-    with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
-        sut.upload_file(bucket, html_f, str(body_uuid))
-
     sut.ensure_fulltext(crawl_uuid)
 
-    fulltext_obj = session.query(sut.FullText).get(url_uuid)
-    assert fulltext_obj.url_uuid == url_uuid
-    assert fulltext_obj.crawl_uuid == crawl_uuid
-    assert fulltext_obj.inserted == datetime(2018, 1, 3, tzinfo=timezone.utc)
-    assert len(fulltext_obj.tsvector.split(" ")) == 6
-    assert len(fulltext_obj.full_text) > 0
+    assert session.query(sut.FullText).count() == 0
