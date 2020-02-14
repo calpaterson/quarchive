@@ -907,10 +907,10 @@ def crawl_url_if_uncrawled(url: str) -> None:
 def ensure_fulltext(crawl_uuid: UUID) -> None:
     """Populate full text table for crawl"""
     with contextlib.closing(get_session_cls()) as sesh:
-        body_uuid, headers, sqla_url_obj, inserted = (
+        body_uuid, content_type_header, sqla_url_obj, inserted = (
             sesh.query(
                 CrawlResponse.body_uuid,
-                CrawlResponse.headers,
+                CrawlResponse.headers["content-type"],
                 SQLAUrl,
                 FullText.inserted,
             )
@@ -927,7 +927,7 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
             )
             return
 
-        content_type, _ = cgi.parse_header(json.loads(headers)["content-type"])
+        content_type, _ = cgi.parse_header(content_type_header)
         if content_type != "application/html":
             log.info(
                 "%s (%s) has wrong content type: %s - skipping",

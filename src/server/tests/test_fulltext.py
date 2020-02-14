@@ -1,5 +1,4 @@
 from os import path
-import json
 from uuid import UUID
 import re
 from urllib.parse import urlsplit
@@ -58,7 +57,7 @@ def test_calculating_fulltext_for_fresh(session, mock_s3):
     )
     crawl_resp = sut.CrawlResponse(
         crawl_uuid=crawl_uuid,
-        headers=json.dumps({"content-type": "application/html"}),
+        headers={"content-type": "application/html"},
         body_uuid=body_uuid,
         status_code=200,
     )
@@ -103,7 +102,7 @@ def test_calculating_fulltext_idempotent(session):
     )
     crawl_resp = sut.CrawlResponse(
         crawl_uuid=crawl_uuid,
-        headers=json.dumps({"Content-Type": "application/html"}),
+        headers={"content-type": "application/html"},
         body_uuid=body_uuid,
         status_code=200,
     )
@@ -146,7 +145,7 @@ def test_calculating_fulltext_non_html(session):
     )
     crawl_resp = sut.CrawlResponse(
         crawl_uuid=crawl_uuid,
-        headers=json.dumps({"content-type": "application/pdf"}),
+        headers={"content-type": "application/pdf"},
         body_uuid=body_uuid,
         status_code=200,
     )
