@@ -34,7 +34,7 @@ def test_calpaterson():
 
 
 @freeze_time("2018-01-03")
-def test_calculating_fulltext_for_fresh(session, mock_s3):
+def test_indexing_for_fresh(session, mock_s3):
     url_str = "http://example.com"
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
     crawl_uuid = UUID("f" * 31 + "0")
@@ -79,7 +79,7 @@ def test_calculating_fulltext_for_fresh(session, mock_s3):
     assert len(fulltext_obj.full_text) > 0
 
 
-def test_calculating_fulltext_idempotent(session):
+def test_indexing_idempotent(session):
     url_str = "http://example.com"
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
     crawl_uuid = UUID("f" * 31 + "0")
@@ -122,7 +122,7 @@ def test_calculating_fulltext_idempotent(session):
     assert session.query(sut.FullText).count() == 1
 
 
-def test_calculating_fulltext_non_html(session):
+def test_indexing_non_html(session):
     url_str = "http://example.com"
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
     crawl_uuid = UUID("f" * 31 + "0")

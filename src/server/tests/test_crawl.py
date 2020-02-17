@@ -31,7 +31,7 @@ def test_crawl_when_response_is_recieved(session, status_code, mock_s3):
     responses.add(responses.GET, url, body=b"hello", status=status_code, stream=True)
 
     crawl_uuid = UUID("f" * 32)
-    sut.crawl_url(crawl_uuid, url)
+    sut.crawl_url(session, crawl_uuid, url)
 
     request, response = session.query(sut.CrawlRequest, sut.CrawlResponse).one()
 
@@ -58,7 +58,7 @@ def test_crawl_when_no_response(session):
     )
 
     crawl_uuid = UUID("f" * 32)
-    sut.crawl_url(crawl_uuid, url)
+    sut.crawl_url(session, crawl_uuid, url)
 
     request = session.query(sut.CrawlRequest).one()
     response = session.query(sut.CrawlResponse).first()

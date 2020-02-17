@@ -775,8 +775,10 @@ celery_app = Celery("quarchive")
 
 @lru_cache(1)
 def get_session_cls() -> Session:
-    session_factory = sessionmaker(bind=create_engine(environ["QM_SQL_URL"]))
+    url: str = environ["QM_SQL_URL"]
+    session_factory = sessionmaker(bind=create_engine(url))
     Session = scoped_session(session_factory)
+    log.info("created session class: %s", url)
     return Session
 
 
@@ -898,9 +900,9 @@ def crawl_url_if_uncrawled(url: str) -> None:
             )
             .exists()
         ).scalar()
-    if not is_crawled:
-        crawl_uuid = uuid4()
-        crawl_url(crawl_uuid, url)
+        if not is_crawled:
+            crawl_uuid = uuid4()
+            crawl_url(sesh, crawl_uuid, url)
 
 
 @celery_app.task
@@ -950,10 +952,10 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
         )
         sesh.add(fulltext_obj)
         sesh.commit()
+        log.info("indexed %s (%s)", url.to_url(), crawl_uuid)
 
 
-@celery_app.task
-def crawl_url(crawl_uuid: UUID, url: str) -> None:
+def crawl_url(session, crawl_uuid: UUID, url: str) -> None:
     client = get_client()
     bucket = get_response_body_bucket()
     with contextlib.closing(get_session_cls()) as session:
