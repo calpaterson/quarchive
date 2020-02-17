@@ -1,15 +1,29 @@
 import math
+from typing import List
+from uuid import uuid4
+from datetime import datetime, timezone
 
 import flask
 from lxml import etree
 from lxml.cssselect import CSSSelector
+from sqlalchemy import func
 
 import pytest
 
 from .conftest import make_bookmark, working_cred_headers
 from .utils import sync_bookmarks
 
+import quarchive as sut
+
 pytestmark = pytest.mark.web
+
+
+def get_bookmark_urls(response) -> List[str]:
+    html_parser = etree.HTMLParser()
+    root = etree.fromstring(response.get_data(), html_parser)
+    # Perhaps there should be a class used in the html for this
+    bookmarks = CSSSelector("div.bookmark>p:nth-child(1)>a:nth-child(1)")(root)
+    return [b.text for b in bookmarks]
 
 
 def test_sign_in_success(client):
@@ -106,13 +120,6 @@ def test_index_paging(app, signed_in_client, session):
     [("Test", "test", 1), ("Star wars", "star", 1), ("Star wars", "star trek", 1),],
 )
 def test_index_search(app, signed_in_client, session, title, search_str, result_count):
-    def get_bookmark_urls(response):
-        html_parser = etree.HTMLParser()
-        root = etree.fromstring(response.get_data(), html_parser)
-        # Perhaps there should be a class used in the html for this
-        bookmarks = CSSSelector("div.bookmark>p:nth-child(1)>a:nth-child(1)")(root)
-        return [b.text for b in bookmarks]
-
     bm1 = make_bookmark()
     bm2 = make_bookmark(url="http://test.com", title=title)
 
@@ -125,3 +132,50 @@ def test_index_search(app, signed_in_client, session, title, search_str, result_
         flask.url_for("quarchive.index", q=search_str)
     )
     assert len(get_bookmark_urls(search_response)) == result_count
+
+
+def make_fulltext_indexed_bookmark(
+    session: sut.Session, bookmark: sut.Bookmark, full_text: str
+):
+    # FIXME: this really shows the need for a library of common db functions
+    url_uuid = sut.set_bookmark(session, bookmark)
+    crawl_uuid = uuid4()
+    body_uuid = uuid4()
+
+    crawl_req = sut.CrawlRequest(
+        crawl_uuid=crawl_uuid,
+        url_uuid=url_uuid,
+        requested=datetime(2018, 1, 3),
+        got_response=True,
+    )
+    crawl_resp = sut.CrawlResponse(
+        crawl_uuid=crawl_uuid,
+        headers={"content-type": "application/html"},
+        body_uuid=body_uuid,
+        status_code=200,
+    )
+    fulltext_obj = sut.FullText(
+        url_uuid=url_uuid,
+        crawl_uuid=crawl_uuid,
+        inserted=datetime.utcnow().replace(tzinfo=timezone.utc),
+        full_text=full_text,
+        tsvector=func.to_tsvector(full_text),
+    )
+    session.add_all([crawl_req, crawl_resp, fulltext_obj])
+
+
+def test_full_text_search(app, signed_in_client, session):
+    star_wars_bm = make_bookmark(title="star wars", url="http://example/starwars")
+    star_trek_bm = make_bookmark(title="star trek", url="http://example/startrek")
+
+    make_fulltext_indexed_bookmark(
+        session, star_wars_bm, "wookies live on planet kashyyyk"
+    )
+    make_fulltext_indexed_bookmark(session, star_trek_bm, "red shirts usually perish")
+    session.commit()
+
+    search_response = signed_in_client.get(
+        flask.url_for("quarchive.index", q="wookies")
+    )
+    returned_bookmarks = get_bookmark_urls(search_response)
+    assert returned_bookmarks == ["star wars"]

@@ -555,16 +555,26 @@ def index() -> Tuple[flask.Response, int]:
     page_size = flask.current_app.config["PAGE_SIZE"]
     page = int(flask.request.args.get("page", "1"))
     offset = (page - 1) * page_size
-    query = db.session.query(SQLABookmark).filter(~SQLABookmark.deleted)
+    query = db.session.query(SQLABookmark)
 
     if "q" in flask.request.args:
+        query = query.outerjoin(FullText, FullText.url_uuid == SQLABookmark.url_uuid)
         search_str = flask.request.args["q"]
         tquery_str = parse_search_str(search_str)
-        log.info('tquery_str = "%s"', tquery_str)
-        combined_tsvector = func.to_tsvector(SQLABookmark.title).op("||")(
-            func.to_tsvector(SQLABookmark.description)
+        log.info('search_str, tquery_str = ("%s", "%s")', search_str, tquery_str)
+
+        # necessary to coalesce this as there may be no fulltext
+        fulltext = func.coalesce(FullText.tsvector, func.to_tsvector(""))
+
+        combined_tsvector = (
+            func.to_tsvector(SQLABookmark.title)
+            .op("||")(func.to_tsvector(SQLABookmark.description))
+            .op("||")(fulltext)
         )
         query = query.filter(combined_tsvector.op("@@")(func.to_tsquery(tquery_str)))
+
+    # omit deleted bookmarks
+    query = query.filter(~SQLABookmark.deleted)
 
     sqla_objs = (
         query.order_by(SQLABookmark.created.desc()).offset(offset).limit(page_size)
@@ -1047,7 +1057,7 @@ class CompoundTerm(Term, metaclass=ABCMeta):
         pass
 
 
-class Conjunction(CompoundTerm):
+class Disjunction(CompoundTerm):
     elems: MutableSequence[Term]
 
     def __init__(self) -> None:
@@ -1079,12 +1089,13 @@ def parse_search_str(search_str: str) -> str:
     """Parse a web search string into tquery format"""
     token_iterator = LEXER_REGEX.finditer(search_str)
 
-    current_term: CompoundTerm = Conjunction()
+    current_term: CompoundTerm = Disjunction()
     base_term = current_term
     for match_obj in token_iterator:
         token = match_obj.group(0)
-        log.debug("token = %s", token)
-        log.debug("base_term = %s", base_term.render())
+        log.debug("token = '%s'", token)
+        log.debug("base_term = '%s'", base_term.render())
+        # FIXME: should work with any quote character
         if token == "'":
             if isinstance(current_term, Quote):
                 current_term = current_term.parent
