@@ -951,8 +951,10 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
                 FullText.inserted,
             )
             .outerjoin(FullText, CrawlResponse.crawl_uuid == FullText.crawl_uuid)
+            .join(CrawlRequest, CrawlResponse.crawl_uuid == CrawlRequest.crawl_uuid)
+            .join(SQLAUrl, CrawlRequest.url_uuid == SQLAUrl.url_uuid)
             .filter(CrawlResponse.crawl_uuid == crawl_uuid)
-            .first()
+            .one()
         )
 
         url = URL.from_sqla_url(sqla_url_obj)
