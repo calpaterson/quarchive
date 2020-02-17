@@ -558,7 +558,10 @@ def index() -> Tuple[flask.Response, int]:
     query = db.session.query(SQLABookmark)
 
     if "q" in flask.request.args:
-        query = query.outerjoin(FullText, FullText.url_uuid == SQLABookmark.url_uuid)
+        query = db.session.query(SQLABookmark).outerjoin(
+            FullText, FullText.url_uuid == SQLABookmark.url_uuid
+        )
+
         search_str = flask.request.args["q"]
         tquery_str = parse_search_str(search_str)
         log.info('search_str, tquery_str = ("%s", "%s")', search_str, tquery_str)
@@ -571,7 +574,11 @@ def index() -> Tuple[flask.Response, int]:
             .op("||")(func.to_tsvector(SQLABookmark.description))
             .op("||")(fulltext)
         )
-        query = query.filter(combined_tsvector.op("@@")(func.to_tsquery(tquery_str)))
+        tsquery = func.to_tsquery(tquery_str)
+        query = query.filter(combined_tsvector.op("@@")(tsquery))
+        query = query.order_by(func.ts_rank(combined_tsvector, tsquery, 1))
+    else:
+        query = db.session.query(SQLABookmark)
 
     # omit deleted bookmarks
     query = query.filter(~SQLABookmark.deleted)
