@@ -964,7 +964,7 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
             return
 
         content_type, _ = cgi.parse_header(content_type_header)
-        if content_type != "application/html":
+        if content_type != "text/html":
             log.info(
                 "%s (%s) has wrong content type: %s - skipping",
                 url.to_url(),

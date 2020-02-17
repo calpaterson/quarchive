@@ -57,7 +57,7 @@ def test_indexing_for_fresh(session, mock_s3):
     )
     crawl_resp = sut.CrawlResponse(
         crawl_uuid=crawl_uuid,
-        headers={"content-type": "application/html"},
+        headers={"content-type": "text/html"},
         body_uuid=body_uuid,
         status_code=200,
     )
@@ -102,7 +102,7 @@ def test_indexing_idempotent(session):
     )
     crawl_resp = sut.CrawlResponse(
         crawl_uuid=crawl_uuid,
-        headers={"content-type": "application/html"},
+        headers={"content-type": "text/html"},
         body_uuid=body_uuid,
         status_code=200,
     )
@@ -182,7 +182,7 @@ def test_enqueue_fulltext_indexing(session, eager_celery, mock_s3):
     )
     crawl_resp = sut.CrawlResponse(
         crawl_uuid=crawl_uuid,
-        headers={"content-type": "application/html"},
+        headers={"content-type": "text/html"},
         body_uuid=body_uuid,
         status_code=200,
     )

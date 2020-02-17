@@ -150,7 +150,7 @@ def make_fulltext_indexed_bookmark(
     )
     crawl_resp = sut.CrawlResponse(
         crawl_uuid=crawl_uuid,
-        headers={"content-type": "application/html"},
+        headers={"content-type": "text/html"},
         body_uuid=body_uuid,
         status_code=200,
     )
