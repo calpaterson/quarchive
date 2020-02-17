@@ -7,7 +7,6 @@ from urllib.parse import urlsplit
 
 import requests
 import responses
-import moto
 from freezegun import freeze_time
 import pytest
 
@@ -67,18 +66,18 @@ def test_crawl_when_no_response(session):
 
 
 @responses.activate
-def test_crawl_url_if_uncrawled(session, mock_s3):
+def test_ensure_fulltext_indexing(session, mock_s3):
     url = "http://example.com"
 
     responses.add(responses.GET, url, body=b"hello", stream=True)
 
-    sut.crawl_url_if_uncrawled(url)
+    sut.ensure_crawled(url)
 
     # Effectively assert that there's only one
     pairs = session.query(sut.CrawlRequest, sut.CrawlResponse).all()
     assert len(pairs) == 1
 
-    sut.crawl_url_if_uncrawled(url)
+    sut.ensure_crawled(url)
 
     # Assert again
     pairs = session.query(sut.CrawlRequest, sut.CrawlResponse).all()
@@ -86,7 +85,7 @@ def test_crawl_url_if_uncrawled(session, mock_s3):
 
 
 @responses.activate
-def test_enqueue_of_uncrawled(session, eager_celery, mock_s3):
+def test_enqueue_crawls_for_uncrawled_urls(session, eager_celery, mock_s3):
     url = "http://example.com"
     s, n, p, q, f = urlsplit(url)
     session.add(

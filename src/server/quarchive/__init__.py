@@ -805,12 +805,15 @@ def get_s3():
 
     resource = session.resource("s3", **resource_kwargs)
     resource.meta.client.meta.events.unregister("before-sign.s3", fix_s3_host)
+    log.info("constructed s3 resource")
     return resource
 
 
 @lru_cache(1)
 def get_response_body_bucket():
-    return get_s3().Bucket(environ["QM_RESPONSE_BODY_BUCKET_NAME"])
+    bucket = get_s3().Bucket(environ["QM_RESPONSE_BODY_BUCKET_NAME"])
+    log.info("constructed response body bucket")
+    return bucket
 
 
 @celery_app.task
@@ -840,8 +843,21 @@ def enqueue_crawls_for_uncrawled_urls():
         uncrawled_urls = (urlunsplit(tup) for tup in rs)
     for index, uncrawled_url in enumerate(uncrawled_urls, start=1):
         log.info("enqueuing %s for crawl", uncrawled_url)
-        crawl_url_if_uncrawled.delay(uncrawled_url)
+        ensure_crawled.delay(uncrawled_url)
     log.info("enqueued %d urls", index)
+
+
+def enqueue_fulltext_indexing():
+    with contextlib.closing(get_session_cls()) as sesh:
+        rs = (
+            sesh.query(CrawlResponse.crawl_uuid)
+            .outerjoin(FullText, CrawlResponse.crawl_uuid == FullText.crawl_uuid)
+            .filter(FullText.crawl_uuid.is_(None))
+        )
+        for index, (crawl_uuid,) in enumerate(rs, start=1):
+            log.info("enqueuing %s for crawl", crawl_uuid)
+            ensure_fulltext.delay(crawl_uuid)
+    log.info("enqueued %d items", index)
 
 
 def get_meta_descriptions(root: lxml.html.HtmlElement) -> List[str]:
@@ -882,7 +898,7 @@ def download_file(bucket, filename: str) -> gzip.GzipFile:
 
 
 @celery_app.task
-def crawl_url_if_uncrawled(url: str) -> None:
+def ensure_crawled(url: str) -> None:
     """Crawl a url only if it has never been crawled before.
 
     For use from celery beat"""
