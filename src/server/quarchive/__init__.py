@@ -329,7 +329,7 @@ def get_bookmark_by_url(session: Session, url: str) -> Optional[Bookmark]:
         return bookmark_from_sqla(url, sqla_bookmark)
 
 
-def get_bookmark_by_url_uuid(session, url_uuid: UUID) -> Optional[Bookmark]:
+def get_bookmark_by_url_uuid(session: Session, url_uuid: UUID) -> Optional[Bookmark]:
     sqla_bookmark = session.query(SQLABookmark).get(url_uuid)
     if sqla_bookmark is None:
         return None
@@ -337,7 +337,7 @@ def get_bookmark_by_url_uuid(session, url_uuid: UUID) -> Optional[Bookmark]:
     return bookmark_from_sqla(url, sqla_bookmark)
 
 
-def upsert_url(session, url) -> UUID:
+def upsert_url(session: Session, url: str) -> UUID:
     scheme, netloc, path, query, fragment = urlsplit(url)
     proposed_uuid = uuid4()
     url_stmt = (
@@ -441,7 +441,9 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> UUID:
     return url_uuid
 
 
-def merge_bookmarks(session, recieved_bookmarks: Set[Bookmark]) -> Set[Bookmark]:
+def merge_bookmarks(
+    session: Session, recieved_bookmarks: Set[Bookmark]
+) -> Set[Bookmark]:
     changed_bookmarks: Set[Bookmark] = set()
     for recieved in recieved_bookmarks:
         existing = get_bookmark_by_url(session, url=recieved.url)
@@ -575,7 +577,6 @@ def index() -> Tuple[flask.Response, int]:
 
     bookmarks = []
     for sqla_obj in sqla_objs:
-        url_obj: SQLAUrl = sqla_obj.url_obj
         url = URL.from_sqla_url(sqla_obj.url_obj)
         bookmarks.append((url, bookmark_from_sqla(url.to_url(), sqla_obj)))
     return flask.make_response(
@@ -971,7 +972,7 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
         log.info("indexed %s (%s)", url.to_url(), crawl_uuid)
 
 
-def crawl_url(session, crawl_uuid: UUID, url: str) -> None:
+def crawl_url(session: Session, crawl_uuid: UUID, url: str) -> None:
     client = get_client()
     bucket = get_response_body_bucket()
     with contextlib.closing(get_session_cls()) as session:
