@@ -1066,7 +1066,7 @@ class CompoundTerm(Term, metaclass=ABCMeta):
         pass
 
 
-class Disjunction(CompoundTerm):
+class Conjunction(CompoundTerm):
     elems: MutableSequence[Term]
 
     def __init__(self) -> None:
@@ -1076,7 +1076,7 @@ class Disjunction(CompoundTerm):
         self.elems.append(term)
 
     def render(self) -> str:
-        return " | ".join(e.render() for e in self.elems)
+        return " & ".join(e.render() for e in self.elems)
 
 
 class Quote(CompoundTerm):
@@ -1098,7 +1098,7 @@ def parse_search_str(search_str: str) -> str:
     """Parse a web search string into tquery format"""
     token_iterator = LEXER_REGEX.finditer(search_str)
 
-    current_term: CompoundTerm = Disjunction()
+    current_term: CompoundTerm = Conjunction()
     base_term = current_term
     for match_obj in token_iterator:
         token = match_obj.group(0)
