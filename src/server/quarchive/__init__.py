@@ -59,6 +59,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from flask_sqlalchemy import SQLAlchemy
 import flask
 from flask_cors import CORS
+import missive
+from missive.adapters.rabbitmq import RabbitMQAdapter
 
 log = logging.getLogger("quarchive")
 
@@ -790,6 +792,17 @@ def init_app() -> flask.Flask:
 
 celery_app = Celery("quarchive")
 
+processor: missive.Processor[missive.JSONMessage] = missive.Processor()
+
+
+@processor.handle_for([lambda m: m.get_json()["event_type"] == "test"])
+def test_message(message, ctx):
+    log.info("test message recieved")
+    ctx.ack(message)
+
+
+adapted_processor = RabbitMQAdapter(missive.JSONMessage, processor, "quarchive-events")
+
 
 @lru_cache(1)
 def get_session_cls() -> Session:
@@ -1126,6 +1139,11 @@ def parse_search_str(search_str: str) -> str:
 # Entry points
 ...
 # fmt: on
+
+
+def message_processor() -> None:
+    logging.basicConfig(level=logging.INFO)
+    adapted_processor.run()
 
 
 def main() -> None:

@@ -21,6 +21,7 @@ setup(
         "requests~=2.22.0",
         "boto3~=1.11.0",
         "lxml~=4.4.2",
+        "missive~=0.5",
     ],
     extras_require={
         "tests": [
@@ -47,6 +48,7 @@ setup(
         "console_scripts": [
             "quarchive=quarchive:main",
             "qm-pinboard-import=quarchive:pinboard_import",
+            "quarchive-message-processor=quarchive:message_processor",
         ]
     },
 )
