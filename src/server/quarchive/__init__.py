@@ -1041,7 +1041,7 @@ def crawl_url(session: Session, crawl_uuid: UUID, url: str) -> None:
 ...
 # fmt: on
 
-LEXER_REGEX = re.compile("[0-9A-z]+|'")
+LEXER_REGEX = re.compile(r"[0-9A-z]+|['\"]")
 
 
 class Term(metaclass=ABCMeta):
@@ -1080,8 +1080,11 @@ class Conjunction(CompoundTerm):
 
 
 class Quote(CompoundTerm):
+    quotes = {"'", '"'}
+
     literals: MutableSequence[Term]
     parent: CompoundTerm
+    quote_char: str
 
     def __init__(self, parent: CompoundTerm) -> None:
         self.literals = []
@@ -1105,7 +1108,7 @@ def parse_search_str(search_str: str) -> str:
         log.debug("token = '%s'", token)
         log.debug("base_term = '%s'", base_term.render())
         # FIXME: should work with any quote character
-        if token == "'":
+        if token in Quote.quotes:
             if isinstance(current_term, Quote):
                 current_term = current_term.parent
             else:
