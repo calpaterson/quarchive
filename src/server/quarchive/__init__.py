@@ -580,8 +580,13 @@ def index() -> Tuple[flask.Response, int]:
         tsquery = func.to_tsquery(tquery_str)
         query = query.filter(combined_tsvector.op("@@")(tsquery))
         query = query.order_by(func.ts_rank(combined_tsvector, tsquery, 1))
+        page_title = search_str
     else:
         query = db.session.query(SQLABookmark)
+        page_title = "Quarchive"
+
+    if page > 1:
+        page_title += " (page %s)" % page
 
     # omit deleted bookmarks
     query = query.filter(~SQLABookmark.deleted)
@@ -602,6 +607,7 @@ def index() -> Tuple[flask.Response, int]:
     return flask.make_response(
         flask.render_template(
             "index.j2",
+            page_title=page_title,
             bookmarks=bookmarks,
             page=page,
             prev_page_exists=prev_page_exists,
@@ -614,7 +620,11 @@ def index() -> Tuple[flask.Response, int]:
 @blueprint.route("/create-bookmark")
 @sign_in_required
 def create_bookmark_form() -> flask.Response:
-    return flask.make_response(flask.render_template("create_or_edit_bookmark.j2",))
+    return flask.make_response(
+        flask.render_template(
+            "create_or_edit_bookmark.j2", page_title="Create bookmark",
+        )
+    )
 
 
 @blueprint.route("/bookmark", methods=["POST"])
@@ -650,7 +660,10 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
         # FIXME: what if it doesn't exist?
         return flask.make_response(
             flask.render_template(
-                "create_or_edit_bookmark.j2", url_uuid=url_uuid, bookmark=bookmark
+                "create_or_edit_bookmark.j2",
+                url_uuid=url_uuid,
+                bookmark=bookmark,
+                page_title="Edit bookmark: %s" % bookmark.url,
             )
         )
     else:
@@ -675,12 +688,15 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
 @blueprint.route("/url/<uuid:url_uuid>")
 @sign_in_required
 def view_url(url_uuid: UUID) -> Tuple[flask.Response, int]:
-    url_obj = db.session.query(SQLAUrl).filter(SQLAUrl.url_uuid == url_uuid).first()
-    if url_obj is None:
+    sqla_obj = db.session.query(SQLAUrl).filter(SQLAUrl.url_uuid == url_uuid).first()
+    if sqla_obj is None:
         raise exc.NotFound()
     else:
+        url_obj = URL.from_sqla_url(sqla_obj)
         return flask.make_response(
-            flask.render_template("url.j2", url=URL.from_sqla_url(url_obj))
+            flask.render_template(
+                "url.j2", url=url_obj, page_title="View: %s" % url_obj.to_url()
+            )
         )
 
 
@@ -692,14 +708,21 @@ def view_netloc(netloc: str) -> Tuple[flask.Response, int]:
         raise exc.NotFound()
     else:
         return flask.make_response(
-            flask.render_template("netloc.j2", netloc=netloc, url_objs=url_objs)
+            flask.render_template(
+                "netloc.j2",
+                netloc=netloc,
+                url_objs=url_objs,
+                page_title="Netloc: %s" % netloc,
+            )
         )
 
 
 @blueprint.route("/sign-in", methods=["GET", "POST"])
 def sign_in() -> flask.Response:
     if flask.request.method == "GET":
-        return flask.make_response(flask.render_template("sign-in.j2"))
+        return flask.make_response(
+            flask.render_template("sign-in.j2", page_title="Sign in")
+        )
     else:
         username = flask.request.form.get("username")
         password = flask.request.form.get("password")

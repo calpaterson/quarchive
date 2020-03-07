@@ -16,7 +16,7 @@
           sizes="192x192"
           href="{{ url_for('static', filename='icons/quarchive-192px.png') }}"
           >
-        <title>QM</title>
+        <title>{{ page_title|e or "Quarchive" }}</title>
     </head>
     <body>
         <nav>
