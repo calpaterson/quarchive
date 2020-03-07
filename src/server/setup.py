@@ -15,6 +15,7 @@ setup(
         "sqlalchemy~=1.3.11",
         "psycopg2~=2.8.4",
         "babel~=2.7.0",
+        "Flask-Babel~=1.0.0",
         "click~=7.0.0",
         "python-dateutil~=2.8.1",
         "celery~=4.4.0",

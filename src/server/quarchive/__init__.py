@@ -61,6 +61,7 @@ import flask
 from flask_cors import CORS
 import missive
 from missive.adapters.rabbitmq import RabbitMQAdapter
+from flask_babel import Babel
 
 log = logging.getLogger("quarchive")
 
@@ -746,6 +747,7 @@ def init_app() -> flask.Flask:
     app.config["SECRET_KEY"] = environ["QM_SECRET_KEY"]
     app.config["SQLALCHEMY_DATABASE_URI"] = environ["QM_SQL_URL"]
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    log.info("setting sql url to: %s", environ["QM_SQL_URL"])
 
     # By default Postgres will consult the locale to decide what timezone to
     # return datetimes in.  We want UTC in all cases.
@@ -757,12 +759,14 @@ def init_app() -> flask.Flask:
     app.config["PASSWORD"] = environ["QM_PASSWORD"]
     db.init_app(app)
     cors.init_app(app)
+    Babel(app, default_locale="en_GB", default_timezone="Europe/London")
     app.register_blueprint(blueprint)
 
     @app.template_filter("relativetime")
     def relativetime(dt: datetime):
         now = datetime.utcnow().replace(tzinfo=timezone.utc)
         td = dt - now
+        # FIXME: Should get the locale instead of hardcoding
         return format_timedelta(td, add_direction=True, locale="en_GB")
 
     @app.context_processor

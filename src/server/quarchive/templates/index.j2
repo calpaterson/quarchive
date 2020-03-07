@@ -40,25 +40,29 @@
   </p>
 
   {% for url, bookmark in bookmarks %}
-    {{ render_bookmark(url, bookmark) }}
-    {% if not loop.last %}
-      <strong>***</strong>
+    {% if loop.first %}
+      <h2>{{bookmark.created.date()|dateformat('full')}}</h2>
+    {% elif loop.previtem[1].created.date() != bookmark.created.date() %}
+      <h2>{{bookmark.created.date()|dateformat('full')}}</h2>
     {% endif %}
+    {{ render_bookmark(url, bookmark) }}
   {% endfor %}
 {% endblock %}
 
 {% macro render_bookmark(url, bookmark) -%}
   <div class="bookmark">
-    <p>
+    <p class="bookmark-url">
       <a href="{{url.to_url()}}">{{bookmark.title|e}}</a>
       <a
         class="netloc"
         href="{{ url_for('quarchive.view_netloc', netloc=url.netloc) }}"
         >{{ url.netloc }}</a>
     </p>
-    <blockquote>
-      {{ bookmark.description|e }}
-    </blockquote>
+    {% if bookmark.description|length > 0 %}
+      <blockquote class="bookmark-description">
+        {{ bookmark.description|e }}
+      </blockquote>
+    {% endif %}
     <p class="bookmark-details">
       <em>created <span title="{{bookmark.created}}">{{bookmark.created|relativetime}}</span></em> {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
       <a href="{{ url_for('quarchive.edit_bookmark', url_uuid=url.url_uuid) }}">edit</a>

@@ -21,6 +21,10 @@ body {
     margin-right: auto;
 }
 
+h2 {
+    text-decoration: underline;
+}
+
 a:link {
     color: var(--fresh);
 }
@@ -50,9 +54,24 @@ nav > a {
     color: inherit;
 }
 
+.bookmark {
+    margin-top: 1.5em;
+    margin-bottom: 1.5em;
+}
+
+.bookmark-url {
+    margin-bottom: 0;
+}
+
+.bookmark-details {
+    margin-top: 0;
+}
+
 .bookmark blockquote {
     color: var(--light);
-    margin: 1em;
+    margin-top: 0.2em;
+    margin-bottom: 0.2em;
+    margin-left: 1em;
     border-left: 0.2em solid var(--light);
     padding-left: 1em;
     font-style: oblique;
