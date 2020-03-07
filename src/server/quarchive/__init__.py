@@ -1147,7 +1147,7 @@ def parse_search_str(search_str: str) -> str:
         token = match_obj.group(0)
         log.debug("token = '%s'", token)
         log.debug("base_term = '%s'", base_term.render())
-        # FIXME: should work with any quote character
+        # FIXME: Need to handle apostrophe
         if token in Quote.quotes:
             if isinstance(current_term, Quote):
                 current_term = current_term.parent
