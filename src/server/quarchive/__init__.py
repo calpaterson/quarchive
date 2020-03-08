@@ -10,6 +10,7 @@ import logging
 from uuid import uuid4, UUID
 from typing import (
     Mapping,
+    Sequence,
     Set,
     Any,
     Optional,
@@ -445,7 +446,7 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> UUID:
 
 
 def merge_bookmarks(
-    session: Session, recieved_bookmarks: Set[Bookmark]
+    session: Session, recieved_bookmarks: Iterable[Bookmark]
 ) -> Set[Bookmark]:
     changed_bookmarks: Set[Bookmark] = set()
     for recieved in recieved_bookmarks:
@@ -663,7 +664,7 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
                 "create_or_edit_bookmark.j2",
                 url_uuid=url_uuid,
                 bookmark=bookmark,
-                page_title="Edit bookmark: %s" % bookmark.url,
+                page_title="Edit bookmark: %s" % bookmark.url,  # type: ignore
             )
         )
     else:
@@ -751,9 +752,7 @@ def ok() -> flask.Response:
 @api_key_required
 def sync() -> flask.Response:
     body = flask.request.json
-    recieved_bookmarks: Set[Bookmark] = set(
-        Bookmark.from_json(item) for item in body["bookmarks"]
-    )
+    recieved_bookmarks = set(Bookmark.from_json(item) for item in body["bookmarks"])
 
     changed_bookmarks = merge_bookmarks(db.session, recieved_bookmarks)
     db.session.commit()
@@ -1181,13 +1180,21 @@ def main() -> None:
 
 @click.command()
 @click.argument("json_file", type=click.File("rb"))
-def pinboard_import(json_file):
+@click.option(
+    "--as-of",
+    type=click.DateTime(),
+    default=lambda: datetime.strftime(datetime.utcnow(), "%Y-%m-%d %H:%M:%S"),
+)
+def pinboard_import(json_file, as_of: datetime):
+    as_of_dt = as_of.replace(tzinfo=timezone.utc)
+    log.info("as of: %s", as_of_dt)
+
     def pinboard_bookmark_to_bookmark(mapping: Mapping[str, str]) -> Bookmark:
         return Bookmark(
             url=mapping["href"],
             title=mapping["description"],
             description=mapping["extended"],
-            updated=datetime.utcnow().replace(tzinfo=timezone.utc),
+            updated=as_of_dt,
             created=isoparse(mapping["time"]),
             unread=True if mapping["toread"] == "yes" else False,
             deleted=False,
@@ -1199,6 +1206,7 @@ def pinboard_import(json_file):
     log.info("keys = %s", keys)
     app = init_app()
     with app.app_context():
-        for pinboard_bookmark in document:
-            set_bookmark(db.session, pinboard_bookmark_to_bookmark(pinboard_bookmark))
+        generator = (pinboard_bookmark_to_bookmark(b) for b in document)
+        changed = merge_bookmarks(db.session, generator)
+        log.info("changed %d bookmarks", len(changed))
         db.session.commit()
