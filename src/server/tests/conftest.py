@@ -10,7 +10,7 @@ import quarchive as sut
 import pytest
 
 
-working_cred_headers = {
+working_cred_headers: Mapping[str, str] = {
     "X-QM-API-Username": "calpaterson",
     "X-QM-API-Key": "test_password",
 }

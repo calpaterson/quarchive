@@ -751,8 +751,17 @@ def ok() -> flask.Response:
 @blueprint.route("/sync", methods=["POST"])
 @api_key_required
 def sync() -> flask.Response:
-    body = flask.request.json
-    recieved_bookmarks = set(Bookmark.from_json(item) for item in body["bookmarks"])
+    use_jsonlines = flask.request.headers["Content-Type"] != "application/json"
+
+    if not use_jsonlines:
+        log.warning("sync request using deprecated single json object")
+        body = flask.request.json
+        recieved_bookmarks = set(Bookmark.from_json(item) for item in body["bookmarks"])
+    else:
+        log.info("sync request using jsonlines")
+        recieved_bookmarks = set(
+            Bookmark.from_json(json.loads(l)) for l in flask.request.stream.readlines()
+        )
 
     changed_bookmarks = merge_bookmarks(db.session, recieved_bookmarks)
     db.session.commit()
@@ -760,7 +769,19 @@ def sync() -> flask.Response:
         response_bookmarks = all_bookmarks(db.session)
     else:
         response_bookmarks = changed_bookmarks
-    return flask.json.jsonify({"bookmarks": [b.to_json() for b in response_bookmarks]})
+
+    # If we got JSON, send json back
+    if not use_jsonlines:
+        return flask.json.jsonify(
+            {"bookmarks": [b.to_json() for b in response_bookmarks]}
+        )
+    else:
+        def generator():
+            for b in response_bookmarks:
+                yield json.dumps(b.to_json())
+                yield "\n"
+
+        return flask.Response(generator(), mimetype="application/x-ndjson",)
 
 
 def init_app() -> flask.Flask:
