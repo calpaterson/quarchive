@@ -776,6 +776,7 @@ def sync() -> flask.Response:
             {"bookmarks": [b.to_json() for b in response_bookmarks]}
         )
     else:
+
         def generator():
             for b in response_bookmarks:
                 yield json.dumps(b.to_json())
