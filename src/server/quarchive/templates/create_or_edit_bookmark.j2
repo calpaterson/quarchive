@@ -31,8 +31,9 @@
       <legend>Edit</legend>
 
       <p>
-      <label for="url">URL</label>
+      <label for="url-input">URL</label>
         <input
+          id="url-input"
           name="url"
           type="text"
           {% if bookmark %}
@@ -43,8 +44,10 @@
       </p>
 
       <p>
-        <label for="title">Title</label>
+        <label for="title-input">Title</label>
+
         <input
+          id="title-input"
           name="title"
           type="text"
           {% if bookmark %}
@@ -52,10 +55,12 @@
           {% endif %}
           >
       </p>
+
       <p>
-        <label for="description">Description</label>
+        <label for="description-input">Description</label>
       </p>
-      <textarea name="description">{% if bookmark %}{{ bookmark.description }}{% endif %}</textarea>
+      <textarea id="description-input"
+                name="description">{% if bookmark %}{{ bookmark.description }}{% endif %}</textarea>
       <p>
         <input id="unread" name="unread" type="checkbox"{% if bookmark and bookmark.unread %}checked{% endif %}>
         <label for="unread">Unread</label>

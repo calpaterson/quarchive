@@ -114,6 +114,17 @@ nav > a {
     color: inherit;
 }
 
+#url-input, #title-input {
+    width: 30em;
+}
+
+#description-input {
+    font-family: inherit;
+    font-size: inherit;
+    width: 50em;
+    height: 10em;
+}
+
 @font-face {
   font-family: 'Literata';
   font-style: normal;
