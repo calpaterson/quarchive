@@ -3,9 +3,10 @@
 {% block main %}
   <h1>Bookmarks</h1>
 
-  <form>
+  <form id="search-form">
     <input
       type="text"
+      id="search-box"
       name="q"
       {% if q %}
       value="{{ q }}"
@@ -15,7 +16,25 @@
     <button>Search</button>
   </form>
 
-  <p>
+  {{ render_pagination(page) }}
+
+  <div class="bookmarks">
+    {% for url, bookmark in bookmarks %}
+      {% if loop.first %}
+        <h2>{{bookmark.created.date()|dateformat('full')}}</h2>
+      {% elif loop.previtem[1].created.date() != bookmark.created.date() %}
+        <h2>{{bookmark.created.date()|dateformat('full')}}</h2>
+      {% endif %}
+      {{ render_bookmark(url, bookmark) }}
+    {% endfor %}
+  </div>
+
+  {{ render_pagination(page) }}
+
+{% endblock %}
+
+{% macro render_pagination(page_number) -%}
+  <div class="pagination">
     <span class="prev-page">
       {% if prev_page_exists %}
         <a
@@ -24,30 +43,25 @@
           {% else %}
             href="{{ modify_query(page=page-1) }}"
           {% endif %}
-          >Previous page</a>
+          class="pagination-arrow"
+          >&lt Previous</a>
         {% else %}
-          <s>Previous page</s>
+          &lt Previous
         {% endif %}
     </span>
-
+    -
+    <span class="page-number">Page {{ page_number }} (30 per page)</span>
+    -
     <span class="next-page">
       {% if next_page_exists %}
-        <a href="{{ modify_query(page=page+1) }}">Next page</a>
+        <a class="pagination-arrow" href="{{ modify_query(page=page+1) }}">Next &gt</a>
       {% else %}
-        <s>Next page</s>
+        Next &gt
       {% endif %}
     </span>
-  </p>
+  </div>
+{% endmacro %}
 
-  {% for url, bookmark in bookmarks %}
-    {% if loop.first %}
-      <h2>{{bookmark.created.date()|dateformat('full')}}</h2>
-    {% elif loop.previtem[1].created.date() != bookmark.created.date() %}
-      <h2>{{bookmark.created.date()|dateformat('full')}}</h2>
-    {% endif %}
-    {{ render_bookmark(url, bookmark) }}
-  {% endfor %}
-{% endblock %}
 
 {% macro render_bookmark(url, bookmark) -%}
   <div class="bookmark">

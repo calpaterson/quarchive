@@ -54,6 +54,21 @@ nav > a {
     color: inherit;
 }
 
+#search-box {
+    width: 30em;
+    height: 2em;
+}
+
+.pagination {
+    margin-top: 1em;
+    margin-bottom: 1em;
+    font-size: x-large;
+}
+
+.pagination a:visited {
+    color: var(--fresh);
+}
+
 .bookmark {
     margin-top: 1.5em;
     margin-bottom: 1.5em;

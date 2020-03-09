@@ -644,7 +644,7 @@ def create_bookmark() -> flask.Response:
     )
     url_uuid = set_bookmark(db.session, bookmark)
     db.session.commit()
-    flask.flash("Bookmarked: %s" % bookmark.url)
+    flask.flash("Bookmarked: %s" % bookmark.title)
     response = flask.make_response("Redirecting...", 303)
     response.headers["Location"] = flask.url_for(
         "quarchive.edit_bookmark", url_uuid=url_uuid
@@ -682,7 +682,7 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
         final_bookmark = Bookmark(**bookmark_fields)
         set_bookmark(db.session, final_bookmark)
         db.session.commit()
-        flask.flash("Edited: %s" % bookmark.url)
+        flask.flash("Edited: %s" % bookmark.title)
         return flask.make_response("ok")
 
 
