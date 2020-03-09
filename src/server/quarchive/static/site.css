@@ -114,13 +114,16 @@ nav > a {
     color: inherit;
 }
 
+textarea, input, button, select {
+    font-family: inherit;
+    font-size: inherit;
+}
+
 #url-input, #title-input {
     width: 30em;
 }
 
 #description-input {
-    font-family: inherit;
-    font-size: inherit;
     width: 50em;
     height: 10em;
 }
