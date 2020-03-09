@@ -169,7 +169,9 @@ def test_logging_for_bug_6(client, caplog, session):
                 "/sync", json={"bookmarks": [bm_json]}, headers=working_cred_headers
             )
 
+        messages = [r.getMessage() for r in caplog.records]
+
         assert (
-            caplog.records[0].getMessage()
-            == "Got invalid datetime: [+051979-10-24T11:59:23.000Z, 1970-01-01T00:00:00+00:00] for http://example.com"
+            "Got invalid datetime: [+051979-10-24T11:59:23.000Z, 1970-01-01T00:00:00+00:00] for http://example.com"
+            in messages
         )
