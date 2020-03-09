@@ -806,13 +806,6 @@ def init_app() -> flask.Flask:
     Babel(app, default_locale="en_GB", default_timezone="Europe/London")
     app.register_blueprint(blueprint)
 
-    @app.template_filter("relativetime")
-    def relativetime(dt: datetime):
-        now = datetime.utcnow().replace(tzinfo=timezone.utc)
-        td = dt - now
-        # FIXME: Should get the locale instead of hardcoding
-        return format_timedelta(td, add_direction=True, locale="en_GB")
-
     @app.context_processor
     def context_processor():
         return {"urlunsplit": urlunsplit}
