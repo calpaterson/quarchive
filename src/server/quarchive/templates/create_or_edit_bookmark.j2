@@ -57,7 +57,7 @@
       </p>
       <textarea name="description">{% if bookmark %}{{ bookmark.description }}{% endif %}</textarea>
       <p>
-        <input name="unread" type="checkbox"{% if bookmark and bookmark.unread %}checked{% endif %}>
+        <input id="unread" name="unread" type="checkbox"{% if bookmark and bookmark.unread %}checked{% endif %}>
         <label for="unread">Unread</label>
       </p>
       <p>
