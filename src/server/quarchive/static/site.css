@@ -38,8 +38,20 @@ a:visited {
     width: 2rem;
 }
 
-#nav-links {
+.nav-links {
     vertical-align: top;
+}
+
+.nav-links-right {
+    float: right;
+}
+
+.nav-links a:visited {
+    color: var(--light);
+}
+
+.nav-links a:link {
+    color: var(--light);
 }
 
 nav > a {

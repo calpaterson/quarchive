@@ -628,6 +628,15 @@ def create_bookmark_form() -> flask.Response:
     )
 
 
+@blueprint.route("/about")
+def about() -> flask.Response:
+    return flask.make_response(
+        flask.render_template(
+            "about.j2", page_title="About Quarchive",
+        )
+    )
+
+
 @blueprint.route("/bookmark", methods=["POST"])
 @sign_in_required
 def create_bookmark() -> flask.Response:
