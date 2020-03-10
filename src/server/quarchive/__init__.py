@@ -631,9 +631,7 @@ def create_bookmark_form() -> flask.Response:
 @blueprint.route("/about")
 def about() -> flask.Response:
     return flask.make_response(
-        flask.render_template(
-            "about.j2", page_title="About Quarchive",
-        )
+        flask.render_template("about.j2", page_title="About Quarchive",)
     )
 
 
