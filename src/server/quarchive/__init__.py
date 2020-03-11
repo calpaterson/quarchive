@@ -262,6 +262,7 @@ class CrawlRequest(Base):
     __tablename__ = "crawl_requests"
 
     crawl_uuid = Column(PGUUID(as_uuid=True), primary_key=True)
+    # FIXME: url_uuid should be NOT NULL
     url_uuid = Column(PGUUID(as_uuid=True), ForeignKey("urls.url_uuid"), index=True)
     requested = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
     got_response = Column(satypes.Boolean, index=True)
@@ -311,6 +312,29 @@ class FullText(Base):
     url_obj: RelationshipProperty = relationship(
         SQLAUrl, uselist=False, backref="full_text_obj"
     )
+
+
+class SQLUser(Base):
+    __tablename__ = "users"
+
+    user_uuid = Column(PGUUID(as_uuid=True), primary_key=True)
+    username = Column(
+        satypes.String(length=200), nullable=False, unique=True, index=True
+    )
+    password = Column(satypes.String, nullable=False)
+
+    email_obj: RelationshipProperty = relationship(
+        "UserEmail", uselist=False, backref="user"
+    )
+
+
+class UserEmail(Base):
+    __tablename__ = "user_emails"
+
+    user_uuid = Column(
+        PGUUID(as_uuid=True), ForeignKey("users.user_uuid"), primary_key=True
+    )
+    email_address = Column(satypes.String(length=200), nullable=False, index=True)
 
 
 def get_bookmark_by_url(session: Session, url: str) -> Optional[Bookmark]:

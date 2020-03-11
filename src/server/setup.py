@@ -23,6 +23,8 @@ setup(
         "boto3~=1.11.0",
         "lxml~=4.4.2",
         "missive~=0.5",
+        "passlib~=1.7.2",
+        "bcrypt~=3.1.7",
     ],
     extras_require={
         "tests": [
