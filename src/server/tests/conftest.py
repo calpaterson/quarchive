@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import logging
 
 import moto
+from passlib.context import CryptContext
 
 import quarchive as sut
 
@@ -51,6 +52,8 @@ def session(app, config):
 def app(config):
     a = sut.init_app()
     a.config["TESTING"] = True
+    # Speeds things up considerably when testing
+    a.config["CRYPT_CONTEXT"] = CryptContext(["plaintext"])
     return a
 
 

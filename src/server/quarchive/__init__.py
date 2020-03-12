@@ -31,6 +31,7 @@ import shutil
 from abc import ABCMeta, abstractmethod
 import cgi
 
+from passlib.context import CryptContext
 import lxml
 import lxml.html
 import click
@@ -577,6 +578,42 @@ def api_key_required(handler: V) -> V:
     return cast(V, wrapper)
 
 
+@blueprint.route("/register", methods=["POST"])
+def register() -> flask.Response:
+    username = flask.request.form["username"]
+    password_plain = flask.request.form["password"]
+    email: Optional[str] = flask.request.form.get("email", None)
+    username_exists: bool = db.session.query(
+        db.session.query(SQLUser).filter(SQLUser.username == username).exists()
+    ).scalar()
+
+    if username_exists:
+        log.error("username already registered: %s", username)
+        flask.abort(400, description="username already exists")
+
+    username_regex = r"^[A-z0-9_\-]+$"
+    if not re.compile(username_regex).match(username):
+        log.error("invalid username: %s", username)
+        flask.abort(
+            400, description="invalid username - must match %s" % username_regex
+        )
+
+    password_hashed = flask.current_app.config["CRYPT_CONTEXT"].hash(password_plain)
+    sql_user = SQLUser(user_uuid=uuid4(), username=username, password=password_hashed)
+
+    if email is not None:
+        log.info("got an email for %s", username)
+        sql_user.email_obj = UserEmail(email_address=email)
+
+    db.session.add(sql_user)
+
+    db.session.commit()
+    response = flask.make_response("Redirecting...", 303)
+    response.headers["Location"] = flask.url_for("quarchive.index")
+    log.info("created user: %s", username)
+    return response
+
+
 @blueprint.route("/")
 @sign_in_required
 def index() -> Tuple[flask.Response, int]:
@@ -822,6 +859,7 @@ def init_app() -> flask.Flask:
     app.config["SECRET_KEY"] = environ["QM_SECRET_KEY"]
     app.config["SQLALCHEMY_DATABASE_URI"] = environ["QM_SQL_URL"]
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["CRYPT_CONTEXT"] = CryptContext(["bcrypt"])
     log.info("setting sql url to: %s", environ["QM_SQL_URL"])
 
     # By default Postgres will consult the locale to decide what timezone to
