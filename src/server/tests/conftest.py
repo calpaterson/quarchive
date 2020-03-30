@@ -89,6 +89,21 @@ def make_bookmark(**kwargs):
     return sut.Bookmark(**{**bookmark_defaults, **kwargs})
 
 
+def register_user(session, client, username, password):
+    response = client.post(
+        "/register",
+        data={"username": username, "password": password, "email": "test@example.com",},
+    )
+    assert response.status_code == 303
+
+
+@pytest.fixture()
+def test_user(session, client):
+    username, password = ("testuser", "password1")
+    register_user(session, client, username, password)
+    yield username, password
+
+
 @pytest.fixture()
 def signed_in_client(client):
     with client.session_transaction() as sess:

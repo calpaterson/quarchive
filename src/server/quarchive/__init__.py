@@ -793,9 +793,21 @@ def sign_in() -> flask.Response:
             flask.render_template("sign-in.j2", page_title="Sign in")
         )
     else:
+        crypt_context = flask.current_app.config["CRYPT_CONTEXT"]
+
         username = flask.request.form.get("username")
+        user = db.session.query(SQLUser).filter(SQLUser.username == username).first()
+
+        if user is None:
+            flask.current_app.logger.info(
+                "unsuccessful sign in - no such user: %s", username
+            )
+            raise exc.BadRequest("unsuccessful sign in")
+
         password = flask.request.form.get("password")
-        if password == flask.current_app.config["PASSWORD"]:
+        is_correct_password: bool = crypt_context.verify(password, user.password)
+
+        if is_correct_password:
             flask.current_app.logger.info("successful sign in")
             flask.session["username"] = "username"
 
@@ -807,8 +819,10 @@ def sign_in() -> flask.Response:
             response.headers["Location"] = "/"
             return response
         else:
-            flask.current_app.logger.info("unsuccessful sign in")
-            raise exc.BadRequest()
+            flask.current_app.logger.info(
+                "unsuccessful sign in - wrong password for user: %s", username
+            )
+            raise exc.BadRequest("unsuccessful sign in")
 
 
 @blueprint.route("/ok")
