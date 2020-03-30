@@ -54,6 +54,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.dialects.postgresql import (
     UUID as PGUUID,
     insert as pg_insert,
+    BYTEA,
     JSONB,
     TSVECTOR,
 )
@@ -336,6 +337,15 @@ class UserEmail(Base):
         PGUUID(as_uuid=True), ForeignKey("users.user_uuid"), primary_key=True
     )
     email_address = Column(satypes.String(length=200), nullable=False, index=True)
+
+
+class APIKey(Base):
+    __tablename__ = "api_keys"
+
+    user_uuid = Column(
+        PGUUID(as_uuid=True), ForeignKey("users.user_uuid"), primary_key=True
+    )
+    api_key = Column(BYTEA(length=16), nullable=False, unique=True, index=True)
 
 
 def get_bookmark_by_url(session: Session, url: str) -> Optional[Bookmark]:
