@@ -1,7 +1,9 @@
+from uuid import UUID
 from os import environ, path
 from typing import Mapping, Any
 from datetime import datetime, timezone
 import logging
+from dataclasses import dataclass
 
 import moto
 from passlib.context import CryptContext
@@ -9,15 +11,6 @@ from passlib.context import CryptContext
 import quarchive as sut
 
 import pytest
-
-
-working_cred_headers: Mapping[str, str] = {
-    "X-QM-API-Username": "calpaterson",
-    "X-QM-API-Key": "test_password",
-}
-
-
-test_data_path = path.join(path.dirname(__file__), "test-data")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -31,7 +24,6 @@ def reduce_boto_logging():
 @pytest.fixture(scope="function")
 def config(monkeypatch):
     monkeypatch.setenv("QM_SQL_URL", environ["QM_SQL_URL_TEST"])
-    monkeypatch.setenv("QM_PASSWORD", "test_password")
     monkeypatch.setenv("QM_SECRET_KEY", "secret_key")
     monkeypatch.setenv("QM_RESPONSE_BODY_BUCKET_NAME", "test_body_bucket")
     monkeypatch.setenv("QM_AWS_SECRET_ACCESS_KEY", "123")
@@ -76,6 +68,44 @@ def eager_celery():
     sut.celery_app.conf.update(task_always_eager=False)
 
 
+@pytest.fixture()
+def test_user(session, client):
+    username, password = ("testuser", "password1")
+    register_user(session, client, username, password)
+    api_key, user_uuid = (
+        session.query(sut.APIKey.api_key, sut.SQLUser.user_uuid)
+        .join(sut.SQLUser)
+        .filter(sut.SQLUser.username == "testuser")
+        .first()
+    )
+    yield User(
+        username=username, password=password, api_key=api_key, user_uuid=user_uuid
+    )
+
+
+@pytest.fixture()
+def signed_in_client(client):
+    with client.session_transaction() as sess:
+        sess["username"] = "calpaterson"
+    yield client
+
+
+# Everything below this line should be moved to .utils
+
+
+test_data_path = path.join(path.dirname(__file__), "test-data")
+
+
+@dataclass
+class User:
+    """Dataclass for holding user data - for tests only"""
+
+    username: str
+    password: str
+    api_key: bytes
+    user_uuid: UUID
+
+
 def make_bookmark(**kwargs):
     bookmark_defaults: Mapping[str, Any] = {
         "url": "http://example.com",
@@ -95,17 +125,3 @@ def register_user(session, client, username, password):
         data={"username": username, "password": password, "email": "test@example.com",},
     )
     assert response.status_code == 303
-
-
-@pytest.fixture()
-def test_user(session, client):
-    username, password = ("testuser", "password1")
-    register_user(session, client, username, password)
-    yield username, password
-
-
-@pytest.fixture()
-def signed_in_client(client):
-    with client.session_transaction() as sess:
-        sess["username"] = "calpaterson"
-    yield client

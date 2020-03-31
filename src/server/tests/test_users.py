@@ -54,13 +54,12 @@ def test_registration_invalid_username(client, session):
 
 
 def test_sign_in_success(client, test_user):
-    username, password = test_user
-
     sign_in_form_response = client.get("/sign-in")
     assert sign_in_form_response.status_code == 200
 
     sign_in_response = client.post(
-        "/sign-in", data={"username": username, "password": password},
+        "/sign-in",
+        data={"username": test_user.username, "password": test_user.password},
     )
     assert sign_in_response.status_code == 303
     assert sign_in_response.headers["Location"] == "http://localhost/"
@@ -70,17 +69,14 @@ def test_sign_in_success(client, test_user):
 
 
 def test_sign_in_wrong_password(client, test_user):
-    username, unused_password = test_user
     sign_in_response = client.post(
-        "/sign-in", data={"username": username, "password": "wrong_password"},
+        "/sign-in", data={"username": test_user.username, "password": "wrong_password"},
     )
     assert sign_in_response.status_code == 400
 
 
-@pytest.mark.xfail(reason="not implemented")
 def test_sign_in_wrong_username(client, test_user):
-    unused_username, password = test_user
     sign_in_response = client.post(
-        "/sign-in", data={"username": "barney", "password": password},
+        "/sign-in", data={"username": "barney", "password": test_user.password},
     )
     assert sign_in_response.status_code == 400

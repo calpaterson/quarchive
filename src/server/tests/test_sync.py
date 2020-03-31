@@ -7,7 +7,7 @@ import quarchive as sut
 
 import pytest
 
-from .conftest import make_bookmark, working_cred_headers
+from .conftest import make_bookmark
 
 
 def test_no_credentials(client, session):
@@ -15,17 +15,17 @@ def test_no_credentials(client, session):
     assert response.status_code == 400
 
 
-def test_wrong_credentials(client, session):
+def test_wrong_credentials(client, session, test_user):
     response = client.post(
         "/sync",
         json={"bookmarks": []},
-        headers={"X-QM-API-Username": "calpaterson", "X-QM-API-Key": "toblerone"},
+        headers={"X-QM-API-Username": test_user.username, "X-QM-API-Key": "deadbeef"},
     )
     assert response.status_code == 400
 
 
 def post_bookmarks(
-    client, bookmarks: Sequence[sut.Bookmark], full=False, use_jsonlines=False
+    client, user, bookmarks: Sequence[sut.Bookmark], full=False, use_jsonlines=False
 ):
     if full:
         url = "/sync?full=true"
@@ -35,12 +35,20 @@ def post_bookmarks(
     if use_jsonlines:
         kwargs = dict(
             data="\n".join(json.dumps(b.to_json()) for b in bookmarks),
-            headers={**working_cred_headers, **{"Content-Type": "application/ndjson"}},
+            headers={
+                "Content-Type": "application/ndjson",
+                "X-QM-API-Username": user.username,
+                "X-QM-API-Key": user.api_key.hex(),
+            },
         )
+
     else:
         kwargs = dict(
             json={"bookmarks": [b.to_json() for b in bookmarks]},
-            headers=working_cred_headers,
+            headers={
+                "X-QM-API-Username": user.username,
+                "X-QM-API-Key": user.api_key.hex(),
+            },
         )
 
     return client.post(url, **kwargs)
@@ -56,8 +64,10 @@ def to_jl(bookmarks: Sequence[sut.Bookmark]) -> bytes:
 
 
 @pytest.mark.sync
-def test_adding_new_bookmark(client, session, use_jl):
-    response = post_bookmarks(client, [make_bookmark()], use_jsonlines=use_jl)
+def test_adding_new_bookmark(client, session, use_jl, test_user):
+    response = post_bookmarks(
+        client, test_user, [make_bookmark()], use_jsonlines=use_jl
+    )
 
     assert response.status_code == 200
 
@@ -68,11 +78,13 @@ def test_adding_new_bookmark(client, session, use_jl):
 
 
 @pytest.mark.sync
-def test_syncing_bookmark_that_already_exists_with_no_changes(client, session, use_jl):
+def test_syncing_bookmark_that_already_exists_with_no_changes(
+    client, session, use_jl, test_user
+):
     bm = make_bookmark()
-    post_bookmarks(client, [bm], use_jsonlines=use_jl)
+    post_bookmarks(client, test_user, [bm], use_jsonlines=use_jl)
 
-    response = post_bookmarks(client, [bm], use_jsonlines=use_jl)
+    response = post_bookmarks(client, test_user, [bm], use_jsonlines=use_jl)
     assert response.status_code == 200
     if use_jl:
         assert response.data == b""
@@ -81,7 +93,9 @@ def test_syncing_bookmark_that_already_exists_with_no_changes(client, session, u
 
 
 @pytest.mark.sync
-def test_syncing_bookmark_that_already_exists_but_has_changed(client, session, use_jl):
+def test_syncing_bookmark_that_already_exists_but_has_changed(
+    client, session, use_jl, test_user
+):
     bm_1 = make_bookmark()
     bm_2 = make_bookmark(
         title="Example 2",
@@ -89,10 +103,10 @@ def test_syncing_bookmark_that_already_exists_but_has_changed(client, session, u
     )
 
     # First put updated bookmark inside
-    post_bookmarks(client, [bm_2], use_jsonlines=use_jl)
+    post_bookmarks(client, test_user, [bm_2], use_jsonlines=use_jl)
 
     # Then send the old version
-    response = post_bookmarks(client, [bm_1], use_jsonlines=use_jl)
+    response = post_bookmarks(client, test_user, [bm_1], use_jsonlines=use_jl)
     if use_jl:
         assert response.data == to_jl(
             [bm_2]
@@ -102,7 +116,9 @@ def test_syncing_bookmark_that_already_exists_but_has_changed(client, session, u
 
 
 @pytest.mark.sync
-def test_syncing_bookmark_that_already_exists_but_is_old(client, session, use_jl):
+def test_syncing_bookmark_that_already_exists_but_is_old(
+    client, session, use_jl, test_user
+):
     bm_1 = make_bookmark()
     bm_2 = make_bookmark(
         title="Example 2",
@@ -110,17 +126,17 @@ def test_syncing_bookmark_that_already_exists_but_is_old(client, session, use_jl
     )
 
     # First put the bookmark
-    post_bookmarks(client, [bm_1], use_jsonlines=use_jl)
+    post_bookmarks(client, test_user, [bm_1], use_jsonlines=use_jl)
 
     # Then send the new version
-    response = post_bookmarks(client, [bm_2], use_jsonlines=use_jl)
+    response = post_bookmarks(client, test_user, [bm_2], use_jsonlines=use_jl)
     if use_jl:
         assert response.data == b""
     else:
         assert response.json == {"bookmarks": []}
 
     # Then send the old version again - should get new back
-    response = post_bookmarks(client, [bm_1], use_jsonlines=use_jl)
+    response = post_bookmarks(client, test_user, [bm_1], use_jsonlines=use_jl)
     if use_jl:
         assert response.data == to_jl(
             [bm_2]
@@ -130,11 +146,13 @@ def test_syncing_bookmark_that_already_exists_but_is_old(client, session, use_jl
 
 
 @pytest.mark.full_sync
-def test_multiple_bookmarks(client, session, use_jl):
+def test_multiple_bookmarks(client, session, use_jl, test_user):
     bm_1 = make_bookmark(url="http://example/com/1", title="Example 1")
     bm_2 = make_bookmark(url="http://example/com/2", title="Example 2")
 
-    response = post_bookmarks(client, [bm_1, bm_2], use_jsonlines=use_jl, full=True)
+    response = post_bookmarks(
+        client, test_user, [bm_1, bm_2], use_jsonlines=use_jl, full=True
+    )
 
     if use_jl:
         assert set(response.data.split(b"\n")) == set(to_jl([bm_1, bm_2]).split(b"\n"))
@@ -144,14 +162,16 @@ def test_multiple_bookmarks(client, session, use_jl):
 
 
 @pytest.mark.full_sync
-def test_full_sync_gets_all(client, session, use_jl):
+def test_full_sync_gets_all(client, session, use_jl, test_user):
     bm_1 = make_bookmark()
 
     # First, sync the bookmark
-    post_bookmarks(client, [bm_1], use_jsonlines=use_jl)
+    post_bookmarks(client, test_user, [bm_1], use_jsonlines=use_jl)
 
     # Then resync giving nothing
-    full_sync_response = post_bookmarks(client, [], full=True, use_jsonlines=use_jl)
+    full_sync_response = post_bookmarks(
+        client, test_user, [], full=True, use_jsonlines=use_jl
+    )
     if use_jl:
         assert full_sync_response.data == to_jl([bm_1])
     else:
@@ -159,14 +179,19 @@ def test_full_sync_gets_all(client, session, use_jl):
 
 
 @pytest.mark.full_sync
-def test_logging_for_bug_6(client, caplog, session):
+def test_logging_for_bug_6(client, caplog, session, test_user):
     bm_json = make_bookmark().to_json()
     bm_json["updated"] = "+051979-10-24T11:59:23.000Z"
 
     with caplog.at_level(logging.ERROR) as e:
         with pytest.raises(ValueError):
             client.post(
-                "/sync", json={"bookmarks": [bm_json]}, headers=working_cred_headers
+                "/sync",
+                json={"bookmarks": [bm_json]},
+                headers={
+                    "X-QM-API-Username": test_user.username,
+                    "X-QM-API-Key": test_user.api_key.hex(),
+                },
             )
 
         messages = [r.getMessage() for r in caplog.records]

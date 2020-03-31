@@ -30,6 +30,7 @@ import tempfile
 import shutil
 from abc import ABCMeta, abstractmethod
 import cgi
+import secrets
 
 from passlib.context import CryptContext
 import lxml
@@ -42,7 +43,6 @@ from celery import Celery
 from werkzeug import exceptions as exc
 from werkzeug.urls import url_encode
 from dateutil.parser import isoparse
-from babel.dates import format_timedelta
 from sqlalchemy import Column, ForeignKey, types as satypes, func, create_engine
 from sqlalchemy.orm import (
     relationship,
@@ -75,7 +75,6 @@ log = logging.getLogger("quarchive")
 
 REQUIRED_CONFIG_KEYS = {
     "QM_SQL_URL",
-    "QM_PASSWORD",
     "QM_SECRET_KEY",
     "QM_RESPONSE_BODY_BUCKET_NAME",
     "QM_AWS_ACCESS_KEY",
@@ -329,6 +328,10 @@ class SQLUser(Base):
         "UserEmail", uselist=False, backref="user"
     )
 
+    api_key_obj: RelationshipProperty = relationship(
+        "APIKey", uselist=False, backref="user"
+    )
+
 
 class UserEmail(Base):
     __tablename__ = "user_emails"
@@ -346,6 +349,41 @@ class APIKey(Base):
         PGUUID(as_uuid=True), ForeignKey("users.user_uuid"), primary_key=True
     )
     api_key = Column(BYTEA(length=16), nullable=False, unique=True, index=True)
+
+
+def is_correct_api_key(session: Session, username: str, api_key: bytes) -> bool:
+    api_key_from_db = (
+        session.query(APIKey.api_key)
+        .join(SQLUser)
+        .filter(SQLUser.username == username)
+        .scalar()
+    )
+    return secrets.compare_digest(api_key, api_key_from_db)
+
+
+def username_exists(session: Session, username: str) -> bool:
+    return session.query(
+        session.query(SQLUser).filter(SQLUser.username == username).exists()
+    ).scalar()
+
+
+def create_user(
+    session: Session,
+    crypt_context: Any,
+    username: str,
+    password_plain: str,
+    email: Optional[str] = None,
+) -> None:
+    password_hashed = crypt_context.hash(password_plain)
+    sql_user = SQLUser(user_uuid=uuid4(), username=username, password=password_hashed)
+
+    if email is not None:
+        log.info("got an email for %s", username)
+        sql_user.email_obj = UserEmail(email_address=email)
+
+    sql_user.api_key_obj = APIKey(api_key=secrets.token_bytes(32))
+
+    session.add(sql_user)
 
 
 def get_bookmark_by_url(session: Session, url: str) -> Optional[Bookmark]:
@@ -571,15 +609,12 @@ def api_key_required(handler: V) -> V:
     def wrapper(*args, **kwargs):
         try:
             username = flask.request.headers["X-QM-API-Username"]
-            api_key = flask.request.headers["X-QM-API-Key"]
+            api_key_str = flask.request.headers["X-QM-API-Key"]
         except KeyError:
             flask.current_app.logger.info("no api credentials")
             return flask.jsonify({"error": "no api credentials"}), 400
-        # FIXME: Should reference config, not flask.current_app.config["PASSWORD"]
-        if (
-            username == "calpaterson"
-            and api_key == flask.current_app.config["PASSWORD"]
-        ):
+
+        if is_correct_api_key(db.session, username, bytes.fromhex(api_key_str)):
             return handler()
         else:
             flask.current_app.logger.info("bad api credentials")
@@ -593,11 +628,8 @@ def register() -> flask.Response:
     username = flask.request.form["username"]
     password_plain = flask.request.form["password"]
     email: Optional[str] = flask.request.form.get("email", None)
-    username_exists: bool = db.session.query(
-        db.session.query(SQLUser).filter(SQLUser.username == username).exists()
-    ).scalar()
 
-    if username_exists:
+    if username_exists(db.session, username):
         log.error("username already registered: %s", username)
         flask.abort(400, description="username already exists")
 
@@ -608,14 +640,13 @@ def register() -> flask.Response:
             400, description="invalid username - must match %s" % username_regex
         )
 
-    password_hashed = flask.current_app.config["CRYPT_CONTEXT"].hash(password_plain)
-    sql_user = SQLUser(user_uuid=uuid4(), username=username, password=password_hashed)
-
-    if email is not None:
-        log.info("got an email for %s", username)
-        sql_user.email_obj = UserEmail(email_address=email)
-
-    db.session.add(sql_user)
+    create_user(
+        db.session,
+        flask.current_app.config["CRYPT_CONTEXT"],
+        username,
+        password_plain,
+        email,
+    )
 
     db.session.commit()
     response = flask.make_response("Redirecting...", 303)
@@ -893,7 +924,6 @@ def init_app() -> flask.Flask:
     }
 
     app.config["PAGE_SIZE"] = 30
-    app.config["PASSWORD"] = environ["QM_PASSWORD"]
     db.init_app(app)
     cors.init_app(app)
     Babel(app, default_locale="en_GB", default_timezone="Europe/London")

@@ -10,7 +10,7 @@ from sqlalchemy import func
 
 import pytest
 
-from .conftest import make_bookmark, working_cred_headers
+from .conftest import make_bookmark
 from .utils import sync_bookmarks
 
 import quarchive as sut
@@ -32,10 +32,10 @@ def test_unsigned_in_index(client):
     assert response.headers["Location"].endswith("/sign-in")
 
 
-def test_index(signed_in_client):
+def test_index(signed_in_client, test_user):
     bm = make_bookmark()
 
-    sync_bookmarks(signed_in_client, [bm])
+    sync_bookmarks(signed_in_client, test_user, [bm])
 
     response = signed_in_client.get("/")
     assert response.status_code == 200
@@ -46,10 +46,10 @@ def test_index(signed_in_client):
     assert bookmark is not None
 
 
-def test_index_excludes_deleted_bookmarks(signed_in_client, session):
+def test_index_excludes_deleted_bookmarks(signed_in_client, session, test_user):
     bm = make_bookmark(deleted=True)
 
-    sync_bookmarks(signed_in_client, [bm])
+    sync_bookmarks(signed_in_client, test_user, [bm])
 
     response = signed_in_client.get("/")
     assert response.status_code == 200
@@ -60,7 +60,7 @@ def test_index_excludes_deleted_bookmarks(signed_in_client, session):
     assert len(bookmarks) == 0
 
 
-def test_index_paging(app, signed_in_client, session):
+def test_index_paging(app, signed_in_client, session, test_user):
     page_size = app.config["PAGE_SIZE"]
 
     bms = (
@@ -68,12 +68,15 @@ def test_index_paging(app, signed_in_client, session):
         for i in range(math.floor(page_size * 2.5))
     )
 
-    sync_bookmarks(signed_in_client, bms)
+    sync_bookmarks(signed_in_client, test_user, bms)
 
     signed_in_client.post(
         "/sync",
         json={"bookmarks": [bm.to_json() for bm in bms]},
-        headers=working_cred_headers,
+        headers={
+            "X-QM-API-Username": test_user.username,
+            "X-QM-API-Key": test_user.api_key.hex(),
+        },
     )
 
     response_pg1 = signed_in_client.get("/")
@@ -96,11 +99,13 @@ def test_index_paging(app, signed_in_client, session):
     "title,search_str,result_count",
     [("Test", "test", 1), ("Star wars", "star", 1), ("Star wars", "star trek", 0),],
 )
-def test_index_search(app, signed_in_client, session, title, search_str, result_count):
+def test_index_search(
+    app, signed_in_client, session, test_user, title, search_str, result_count
+):
     bm1 = make_bookmark()
     bm2 = make_bookmark(url="http://test.com", title=title)
 
-    sync_bookmarks(signed_in_client, [bm1, bm2])
+    sync_bookmarks(signed_in_client, test_user, [bm1, bm2])
 
     normal_response = signed_in_client.get(flask.url_for("quarchive.index"))
     assert len(get_bookmark_urls(normal_response)) == 2

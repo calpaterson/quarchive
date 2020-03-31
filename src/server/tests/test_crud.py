@@ -46,9 +46,9 @@ def test_creating_a_bookmark(signed_in_client, session, unread):
 
 
 @freeze_time("2018-01-03")
-def test_edit_bookmark_form(signed_in_client, session):
+def test_edit_bookmark_form(signed_in_client, session, test_user):
     bm = make_bookmark()
-    sync_bookmarks(signed_in_client, [bm])
+    sync_bookmarks(signed_in_client, test_user, [bm])
 
     (url_uuid,) = session.query(SQLABookmark.url_uuid).one()
 
@@ -70,12 +70,12 @@ def test_edit_bookmark_form(signed_in_client, session):
     ],
 )
 def test_editing_a_bookmark(
-    signed_in_client, session, field, start_value, form_value, expected
+    signed_in_client, session, test_user, field, start_value, form_value, expected
 ):
     bm_args = {field: start_value}
     bm = make_bookmark(**bm_args)
 
-    sync_bookmarks(signed_in_client, [bm])
+    sync_bookmarks(signed_in_client, test_user, [bm])
 
     (url_uuid,) = session.query(SQLABookmark.url_uuid).one()
     form_data = {
