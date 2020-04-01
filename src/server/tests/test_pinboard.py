@@ -24,16 +24,22 @@ def environment_variables():
 
 @pytest.mark.pinboard_import
 @freeze_time("2018-01-03")
-def test_pinboard_bookmark(session):
+def test_pinboard_bookmark(session, test_user):
     runner = CliRunner()
     json_path = path.join(test_data_path, "pinboard-bookmark.json")
-    result = runner.invoke(sut.pinboard_import, json_path, catch_exceptions=False)
+    result = runner.invoke(
+        sut.pinboard_import,
+        [str(test_user.user_uuid), json_path],
+        catch_exceptions=False,
+    )
     assert result.exit_code == 0
 
     expected_url = (
         "https://mitpress.mit.edu/books/" "building-successful-online-communities"
     )
-    bookmark = sut.get_bookmark_by_url(sut.db.session, expected_url)
+    bookmark = sut.get_bookmark_by_url(
+        sut.db.session, test_user.user_uuid, expected_url
+    )
     assert bookmark == sut.Bookmark(
         url=expected_url,
         title="Building Successful Online Communities | The MIT Press",
@@ -47,14 +53,20 @@ def test_pinboard_bookmark(session):
 
 @pytest.mark.pinboard_import
 @freeze_time("2018-01-03")
-def test_pinboard_with_note(session):
+def test_pinboard_with_note(session, test_user):
     runner = CliRunner()
     json_path = path.join(test_data_path, "pinboard-note.json")
-    result = runner.invoke(sut.pinboard_import, json_path, catch_exceptions=False)
+    result = runner.invoke(
+        sut.pinboard_import,
+        [str(test_user.user_uuid), json_path],
+        catch_exceptions=False,
+    )
     assert result.exit_code == 0
 
     expected_url = "http://notes.pinboard.in/u:calpaterson/abc123"
-    bookmark = sut.get_bookmark_by_url(sut.db.session, expected_url)
+    bookmark = sut.get_bookmark_by_url(
+        sut.db.session, test_user.user_uuid, expected_url
+    )
     assert bookmark == sut.Bookmark(
         url=expected_url,
         title="Secret Password",
@@ -67,7 +79,7 @@ def test_pinboard_with_note(session):
 
 
 @pytest.mark.pinboard_import
-def test_pinboard_uses_merge(session, tmpdir):
+def test_pinboard_uses_merge(session, tmpdir, test_user):
     runner = CliRunner()
 
     existing_bookmark = make_bookmark(
@@ -75,7 +87,7 @@ def test_pinboard_uses_merge(session, tmpdir):
         updated=datetime(2018, 2, 1, tzinfo=timezone.utc),
         description="as of 2018-02",
     )
-    sut.set_bookmark(session, existing_bookmark)
+    sut.set_bookmark(session, test_user.user_uuid, existing_bookmark)
     session.commit()
 
     pinboard_bookmarks = [
@@ -94,12 +106,14 @@ def test_pinboard_uses_merge(session, tmpdir):
 
     runner.invoke(
         sut.pinboard_import,
-        [str(json_path), "--as-of", "2018-01-01"],
+        [str(test_user.user_uuid), str(json_path), "--as-of", "2018-01-01"],
         catch_exceptions=False,
     )
 
     assert session.query(sut.SQLABookmark).count() == 1
-    final_bookmark = sut.get_bookmark_by_url(session, "http://example.com")
+    final_bookmark = sut.get_bookmark_by_url(
+        session, test_user.user_uuid, "http://example.com"
+    )
     assert final_bookmark is not None
     assert final_bookmark.created == datetime(2018, 1, 12, tzinfo=timezone.utc)
     assert final_bookmark.updated == datetime(2018, 2, 1, tzinfo=timezone.utc)

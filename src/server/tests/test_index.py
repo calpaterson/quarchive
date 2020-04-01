@@ -10,7 +10,7 @@ from sqlalchemy import func
 
 import pytest
 
-from .conftest import make_bookmark
+from .conftest import make_bookmark, User
 from .utils import sync_bookmarks
 
 import quarchive as sut
@@ -117,10 +117,10 @@ def test_index_search(
 
 
 def make_fulltext_indexed_bookmark(
-    session: sut.Session, bookmark: sut.Bookmark, full_text: str
+    session: sut.Session, user: User, bookmark: sut.Bookmark, full_text: str
 ):
     # FIXME: this really shows the need for a library of common db functions
-    url_uuid = sut.set_bookmark(session, bookmark)
+    url_uuid = sut.set_bookmark(session, user.user_uuid, bookmark)
     crawl_uuid = uuid4()
     body_uuid = uuid4()
 
@@ -146,14 +146,16 @@ def make_fulltext_indexed_bookmark(
     session.add_all([crawl_req, crawl_resp, fulltext_obj])
 
 
-def test_full_text_search(app, signed_in_client, session):
+def test_full_text_search(app, signed_in_client, session, test_user):
     star_wars_bm = make_bookmark(title="star wars", url="http://example/starwars")
     star_trek_bm = make_bookmark(title="star trek", url="http://example/startrek")
 
     make_fulltext_indexed_bookmark(
-        session, star_wars_bm, "wookies live on planet kashyyyk"
+        session, test_user, star_wars_bm, "wookies live on planet kashyyyk"
     )
-    make_fulltext_indexed_bookmark(session, star_trek_bm, "red shirts usually perish")
+    make_fulltext_indexed_bookmark(
+        session, test_user, star_trek_bm, "red shirts usually perish"
+    )
     session.commit()
 
     search_response = signed_in_client.get(

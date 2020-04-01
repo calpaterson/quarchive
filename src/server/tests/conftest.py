@@ -84,9 +84,9 @@ def test_user(session, client):
 
 
 @pytest.fixture()
-def signed_in_client(client):
+def signed_in_client(client, test_user):
     with client.session_transaction() as sess:
-        sess["username"] = "calpaterson"
+        sess["user_uuid"] = str(test_user.user_uuid)
     yield client
 
 

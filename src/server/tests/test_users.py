@@ -67,12 +67,15 @@ def test_sign_in_success(client, test_user):
     index_response = client.get("/")
     assert index_response.status_code == 200
 
+    assert flask.session["user_uuid"] == test_user.user_uuid
+
 
 def test_sign_in_wrong_password(client, test_user):
     sign_in_response = client.post(
         "/sign-in", data={"username": test_user.username, "password": "wrong_password"},
     )
     assert sign_in_response.status_code == 400
+    assert "user_uuid" not in flask.session
 
 
 def test_sign_in_wrong_username(client, test_user):
@@ -80,3 +83,4 @@ def test_sign_in_wrong_username(client, test_user):
         "/sign-in", data={"username": "barney", "password": test_user.password},
     )
     assert sign_in_response.status_code == 400
+    assert "user_uuid" not in flask.session

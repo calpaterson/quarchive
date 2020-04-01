@@ -244,6 +244,9 @@ class SQLABookmark(Base):
     url_uuid = Column(
         PGUUID(as_uuid=True), ForeignKey("urls.url_uuid"), primary_key=True
     )
+    user_uuid = Column(
+        PGUUID(as_uuid=True), ForeignKey("users.user_uuid"), primary_key=True
+    )
 
     title = Column(satypes.String, nullable=False, index=True)
     description = Column(satypes.String, nullable=False, index=True)
@@ -256,6 +259,10 @@ class SQLABookmark(Base):
 
     url_obj: RelationshipProperty = relationship(
         SQLAUrl, uselist=False, backref="bookmark_objs"
+    )
+
+    user_obj: RelationshipProperty = relationship(
+        "SQLUser", uselist=False, backref="bookmarks"
     )
 
 
@@ -367,6 +374,12 @@ def username_exists(session: Session, username: str) -> bool:
     ).scalar()
 
 
+def user_uuid_from_username(session, username: str) -> UUID:
+    return (
+        session.query(SQLUser.user_uuid).filter(SQLUser.username == username).scalar()
+    )
+
+
 def create_user(
     session: Session,
     crypt_context: Any,
@@ -386,7 +399,9 @@ def create_user(
     session.add(sql_user)
 
 
-def get_bookmark_by_url(session: Session, url: str) -> Optional[Bookmark]:
+def get_bookmark_by_url(
+    session: Session, user_uuid: UUID, url: str
+) -> Optional[Bookmark]:
     scheme, netloc, path, query, fragment = urlsplit(url)
     sqla_bookmark = (
         session.query(SQLABookmark)
@@ -397,6 +412,7 @@ def get_bookmark_by_url(session: Session, url: str) -> Optional[Bookmark]:
             SQLAUrl.path == path,
             SQLAUrl.query == query,
             SQLAUrl.fragment == fragment,
+            SQLABookmark.user_uuid == user_uuid,
         )
         .first()
     )
@@ -406,8 +422,14 @@ def get_bookmark_by_url(session: Session, url: str) -> Optional[Bookmark]:
         return bookmark_from_sqla(url, sqla_bookmark)
 
 
-def get_bookmark_by_url_uuid(session: Session, url_uuid: UUID) -> Optional[Bookmark]:
-    sqla_bookmark = session.query(SQLABookmark).get(url_uuid)
+def get_bookmark_by_url_uuid(
+    session: Session, user_uuid: UUID, url_uuid: UUID
+) -> Optional[Bookmark]:
+    sqla_bookmark = (
+        session.query(SQLABookmark)
+        .filter(SQLABookmark.user_uuid == user_uuid, SQLABookmark.url_uuid == url_uuid)
+        .first()
+    )
     if sqla_bookmark is None:
         return None
     url = URL.from_sqla_url(sqla_bookmark.url_obj).to_url()
@@ -455,7 +477,7 @@ def upsert_url(session: Session, url: str) -> UUID:
     return url_uuid
 
 
-def set_bookmark(session: Session, bookmark: Bookmark) -> UUID:
+def set_bookmark(session: Session, user_uuid: UUID, bookmark: Bookmark) -> UUID:
     scheme, netloc, path, query, fragment = urlsplit(bookmark.url)
     proposed_uuid = uuid4()
     url_stmt = (
@@ -502,9 +524,10 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> UUID:
         unread=bookmark.unread,
         updated=bookmark.updated.replace(tzinfo=timezone.utc),
         url_uuid=url_uuid,
+        user_uuid=user_uuid,
     )
     bookmark_upsert_stmt = bookmark_insert_stmt.on_conflict_do_update(
-        index_elements=["url_uuid"],
+        index_elements=["url_uuid", "user_uuid"],
         set_=dict(
             created=bookmark_insert_stmt.excluded.created,
             deleted=bookmark_insert_stmt.excluded.deleted,
@@ -519,15 +542,15 @@ def set_bookmark(session: Session, bookmark: Bookmark) -> UUID:
 
 
 def merge_bookmarks(
-    session: Session, recieved_bookmarks: Iterable[Bookmark]
+    session: Session, user_uuid: UUID, recieved_bookmarks: Iterable[Bookmark]
 ) -> Set[Bookmark]:
     changed_bookmarks: Set[Bookmark] = set()
     for recieved in recieved_bookmarks:
-        existing = get_bookmark_by_url(session, url=recieved.url)
+        existing = get_bookmark_by_url(session, user_uuid, url=recieved.url)
         if existing is None:
             # If it doesn't exist in our db, we create it - but client already
             # knows
-            set_bookmark(session, recieved)
+            set_bookmark(session, user_uuid, recieved)
             log.debug("added: %s", recieved)
         else:
             merged = existing.merge(recieved)
@@ -539,7 +562,7 @@ def merge_bookmarks(
                     existing,
                     merged,
                 )
-                set_bookmark(session, merged)
+                set_bookmark(session, user_uuid, merged)
             else:
                 log.debug("no change to %s", recieved)
             if merged != recieved:
@@ -582,9 +605,11 @@ V = TypeVar("V", bound=Callable)
 def sign_in_required(handler: V) -> V:
     @wraps(handler)
     def wrapper(*args, **kwargs):
-        if "username" not in flask.session:
+        user_uuid: Optional[UUID] = flask.session.get("user_uuid")
+        if user_uuid is None:
             return flask.redirect("/sign-in"), 302
         else:
+            flask.g.user_uuid = user_uuid
             return handler(*args, **kwargs)
 
     return cast(V, wrapper)
@@ -615,6 +640,7 @@ def api_key_required(handler: V) -> V:
             return flask.jsonify({"error": "no api credentials"}), 400
 
         if is_correct_api_key(db.session, username, bytes.fromhex(api_key_str)):
+            flask.g.user_uuid = user_uuid_from_username(db.session, username)
             return handler()
         else:
             flask.current_app.logger.info("bad api credentials")
@@ -751,7 +777,7 @@ def create_bookmark() -> flask.Response:
         updated=creation_time,
         created=creation_time,
     )
-    url_uuid = set_bookmark(db.session, bookmark)
+    url_uuid = set_bookmark(db.session, flask.g.user_uuid, bookmark)
     db.session.commit()
     flask.flash("Bookmarked: %s" % bookmark.title)
     response = flask.make_response("Redirecting...", 303)
@@ -766,7 +792,7 @@ def create_bookmark() -> flask.Response:
 @observe_redirect_to
 def edit_bookmark(url_uuid: UUID) -> flask.Response:
     if flask.request.method == "GET":
-        bookmark = get_bookmark_by_url_uuid(db.session, url_uuid)
+        bookmark = get_bookmark_by_url_uuid(db.session, flask.g.user_uuid, url_uuid)
         # FIXME: what if it doesn't exist?
         return flask.make_response(
             flask.render_template(
@@ -779,7 +805,7 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
     else:
         form = flask.request.form
         fields = set(["title", "description", "unread", "deleted"])
-        bookmark = get_bookmark_by_url_uuid(db.session, url_uuid)
+        bookmark = get_bookmark_by_url_uuid(db.session, flask.g.user_uuid, url_uuid)
         if bookmark is None:
             raise exc.NotFound()
         bookmark_fields = dataclass_as_dict(bookmark)
@@ -789,7 +815,7 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
         bookmark_fields["deleted"] = "deleted" in form
         bookmark_fields["updated"] = datetime.utcnow().replace(tzinfo=timezone.utc)
         final_bookmark = Bookmark(**bookmark_fields)
-        set_bookmark(db.session, final_bookmark)
+        set_bookmark(db.session, flask.g.user_uuid, final_bookmark)
         db.session.commit()
         flask.flash("Edited: %s" % bookmark.title)
         return flask.make_response("ok")
@@ -850,7 +876,7 @@ def sign_in() -> flask.Response:
 
         if is_correct_password:
             flask.current_app.logger.info("successful sign in")
-            flask.session["username"] = "username"
+            flask.session["user_uuid"] = user.user_uuid
 
             # Make it last for 31 days
             flask.session.permanent = True
@@ -886,7 +912,9 @@ def sync() -> flask.Response:
             Bookmark.from_json(json.loads(l)) for l in flask.request.stream.readlines()
         )
 
-    changed_bookmarks = merge_bookmarks(db.session, recieved_bookmarks)
+    changed_bookmarks = merge_bookmarks(
+        db.session, flask.g.user_uuid, recieved_bookmarks
+    )
     db.session.commit()
     if "full" in flask.request.args:
         response_bookmarks = all_bookmarks(db.session)
@@ -1317,13 +1345,14 @@ def main() -> None:
 
 
 @click.command()
+@click.argument("user_uuid", type=click.UUID)
 @click.argument("json_file", type=click.File("rb"))
 @click.option(
     "--as-of",
     type=click.DateTime(),
     default=lambda: datetime.strftime(datetime.utcnow(), "%Y-%m-%d %H:%M:%S"),
 )
-def pinboard_import(json_file, as_of: datetime):
+def pinboard_import(user_uuid: UUID, json_file, as_of: datetime):
     as_of_dt = as_of.replace(tzinfo=timezone.utc)
     log.info("as of: %s", as_of_dt)
 
@@ -1345,6 +1374,6 @@ def pinboard_import(json_file, as_of: datetime):
     app = init_app()
     with app.app_context():
         generator = (pinboard_bookmark_to_bookmark(b) for b in document)
-        changed = merge_bookmarks(db.session, generator)
+        changed = merge_bookmarks(db.session, user_uuid, generator)
         log.info("changed %d bookmarks", len(changed))
         db.session.commit()
