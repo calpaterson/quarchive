@@ -216,6 +216,13 @@ def bookmark_from_sqla(url: str, sqla_obj: "SQLABookmark") -> Bookmark:
     )
 
 
+@dataclass
+class User:
+    user_uuid: UUID
+    username: str
+    email: Optional[str]
+
+
 # fmt: off
 # DB layer
 ...
@@ -374,10 +381,24 @@ def username_exists(session: Session, username: str) -> bool:
     ).scalar()
 
 
-def user_uuid_from_username(session, username: str) -> UUID:
-    return (
-        session.query(SQLUser.user_uuid).filter(SQLUser.username == username).scalar()
+def user_from_username(session, username: str) -> User:
+    user_uuid, email = (
+        session.query(SQLUser.user_uuid, UserEmail.email_address)
+        .join(UserEmail)
+        .filter(SQLUser.username == username)
+        .one()
     )
+    return User(user_uuid=user_uuid, username=username, email=email,)
+
+
+def user_from_user_uuid(session, user_uuid: UUID) -> User:
+    username, email = (
+        session.query(SQLUser.username, UserEmail.email_address)
+        .join(UserEmail)
+        .filter(SQLUser.user_uuid == user_uuid)
+        .one()
+    )
+    return User(user_uuid=user_uuid, username=username, email=email,)
 
 
 def create_user(
@@ -602,14 +623,31 @@ blueprint = flask.Blueprint("quarchive", "quarchive")
 V = TypeVar("V", bound=Callable)
 
 
+def get_current_user() -> User:
+    """Utility function to get the current user.
+
+    The only purpose of this is for typing - flask.g.user is unavoidably Any
+    whereas the return type of this is User.
+
+    """
+    return flask.g.user
+
+
+@blueprint.before_request
+def put_user_in_g() -> None:
+    user_uuid: Optional[UUID] = flask.session.get("user_uuid")
+    if user_uuid is not None:
+        flask.g.user = user_from_user_uuid(db.session, user_uuid)
+        flask.current_app.logger.debug("looked up user: %s", flask.g.user)
+    flask.current_app.logger.debug("no user")
+
+
 def sign_in_required(handler: V) -> V:
     @wraps(handler)
     def wrapper(*args, **kwargs):
-        user_uuid: Optional[UUID] = flask.session.get("user_uuid")
-        if user_uuid is None:
+        if flask.g.get("user", None) is None:
             return flask.redirect("/sign-in"), 302
         else:
-            flask.g.user_uuid = user_uuid
             return handler(*args, **kwargs)
 
     return cast(V, wrapper)
@@ -640,45 +678,13 @@ def api_key_required(handler: V) -> V:
             return flask.jsonify({"error": "no api credentials"}), 400
 
         if is_correct_api_key(db.session, username, bytes.fromhex(api_key_str)):
-            flask.g.user_uuid = user_uuid_from_username(db.session, username)
+            flask.g.user = user_from_username(db.session, username)
             return handler()
         else:
             flask.current_app.logger.info("bad api credentials")
             return flask.jsonify({"error": "bad api credentials"}), 400
 
     return cast(V, wrapper)
-
-
-@blueprint.route("/register", methods=["POST"])
-def register() -> flask.Response:
-    username = flask.request.form["username"]
-    password_plain = flask.request.form["password"]
-    email: Optional[str] = flask.request.form.get("email", None)
-
-    if username_exists(db.session, username):
-        log.error("username already registered: %s", username)
-        flask.abort(400, description="username already exists")
-
-    username_regex = r"^[A-z0-9_\-]+$"
-    if not re.compile(username_regex).match(username):
-        log.error("invalid username: %s", username)
-        flask.abort(
-            400, description="invalid username - must match %s" % username_regex
-        )
-
-    create_user(
-        db.session,
-        flask.current_app.config["CRYPT_CONTEXT"],
-        username,
-        password_plain,
-        email,
-    )
-
-    db.session.commit()
-    response = flask.make_response("Redirecting...", 303)
-    response.headers["Location"] = flask.url_for("quarchive.index")
-    log.info("created user: %s", username)
-    return response
 
 
 @blueprint.route("/")
@@ -777,7 +783,7 @@ def create_bookmark() -> flask.Response:
         updated=creation_time,
         created=creation_time,
     )
-    url_uuid = set_bookmark(db.session, flask.g.user_uuid, bookmark)
+    url_uuid = set_bookmark(db.session, get_current_user().user_uuid, bookmark)
     db.session.commit()
     flask.flash("Bookmarked: %s" % bookmark.title)
     response = flask.make_response("Redirecting...", 303)
@@ -792,7 +798,9 @@ def create_bookmark() -> flask.Response:
 @observe_redirect_to
 def edit_bookmark(url_uuid: UUID) -> flask.Response:
     if flask.request.method == "GET":
-        bookmark = get_bookmark_by_url_uuid(db.session, flask.g.user_uuid, url_uuid)
+        bookmark = get_bookmark_by_url_uuid(
+            db.session, get_current_user().user_uuid, url_uuid
+        )
         # FIXME: what if it doesn't exist?
         return flask.make_response(
             flask.render_template(
@@ -805,7 +813,9 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
     else:
         form = flask.request.form
         fields = set(["title", "description", "unread", "deleted"])
-        bookmark = get_bookmark_by_url_uuid(db.session, flask.g.user_uuid, url_uuid)
+        bookmark = get_bookmark_by_url_uuid(
+            db.session, get_current_user().user_uuid, url_uuid
+        )
         if bookmark is None:
             raise exc.NotFound()
         bookmark_fields = dataclass_as_dict(bookmark)
@@ -815,7 +825,7 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
         bookmark_fields["deleted"] = "deleted" in form
         bookmark_fields["updated"] = datetime.utcnow().replace(tzinfo=timezone.utc)
         final_bookmark = Bookmark(**bookmark_fields)
-        set_bookmark(db.session, flask.g.user_uuid, final_bookmark)
+        set_bookmark(db.session, get_current_user().user_uuid, final_bookmark)
         db.session.commit()
         flask.flash("Edited: %s" % bookmark.title)
         return flask.make_response("ok")
@@ -851,6 +861,43 @@ def view_netloc(netloc: str) -> Tuple[flask.Response, int]:
                 page_title="Netloc: %s" % netloc,
             )
         )
+
+
+@blueprint.route("/register", methods=["GET", "POST"])
+def register() -> flask.Response:
+    if flask.request.method == "GET":
+        return flask.make_response(
+            flask.render_template("register.j2", page_title="Register")
+        )
+    else:
+        username = flask.request.form["username"]
+        password_plain = flask.request.form["password"]
+        email: Optional[str] = flask.request.form.get("email", None)
+
+        if username_exists(db.session, username):
+            log.error("username already registered: %s", username)
+            flask.abort(400, description="username already exists")
+
+        username_regex = r"^[A-z0-9_\-]+$"
+        if not re.compile(username_regex).match(username):
+            log.error("invalid username: %s", username)
+            flask.abort(
+                400, description="invalid username - must match %s" % username_regex
+            )
+
+        create_user(
+            db.session,
+            flask.current_app.config["CRYPT_CONTEXT"],
+            username,
+            password_plain,
+            email,
+        )
+
+        db.session.commit()
+        response = flask.make_response("Redirecting...", 303)
+        response.headers["Location"] = flask.url_for("quarchive.index")
+        log.info("created user: %s", username)
+        return response
 
 
 @blueprint.route("/sign-in", methods=["GET", "POST"])
@@ -913,7 +960,7 @@ def sync() -> flask.Response:
         )
 
     changed_bookmarks = merge_bookmarks(
-        db.session, flask.g.user_uuid, recieved_bookmarks
+        db.session, get_current_user().user_uuid, recieved_bookmarks
     )
     db.session.commit()
     if "full" in flask.request.args:

@@ -25,10 +25,17 @@
                  <a href="{{ url_for('quarchive.index') }}">Home</a>
                {% endif %}
                <a href="{{ url_for('quarchive.create_bookmark_form') }}">Create</a>
+               <a href="{{ url_for('quarchive.about') }}">About</a>
              </span>
 
              <span class="nav-links nav-links-right">
-               <a href="{{ url_for('quarchive.about') }}">About</a>
+               {% if g.user %}
+                 <a href="">{{g.user.username}}</a>
+                 <a href="">Sign out</a>
+               {% else %}
+                 <a href="{{ url_for('quarchive.sign_in') }}">Sign In</a>
+                 <a id="register-link" href="{{ url_for('quarchive.register') }}">Register</a>
+               {% endif %}
              </span>
         </nav>
         <main>

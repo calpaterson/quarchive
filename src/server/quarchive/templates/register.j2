@@ -1,0 +1,20 @@
+{# -*- mode: jinja2 -*- #}
+{% extends "base.j2" %}
+{% block main %}
+    <h1>Register</h1>
+    <form action="register" method="POST">
+      <p>
+        <label>username</label>
+        <input type="text" name="username" required>
+      </p>
+      <p>
+        <label>password</label>
+        <input type="password" name="password" required>
+      </p>
+      <p>
+        <label>email</label>
+        <input type="email" name="email">
+      </p>
+      <button type="submit">Sign in</button>
+    </form>
+{% endblock %}

@@ -140,6 +140,10 @@ textarea, input, button, select {
     height: 10em;
 }
 
+#register-link {
+    font-weight: bold;
+}
+
 @font-face {
   font-family: 'Literata';
   font-style: normal;

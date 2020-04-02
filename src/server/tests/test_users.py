@@ -1,7 +1,11 @@
-import pytest
 import flask
 
 import quarchive as sut
+
+
+def test_registration_form(client, session):
+    registration_form_response = client.get("/register")
+    assert registration_form_response.status_code == 200
 
 
 def test_registration_no_email(client, session):
