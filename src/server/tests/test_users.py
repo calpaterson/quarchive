@@ -39,9 +39,16 @@ def test_registration_with_email(client, session):
     assert user.password == "password"
     assert user.email_obj.email_address == "test@example.com"
 
+    # check that registration logged us in
+    assert "user_uuid" in flask.session
+
 
 def test_registration_existing_username(client, session):
     client.post("/register", data={"username": "testuser1", "password": "password"})
+    # Registration gives an automatic sign in
+    with client.session_transaction() as flask_session:
+        flask_session.clear()
+
     response = client.post(
         "/register", data={"username": "testuser1", "password": "password"}
     )

@@ -407,9 +407,10 @@ def create_user(
     username: str,
     password_plain: str,
     email: Optional[str] = None,
-) -> None:
+) -> UUID:
+    user_uuid = uuid4()
     password_hashed = crypt_context.hash(password_plain)
-    sql_user = SQLUser(user_uuid=uuid4(), username=username, password=password_hashed)
+    sql_user = SQLUser(user_uuid=user_uuid, username=username, password=password_hashed)
 
     if email is not None:
         log.info("got an email for %s", username)
@@ -418,6 +419,7 @@ def create_user(
     sql_user.api_key_obj = APIKey(api_key=secrets.token_bytes(32))
 
     session.add(sql_user)
+    return user_uuid
 
 
 def get_bookmark_by_url(
@@ -639,7 +641,8 @@ def put_user_in_g() -> None:
     if user_uuid is not None:
         flask.g.user = user_from_user_uuid(db.session, user_uuid)
         flask.current_app.logger.debug("looked up user: %s", flask.g.user)
-    flask.current_app.logger.debug("no user")
+    else:
+        flask.current_app.logger.debug("no user")
 
 
 def sign_in_required(handler: V) -> V:
@@ -885,7 +888,7 @@ def register() -> flask.Response:
                 400, description="invalid username - must match %s" % username_regex
             )
 
-        create_user(
+        user_uuid = create_user(
             db.session,
             flask.current_app.config["CRYPT_CONTEXT"],
             username,
@@ -897,6 +900,7 @@ def register() -> flask.Response:
         response = flask.make_response("Redirecting...", 303)
         response.headers["Location"] = flask.url_for("quarchive.index")
         log.info("created user: %s", username)
+        flask.session["user_uuid"] = user_uuid
         return response
 
 
@@ -920,7 +924,6 @@ def sign_in() -> flask.Response:
 
         password = flask.request.form.get("password")
         is_correct_password: bool = crypt_context.verify(password, user.password)
-
         if is_correct_password:
             flask.current_app.logger.info("successful sign in")
             flask.session["user_uuid"] = user.user_uuid
@@ -928,7 +931,6 @@ def sign_in() -> flask.Response:
             # Make it last for 31 days
             flask.session.permanent = True
 
-            # flask.redirect("/", code=303)
             response = flask.make_response("Redirecting...", 303)
             response.headers["Location"] = "/"
             return response

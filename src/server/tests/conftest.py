@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 import moto
 from passlib.context import CryptContext
+import flask
 
 import quarchive as sut
 
@@ -125,3 +126,6 @@ def register_user(session, client, username, password):
         data={"username": username, "password": password, "email": "test@example.com",},
     )
     assert response.status_code == 303
+    # Registration gives us an automatic log in, which is unwanted here
+    with client.session_transaction() as session:
+        session.clear()
