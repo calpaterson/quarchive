@@ -875,6 +875,7 @@ def register() -> flask.Response:
     else:
         username = flask.request.form["username"]
         password_plain = flask.request.form["password"]
+        # FIXME: bug here, email not being recognised as missing
         email: Optional[str] = flask.request.form.get("email", None)
 
         if username_exists(db.session, username):
