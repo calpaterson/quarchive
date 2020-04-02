@@ -941,6 +941,11 @@ def sign_in() -> flask.Response:
             raise exc.BadRequest("unsuccessful sign in")
 
 
+@blueprint.route("/sign-out", methods=["GET"])
+def sign_out() -> flask.Response:
+    raise NotImplementedError()
+
+
 @blueprint.route("/ok")
 def ok() -> flask.Response:
     return flask.json.jsonify({"ok": True})

@@ -1,4 +1,5 @@
 import flask
+import pytest
 
 import quarchive as sut
 
@@ -94,4 +95,11 @@ def test_sign_in_wrong_username(client, test_user):
         "/sign-in", data={"username": "barney", "password": test_user.password},
     )
     assert sign_in_response.status_code == 400
+    assert "user_uuid" not in flask.session
+
+
+@pytest.mark.xfail(reason="not implemented")
+def test_logout(signed_in_client, test_user):
+    response = signed_in_client.get("/sign-out")
+    assert response.status_code == 303
     assert "user_uuid" not in flask.session
