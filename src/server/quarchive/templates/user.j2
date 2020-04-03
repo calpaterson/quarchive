@@ -1,0 +1,9 @@
+{# -*- mode: jinja2 -*- #}
+{% extends "base.j2" %}
+{% block main %}
+    <h1>{{ user.username}}</h1>
+    {% if user == g.user %}
+      <h2>API key</h2>
+      <pre>{{ api_key.hex() }}</pre>
+    {% endif %}
+{% endblock %}

@@ -1,6 +1,6 @@
 from uuid import UUID
 from os import environ, path
-from typing import Mapping, Any
+from typing import Mapping, Any, Optional
 from datetime import datetime, timezone
 import logging
 from dataclasses import dataclass
@@ -72,22 +72,12 @@ def eager_celery():
 @pytest.fixture()
 def test_user(session, client):
     username, password = ("testuser", "password1")
-    register_user(session, client, username, password)
-    api_key, user_uuid = (
-        session.query(sut.APIKey.api_key, sut.SQLUser.user_uuid)
-        .join(sut.SQLUser)
-        .filter(sut.SQLUser.username == "testuser")
-        .first()
-    )
-    yield User(
-        username=username, password=password, api_key=api_key, user_uuid=user_uuid
-    )
+    return register_user(session, client, username, password, "testuser@example.com")
 
 
 @pytest.fixture()
 def signed_in_client(client, test_user):
-    with client.session_transaction() as sess:
-        sess["user_uuid"] = str(test_user.user_uuid)
+    sign_in_as(client, test_user)
     yield client
 
 
@@ -105,6 +95,7 @@ class User:
     password: str
     api_key: bytes
     user_uuid: UUID
+    email: Optional[str] = None
 
 
 def make_bookmark(**kwargs):
@@ -120,12 +111,36 @@ def make_bookmark(**kwargs):
     return sut.Bookmark(**{**bookmark_defaults, **kwargs})
 
 
-def register_user(session, client, username, password):
+def sign_in_as(client, user: User):
+    with client.session_transaction() as sess:
+        sess["user_uuid"] = user.user_uuid
+
+
+def sign_out(client):
+    with client.session_transaction() as sess:
+        sess.clear()
+
+
+def register_user(session, client, username, password="password", email=None) -> User:
     response = client.post(
         "/register",
-        data={"username": username, "password": password, "email": "test@example.com",},
+        data={"username": username, "password": password, "email": email or ""},
     )
     assert response.status_code == 303
     # Registration gives us an automatic log in, which is unwanted here
-    with client.session_transaction() as session:
-        session.clear()
+    with client.session_transaction() as flask_sesh:
+        flask_sesh.clear()
+
+    api_key, user_uuid = (
+        session.query(sut.APIKey.api_key, sut.SQLUser.user_uuid)
+        .join(sut.SQLUser)
+        .filter(sut.SQLUser.username == "testuser")
+        .first()
+    )
+    return User(
+        username=username,
+        password=password,
+        api_key=api_key,
+        user_uuid=user_uuid,
+        email=email,
+    )

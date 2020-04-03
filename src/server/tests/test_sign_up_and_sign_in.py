@@ -60,7 +60,7 @@ def test_registration_existing_username(client, session):
         flask_session.clear()
 
     response = client.post(
-        "/register", data={"username": "testuser1", "password": "password"}
+        "/register", data={"username": "testuser1", "password": "password", "email": ""}
     )
     assert response.status_code == 400
     assert session.query(sut.SQLUser).count() == 1
@@ -68,7 +68,7 @@ def test_registration_existing_username(client, session):
 
 def test_registration_invalid_username(client, session):
     response = client.post(
-        "/register", data={"username": "Test User", "password": "password"}
+        "/register", data={"username": "Test User", "password": "password", "email": ""}
     )
     assert response.status_code == 400
     assert session.query(sut.SQLUser).count() == 0

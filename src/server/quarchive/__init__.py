@@ -366,13 +366,17 @@ class APIKey(Base):
 
 
 def is_correct_api_key(session: Session, username: str, api_key: bytes) -> bool:
-    api_key_from_db = (
+    api_key_from_db = get_api_key(session, username)
+    return secrets.compare_digest(api_key, api_key_from_db)
+
+
+def get_api_key(session, username: str) -> bytes:
+    return (
         session.query(APIKey.api_key)
         .join(SQLUser)
         .filter(SQLUser.username == username)
         .scalar()
     )
-    return secrets.compare_digest(api_key, api_key_from_db)
 
 
 def username_exists(session: Session, username: str) -> bool:
@@ -384,7 +388,7 @@ def username_exists(session: Session, username: str) -> bool:
 def user_from_username(session, username: str) -> User:
     user_uuid, email = (
         session.query(SQLUser.user_uuid, UserEmail.email_address)
-        .join(UserEmail)
+        .outerjoin(UserEmail)
         .filter(SQLUser.username == username)
         .one()
     )
@@ -947,7 +951,20 @@ def sign_in() -> flask.Response:
 def sign_out() -> flask.Response:
     flask.session.clear()
     flask.flash("Signed out")
-    return flask.render_template("base.j2")
+    return flask.make_response(flask.render_template("base.j2"))
+
+
+@blueprint.route("/user/<username>")
+def user_page(username: str) -> flask.Response:
+    user = user_from_username(db.session, username)
+    api_key: Optional[bytes]
+    if user == flask.g.user:
+        api_key = get_api_key(db.session, user.username)
+    else:
+        api_key = None
+    return flask.make_response(
+        flask.render_template("user.j2", user=user, api_key=api_key,)
+    )
 
 
 @blueprint.route("/ok")

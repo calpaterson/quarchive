@@ -30,7 +30,7 @@
 
              <span class="nav-links nav-links-right">
                {% if g.user %}
-                 <a href="">{{g.user.username}}</a>
+                 <a href="{{ url_for('quarchive.user_page', username=g.user.username) }}">{{g.user.username}}</a>
                  <a href="{{ url_for('quarchive.sign_out') }}">Sign out</a>
                {% else %}
                  <a href="{{ url_for('quarchive.sign_in') }}">Sign In</a>
