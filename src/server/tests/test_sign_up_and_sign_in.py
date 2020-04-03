@@ -107,8 +107,7 @@ def test_sign_in_wrong_username(client, test_user):
     assert "user_uuid" not in flask.session
 
 
-@pytest.mark.xfail(reason="not implemented")
 def test_logout(signed_in_client, test_user):
     response = signed_in_client.get("/sign-out")
-    assert response.status_code == 303
+    assert response.status_code == 200
     assert "user_uuid" not in flask.session

@@ -930,6 +930,7 @@ def sign_in() -> flask.Response:
 
             # Make it last for 31 days
             flask.session.permanent = True
+            flask.flash("Signed in")
 
             response = flask.make_response("Redirecting...", 303)
             response.headers["Location"] = "/"
@@ -943,7 +944,9 @@ def sign_in() -> flask.Response:
 
 @blueprint.route("/sign-out", methods=["GET"])
 def sign_out() -> flask.Response:
-    raise NotImplementedError()
+    flask.session.clear()
+    flask.flash("Signed out")
+    return flask.render_template("base.j2")
 
 
 @blueprint.route("/ok")
