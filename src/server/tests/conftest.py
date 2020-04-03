@@ -4,10 +4,13 @@ from typing import Mapping, Any, Optional
 from datetime import datetime, timezone
 import logging
 from dataclasses import dataclass
+from unittest import mock
+import secrets
+import random
+import contextlib
 
 import moto
 from passlib.context import CryptContext
-import flask
 
 import quarchive as sut
 
@@ -22,15 +25,21 @@ def reduce_boto_logging():
         logging.getLogger(boto_logger).setLevel(logging.INFO)
 
 
-@pytest.fixture(scope="function")
-def config(monkeypatch):
-    monkeypatch.setenv("QM_SQL_URL", environ["QM_SQL_URL_TEST"])
-    monkeypatch.setenv("QM_SECRET_KEY", "secret_key")
-    monkeypatch.setenv("QM_RESPONSE_BODY_BUCKET_NAME", "test_body_bucket")
-    monkeypatch.setenv("QM_AWS_SECRET_ACCESS_KEY", "123")
-    monkeypatch.setenv("QM_AWS_ACCESS_KEY", "abc")
-    monkeypatch.setenv("QM_AWS_REGION_NAME", "moon")
-    monkeypatch.setenv("QM_AWS_S3_ENDPOINT_URL", "UNSET")
+@pytest.fixture(scope="session")
+def config():
+    with mock.patch.dict(
+        environ,
+        {
+            "QM_SQL_URL": environ["QM_SQL_URL_TEST"],
+            "QM_SECRET_KEY": "secret_key",
+            "QM_RESPONSE_BODY_BUCKET_NAME": "test_body_bucket",
+            "QM_AWS_SECRET_ACCESS_KEY": "123",
+            "QM_AWS_ACCESS_KEY": "abc",
+            "QM_AWS_REGION_NAME": "moon",
+            "QM_AWS_S3_ENDPOINT_URL": "UNSET",
+        },
+    ):
+        yield
 
 
 @pytest.fixture(scope="function")
@@ -41,7 +50,7 @@ def session(app, config):
     return sut.db.session
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def app(config):
     a = sut.init_app()
     a.config["TESTING"] = True
@@ -79,6 +88,21 @@ def test_user(session, client):
 def signed_in_client(client, test_user):
     sign_in_as(client, test_user)
     yield client
+
+
+@pytest.fixture(scope="session", autouse=True)
+def patch_out_secrets_module():
+    """Patch out some stuff from the secret library, both to speed things up as
+    much as possible but also to avoid using an real crypto randomness on my
+    machine.
+
+    """
+    with contextlib.ExitStack() as stack:
+        mock_cd = stack.enter_context(mock.patch.object(secrets, "compare_digest"))
+        mock_tb = stack.enter_context(mock.patch.object(secrets, "token_bytes"))
+        mock_cd.side_effect = lambda a, b: a == b
+        mock_tb.side_effect = lambda n: bytes(random.randint(0, 255) for _ in range(n))
+        yield
 
 
 # Everything below this line should be moved to .utils
