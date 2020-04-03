@@ -649,6 +649,7 @@ def sign_in_required(handler: V) -> V:
     @wraps(handler)
     def wrapper(*args, **kwargs):
         if flask.g.get("user", None) is None:
+            # FIXME: This should use redirect_to
             return flask.redirect("/sign-in"), 302
         else:
             return handler(*args, **kwargs)
