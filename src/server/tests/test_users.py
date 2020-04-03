@@ -11,15 +11,17 @@ def test_registration_form(client, session):
 
 def test_registration_no_email(client, session):
     response = client.post(
-        "/register", data={"username": "testuser1", "password": "password"}
+        "/register", data={"username": "testuser1", "password": "password", "email": ""}
     )
     assert response.status_code == 303
     assert response.headers["Location"] == flask.url_for(
         "quarchive.index", _external=True
     )
+
     user = session.query(sut.SQLUser).one()
     assert user.username == "testuser1"
     assert user.password == "password"
+    assert user.email_obj is None
 
 
 def test_registration_with_email(client, session):
@@ -45,7 +47,9 @@ def test_registration_with_email(client, session):
 
 
 def test_registration_existing_username(client, session):
-    client.post("/register", data={"username": "testuser1", "password": "password"})
+    client.post(
+        "/register", data={"username": "testuser1", "password": "password", "email": ""}
+    )
     # Registration gives an automatic sign in
     with client.session_transaction() as flask_session:
         flask_session.clear()
