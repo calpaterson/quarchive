@@ -46,6 +46,11 @@ def test_registration_with_email(client, session):
     assert "user_uuid" in flask.session
 
 
+@pytest.mark.xfail(reason="not implemented")
+def test_registration_with_invalid_email(client, session):
+    assert False
+
+
 def test_registration_existing_username(client, session):
     client.post(
         "/register", data={"username": "testuser1", "password": "password", "email": ""}
