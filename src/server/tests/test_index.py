@@ -10,7 +10,7 @@ from sqlalchemy import func
 
 import pytest
 
-from .conftest import make_bookmark, User
+from .conftest import make_bookmark, User, register_user, sign_in_as
 from .utils import sync_bookmarks
 
 import quarchive as sut
@@ -58,6 +58,22 @@ def test_index_excludes_deleted_bookmarks(signed_in_client, session, test_user):
     root = etree.fromstring(response.get_data(), html_parser)
     bookmarks = CSSSelector("div.bookmark")(root)
     assert len(bookmarks) == 0
+
+
+def test_index_excludes_bookmarks_from_others(client, session):
+    bm1 = make_bookmark(url="http://example.com/1", title="Example 1")
+    user1 = register_user(session, client, "user1")
+    sync_bookmarks(client, user1, [bm1])
+
+    bm2 = make_bookmark(url="http://example.com/2", title="Example 2")
+    user2 = register_user(session, client, "user2")
+    sync_bookmarks(client, user2, [bm2])
+
+    sign_in_as(client, user2)
+    response = client.get("/")
+    assert response.status_code == 200
+
+    assert get_bookmark_urls(response) == ["Example 2"]
 
 
 def test_index_paging(app, signed_in_client, session, test_user):

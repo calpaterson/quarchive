@@ -158,7 +158,7 @@ def register_user(session, client, username, password="password", email=None) ->
     api_key, user_uuid = (
         session.query(sut.APIKey.api_key, sut.SQLUser.user_uuid)
         .join(sut.SQLUser)
-        .filter(sut.SQLUser.username == "testuser")
+        .filter(sut.SQLUser.username == username)
         .first()
     )
     return User(

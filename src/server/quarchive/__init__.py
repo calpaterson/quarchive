@@ -398,7 +398,7 @@ def user_from_username(session, username: str) -> User:
 def user_from_user_uuid(session, user_uuid: UUID) -> User:
     username, email = (
         session.query(SQLUser.username, UserEmail.email_address)
-        .join(UserEmail)
+        .outerjoin(UserEmail)
         .filter(SQLUser.user_uuid == user_uuid)
         .one()
     )
@@ -644,9 +644,9 @@ def put_user_in_g() -> None:
     user_uuid: Optional[UUID] = flask.session.get("user_uuid")
     if user_uuid is not None:
         flask.g.user = user_from_user_uuid(db.session, user_uuid)
-        flask.current_app.logger.debug("looked up user: %s", flask.g.user)
+        flask.current_app.logger.debug("currently signed in as: %s", flask.g.user)
     else:
-        flask.current_app.logger.debug("no user")
+        flask.current_app.logger.debug("not signed in")
 
 
 def sign_in_required(handler: V) -> V:
@@ -701,16 +701,17 @@ def index() -> Tuple[flask.Response, int]:
     page_size = flask.current_app.config["PAGE_SIZE"]
     page = int(flask.request.args.get("page", "1"))
     offset = (page - 1) * page_size
-    query = db.session.query(SQLABookmark)
+    user = get_current_user()
+    query = db.session.query(SQLABookmark).filter(
+        SQLABookmark.user_uuid == user.user_uuid
+    )
 
     if "q" in flask.request.args:
-        query = db.session.query(SQLABookmark).outerjoin(
-            FullText, FullText.url_uuid == SQLABookmark.url_uuid
-        )
+        query = query.outerjoin(FullText, FullText.url_uuid == SQLABookmark.url_uuid)
 
         search_str = flask.request.args["q"]
         tquery_str = parse_search_str(search_str)
-        log.info('search_str, tquery_str = ("%s", "%s")', search_str, tquery_str)
+        log.debug('search_str, tquery_str = ("%s", "%s")', search_str, tquery_str)
 
         # necessary to coalesce this as there may be no fulltext
         fulltext = func.coalesce(FullText.tsvector, func.to_tsvector(""))
@@ -725,7 +726,6 @@ def index() -> Tuple[flask.Response, int]:
         query = query.order_by(func.ts_rank(combined_tsvector, tsquery, 1))
         page_title = search_str
     else:
-        query = db.session.query(SQLABookmark)
         page_title = "Quarchive"
 
     if page > 1:
