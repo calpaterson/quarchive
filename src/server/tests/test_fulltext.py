@@ -181,10 +181,7 @@ def test_indexing_null_content_type(session, mock_s3):
         got_response=True,
     )
     crawl_resp = sut.CrawlResponse(
-        crawl_uuid=crawl_uuid,
-        headers={},
-        body_uuid=body_uuid,
-        status_code=200,
+        crawl_uuid=crawl_uuid, headers={}, body_uuid=body_uuid, status_code=200,
     )
 
     session.add_all([url_obj, crawl_req, crawl_resp])
