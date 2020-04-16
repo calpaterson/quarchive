@@ -22,6 +22,7 @@ from typing import (
     Tuple,
     BinaryIO,
     List,
+    Union,
 )
 from os import environ, path
 from urllib.parse import urlsplit, urlunsplit
@@ -65,6 +66,7 @@ from flask_cors import CORS
 import missive
 from missive.adapters.rabbitmq import RabbitMQAdapter
 from flask_babel import Babel
+import magic
 
 log = logging.getLogger("quarchive")
 
@@ -1166,9 +1168,9 @@ def get_meta_descriptions(root: lxml.html.HtmlElement) -> List[str]:
         return [e.attrib.get("content", "") for e in meta_description_elements]
 
 
-def extract_full_text(filelike) -> str:
-    # no type annotation for filelike because instead of a BinaryIO it's a
-    # gzip.GzipFile which doesn't implement the full API required by BinaryIO
+def extract_full_text_from_html(filelike: Union[BinaryIO, gzip.GzipFile]) -> str:
+    # union required as gzip.GzipFile doesn't implement the full API required
+    # by BinaryIO - we only need the shared subset
     document = lxml.html.parse(filelike)
     root = document.getroot()
     meta_descs = get_meta_descriptions(root)
@@ -1223,6 +1225,7 @@ def ensure_crawled(url: str) -> None:
 def ensure_fulltext(crawl_uuid: UUID) -> None:
     """Populate full text table for crawl"""
     with contextlib.closing(get_session_cls()) as sesh:
+        content_type_header: Optional[str]
         body_uuid, content_type_header, sqla_url_obj, inserted = (
             sesh.query(
                 CrawlResponse.body_uuid,
@@ -1245,7 +1248,22 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
             )
             return
 
-        content_type, _ = cgi.parse_header(content_type_header)
+        bucket = get_response_body_bucket()
+        # Try to avoid downloading the content unless we need it
+        fileobj = None
+
+        # FIXME: Some error modes not handled here:
+        # - junky content types "text/html, text/html"
+        # - incorrect charset
+        if content_type_header is not None:
+            content_type, parameters = cgi.parse_header(content_type_header)
+            # charset = parameters.get("charset")
+        else:
+            # No Content-Type, so infer it
+            fileobj = download_file(bucket, str(body_uuid))
+            content_type = magic.from_buffer(fileobj.read(2048), mime=True)
+            fileobj.seek(0)
+
         if content_type != "text/html":
             log.info(
                 "%s (%s) has wrong content type: %s - skipping",
@@ -1255,9 +1273,12 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
             )
             return
 
-        bucket = get_response_body_bucket()
-        fileobj = download_file(bucket, str(body_uuid))
-        text = extract_full_text(fileobj)
+        # If we didn't download it before, we should now
+        if fileobj is None:
+            fileobj = download_file(bucket, str(body_uuid))
+
+        # FIXME: charset should be handed to extract_full_text_from_html
+        text = extract_full_text_from_html(fileobj)
 
         fulltext_obj = FullText(
             url_uuid=sqla_url_obj.url_uuid,

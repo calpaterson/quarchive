@@ -25,6 +25,7 @@ setup(
         "missive~=0.5",
         "passlib~=1.7.2",
         "bcrypt~=3.1.7",
+        "magic~=0.4.15",
     ],
     extras_require={
         "tests": [
