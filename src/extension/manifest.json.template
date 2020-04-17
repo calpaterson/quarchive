@@ -8,7 +8,7 @@
         "unlimitedStorage"
     ],
     "background": {
-        "scripts": ["quarchive-background.js"]
+        "page": "background.html"
     },
     "options_ui": {
         "page": "options.html",

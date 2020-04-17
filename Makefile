@@ -28,8 +28,9 @@ extension_manifest_template := $(ext_path)/manifest.json.template
 extension_build_dir := $(ext_path)/build
 jest_sentinel := $(ext_path)/.jest-sentinel
 
-dist/quarchive-$(extension_version).zip: $(ext_path)/webextconfig.js $(web_ext) $(js_files) $(ext_path)/options.html $(extension_manifest) $(jest_sentinel) | dist
-	cp $(ext_path)/options.html $(extension_build_dir)/options.html
+dist/quarchive-$(extension_version).zip: $(ext_path)/webextconfig.js $(web_ext) $(js_files) $(ext_path)/src/options.html $(extension_manifest) $(jest_sentinel) | dist
+	cp $(ext_path)/src/options.html $(extension_build_dir)/options.html
+	cp $(ext_path)/src/background.html $(extension_build_dir)/background.html
 	cd $(ext_path)/; $(realpath $(web_ext)) build -c $(realpath $<)
 
 $(js_files): $(ext_path)/tsconfig.json $(ts_files) $(tsc)
