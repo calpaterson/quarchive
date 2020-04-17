@@ -1,51 +1,57 @@
-web_ext := src/extension/node_modules/web-ext/bin/web-ext
-eslint := src/extension/node_modules/eslint/bin/eslint.js
-tsc := src/extension/node_modules/typescript/bin/tsc
-jest := src/extension/node_modules/jest/bin/jest.js
-commit := $(shell git rev-parse --short HEAD)
-ts_files := $(wildcard src/extension/src/*.ts)
-js_files := $(addprefix src/extension/build/, $(notdir $(ts_files:ts=js)))
+default: build
+.PHONY: build default
+
+# Server
+# ------
 py_files := $(shell find src/server -name '*.py' -not -path "src/server/.tox/*" -not -path "src/server/build/**")
 server_version_file := src/server/VERSION
 server_version := $(shell cat $(server_version_file))
 artefact := quarchive-$(server_version)-py3-none-any.whl
-extension_version_file := src/extension/VERSION
-extension_version := $(shell cat $(extension_version_file))
-extension_manifest := src/extension/build/manifest.json
-extension_manifest_template := src/extension/manifest.json.template
-extension_build_dir := src/extension/build
-jest_sentinel := src/extension/.jest-sentinel
 
-.PHONY: build
-
-build: dist/quarchive-$(extension_version).zip dist/$(artefact)
-
-# Server build steps
 dist/$(artefact): $(py_files) $(server_version_file) | dist
 	cd src/server; tox
 	mv src/server/dist/$(artefact) dist/
 
-# Extension build steps
-dist/quarchive-$(extension_version).zip: src/extension/webextconfig.js $(web_ext) $(js_files) $(extension_manifest) $(jest_sentinel) | dist
-# Mozilla's webext tool uses the current working directory implicitly
-	cd src/extension/; $(realpath $(web_ext)) build -c $(realpath $<)
+# Extension
+# ---------
+ext_path := src/extension
+web_ext := $(ext_path)/node_modules/web-ext/bin/web-ext
+eslint := $(ext_path)/node_modules/eslint/bin/eslint.js
+tsc := $(ext_path)/node_modules/typescript/bin/tsc
+jest := $(ext_path)/node_modules/jest/bin/jest.js
+ts_files := $(wildcard $(ext_path)/src/*.ts)
+js_files := $(addprefix $(ext_path)/build/, $(notdir $(ts_files:ts=js)))
+extension_version_file := $(ext_path)/VERSION
+extension_version := $(shell cat $(extension_version_file))
+extension_manifest := $(ext_path)/build/manifest.json
+extension_manifest_template := $(ext_path)/manifest.json.template
+extension_build_dir := $(ext_path)/build
+jest_sentinel := $(ext_path)/.jest-sentinel
 
-$(js_files): src/extension/tsconfig.json $(ts_files) $(tsc)
+dist/quarchive-$(extension_version).zip: $(ext_path)/webextconfig.js $(web_ext) $(js_files) $(ext_path)/options.html $(extension_manifest) $(jest_sentinel) | dist
+	cp $(ext_path)/options.html $(extension_build_dir)/options.html
+	cd $(ext_path)/; $(realpath $(web_ext)) build -c $(realpath $<)
+
+$(js_files): $(ext_path)/tsconfig.json $(ts_files) $(tsc)
 	$(tsc) --build $<
 
-$(jest_sentinel): src/extension/jest.config.js $(ts_files) $(jest)
+$(ext_html_files):
+
+$(jest_sentinel): $(ext_path)/jest.config.js $(ts_files) $(jest)
 	$(jest) -c $<
 	touch $@
 
-# src/extension/.eslint-sentinel: $(eslint) $(js_files)
-# 	$(eslint) -f unix src/extension/quarchive-background.js src/extension/quarchive-options.js
+# $(ext_path)/.eslint-sentinel: $(eslint) $(js_files)
+# 	$(eslint) -f unix $(ext_path)/quarchive-background.js $(ext_path)/quarchive-options.js
 # 	touch $@
 
 $(extension_manifest): $(extension_manifest_template) $(extension_version_file)
 	sed 's/$$VERSION/$(extension_version)/' $(extension_manifest_template) > $@
 
 $(web_ext) $(tsc) $(eslint) $(jest):
-	cd src/extension; npm install --save-dev
+	cd $(ext_path); npm install --save-dev
 
 dist $(extension_build_dir):
 	mkdir -p $@
+
+build: dist/quarchive-$(extension_version).zip dist/$(artefact)
