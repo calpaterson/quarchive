@@ -1,8 +1,7 @@
 {
-    "name": "quarchive",
+    "name": "quarchive-dev-environment",
     "version": "0.0.1",
-    "description": "",
-    "main": "quartermarker.js",
+    "description": "Build environment for the quarchive browser extension",
     "dependencies": {},
     "devDependencies": {
         "@types/firefox-webext-browser": "~70.0.1",
@@ -13,7 +12,8 @@
         "sinon-chrome": "~3.0.1",
         "ts-jest": "24.3.0",
         "typescript": "~3.7.5",
-        "web-ext": "~3.2.1"
+        "web-ext": "~3.2.1",
+        "webextension-polyfill": "~0.6.0"
     },
     "scripts": {
         "test": "jest"

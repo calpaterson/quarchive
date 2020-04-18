@@ -19,7 +19,9 @@ web_ext := $(ext_path)/node_modules/web-ext/bin/web-ext
 eslint := $(ext_path)/node_modules/eslint/bin/eslint.js
 tsc := $(ext_path)/node_modules/typescript/bin/tsc
 jest := $(ext_path)/node_modules/jest/bin/jest.js
+webextension_polyfill := $(ext_path)/node_modules/webextension-polyfill/dist/browser-polyfill.js
 ts_files := $(wildcard $(ext_path)/src/*.ts)
+html_files := $(wildcard $(ext_path)/src/*.html)
 js_files := $(addprefix $(ext_path)/build/, $(notdir $(ts_files:ts=js)))
 extension_version_file := $(ext_path)/VERSION
 extension_version := $(shell cat $(extension_version_file))
@@ -28,9 +30,9 @@ extension_manifest_template := $(ext_path)/manifest.json.template
 extension_build_dir := $(ext_path)/build
 jest_sentinel := $(ext_path)/.jest-sentinel
 
-dist/quarchive-$(extension_version).zip: $(ext_path)/webextconfig.js $(web_ext) $(js_files) $(ext_path)/src/options.html $(extension_manifest) $(jest_sentinel) | dist
-	cp $(ext_path)/src/options.html $(extension_build_dir)/options.html
-	cp $(ext_path)/src/background.html $(extension_build_dir)/background.html
+dist/quarchive-$(extension_version).zip: $(ext_path)/webextconfig.js $(web_ext) $(js_files) $(html_files) $(extension_manifest) $(jest_sentinel) $(webextension_polyfill) | dist
+	cp $(webextension_polyfill) $(extension_build_dir)
+	cp $(html_files) $(extension_build_dir)
 	cd $(ext_path)/; $(realpath $(web_ext)) build -c $(realpath $<)
 
 $(js_files): $(ext_path)/tsconfig.json $(ts_files) $(tsc)
@@ -49,8 +51,8 @@ $(jest_sentinel): $(ext_path)/jest.config.js $(ts_files) $(jest)
 $(extension_manifest): $(extension_manifest_template) $(extension_version_file)
 	sed 's/$$VERSION/$(extension_version)/' $(extension_manifest_template) > $@
 
-$(web_ext) $(tsc) $(eslint) $(jest):
-	cd $(ext_path); npm install --save-dev
+$(web_ext) $(tsc) $(eslint) $(jest) $(webextension_polyfill):
+	cd $(ext_path); npm install
 
 dist $(extension_build_dir):
 	mkdir -p $@
