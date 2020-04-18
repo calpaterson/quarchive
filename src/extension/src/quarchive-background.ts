@@ -383,7 +383,7 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>){
     return returnValue;
 }
 
-async function fullSync() {
+export async function fullSync() {
     console.log("starting full sync");
     disableListeners();
     await syncBrowserBookmarksToLocalDb();
