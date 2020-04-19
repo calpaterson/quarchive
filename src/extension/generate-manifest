@@ -18,29 +18,23 @@ def main():
     args = parser.parse_args()
 
     manifest = {
+        "author": "Cal Paterson",
+        "background": {"page": "background.html"},
+        "description": 'Traditional "Web 2.0" social bookmarking, with small improvements',
+        "icons": {"48": "48x48.png", "96": "96x96.png"},
+        "homepage_url": "https://quarchive.com",
         "manifest_version": 2,
         "name": "Quarchive",
+        "options_ui": {"page": "options.html",},
+        "permissions": ["bookmarks", "storage", "unlimitedStorage"],
         "version": args.version,
-        "permissions": [
-            "bookmarks",
-            "storage",
-            "unlimitedStorage"
-        ],
-        "background": {
-            "page": "background.html"
-        },
-        "options_ui": {
-            "page": "options.html",
-        }
     }
 
     if args.browser == "firefox":
         manifest["browser_specific_settings"] = {
             "gecko": {
                 "id": "{ee416e00-528a-4b7b-a0d2-98bae198d30c}",
-                "update_url": (
-                    "https://quarchive.com/extension/gecko/updates.json"
-                )
+                "update_url": ("https://quarchive.com/extension/gecko/updates.json"),
             }
         }
         manifest["options_ui"]["browser_style"] = True
