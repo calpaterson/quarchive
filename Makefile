@@ -54,7 +54,7 @@ $(jest_sentinel): $(ext_path)/jest.config.js $(ts_files) $(jest)
 # 	$(eslint) -f unix $(ext_path)/quarchive-background.js $(ext_path)/quarchive-options.js
 # 	touch $@
 
-$(extension_manifest): $(extension_manifest_template) $(extension_version_file)
+$(extension_manifest): $(extension_manifest_template) $(extension_version_file) | $(ext_firefox_build_dir)
 	sed 's/$$VERSION/$(extension_version)/' $(extension_manifest_template) > $@
 
 $(web_ext) $(tsc) $(eslint) $(jest) $(webextension_polyfill):
