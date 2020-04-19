@@ -1,3 +1,4 @@
 node_modules
 .eslint-sentinel
-build
+firefox-build
+chrome-build

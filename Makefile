@@ -15,27 +15,33 @@ dist/$(artefact): $(py_files) $(server_version_file) | dist
 # Extension
 # ---------
 ext_path := src/extension
-web_ext := $(ext_path)/node_modules/web-ext/bin/web-ext
-eslint := $(ext_path)/node_modules/eslint/bin/eslint.js
-tsc := $(ext_path)/node_modules/typescript/bin/tsc
-jest := $(ext_path)/node_modules/jest/bin/jest.js
-webextension_polyfill := $(ext_path)/node_modules/webextension-polyfill/dist/browser-polyfill.js
+node_modules := $(ext_path)/node_modules
+web_ext := $(node_modules)/web-ext/bin/web-ext
+eslint := $(node_modules)/eslint/bin/eslint.js
+tsc := $(node_modules)/typescript/bin/tsc
+jest := $(node_modules)/jest/bin/jest.js
+
+# Source files
+jest_sentinel := $(ext_path)/.jest-sentinel
 ts_files := $(wildcard $(ext_path)/src/*.ts)
 html_files := $(wildcard $(ext_path)/src/*.html)
-js_files := $(addprefix $(ext_path)/build/, $(notdir $(ts_files:ts=js)))
 extension_version_file := $(ext_path)/VERSION
 extension_version := $(shell cat $(extension_version_file))
-extension_manifest := $(ext_path)/build/manifest.json
-extension_manifest_template := $(ext_path)/manifest.json.template
-extension_build_dir := $(ext_path)/build
-jest_sentinel := $(ext_path)/.jest-sentinel
+webextension_polyfill := $(node_modules)/webextension-polyfill/dist/browser-polyfill.js
 
-dist/quarchive-$(extension_version).zip: $(ext_path)/webextconfig.js $(web_ext) $(js_files) $(html_files) $(extension_manifest) $(jest_sentinel) $(webextension_polyfill) | dist
-	cp $(webextension_polyfill) $(extension_build_dir)
-	cp $(html_files) $(extension_build_dir)
+# Build files
+ext_firefox_build_dir := $(ext_path)/firefox-build
+js_files := $(addprefix $(ext_firefox_build_dir)/, $(notdir $(ts_files:ts=js)))
+extension_manifest := $(ext_firefox_build_dir)/manifest.json
+extension_manifest_template := $(ext_path)/manifest.json.template # FIXME: to be removed
+ext_build_files := $(js_files) $(html_files) $(webextension_polyfill)
+
+dist/quarchive-$(extension_version)-firefox.zip: $(ext_path)/firefox-webextconfig.js $(web_ext) $(extension_manifest) $(jest_sentinel) $(ext_build_files) | dist
+	cp $(webextension_polyfill) $(html_files) $(ext_firefox_build_dir)
 	cd $(ext_path)/; $(realpath $(web_ext)) build -c $(realpath $<)
+	mv $(ext_firefox_build_dir)/quarchive-$(extension_version).zip $@
 
-$(js_files): $(ext_path)/tsconfig.json $(ts_files) $(tsc)
+$(js_files): $(ext_path)/tsconfig-firefox.json $(ts_files) $(tsc)
 	$(tsc) --build $<
 
 $(ext_html_files):
@@ -54,7 +60,7 @@ $(extension_manifest): $(extension_manifest_template) $(extension_version_file)
 $(web_ext) $(tsc) $(eslint) $(jest) $(webextension_polyfill):
 	cd $(ext_path); npm install
 
-dist $(extension_build_dir):
+dist $(ext_firefox_build_dir):
 	mkdir -p $@
 
-build: dist/quarchive-$(extension_version).zip dist/$(artefact)
+build: dist/quarchive-$(extension_version)-firefox.zip dist/$(artefact)

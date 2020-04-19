@@ -6,7 +6,7 @@
         "module": "ES6",
         "esModuleInterop": true,
         "sourceMap": true,
-        "outDir": "build/",
+        "outDir": "firefox-build/",
     },
     "include": [
         "src/*.ts"
