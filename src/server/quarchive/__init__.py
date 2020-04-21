@@ -25,6 +25,7 @@ from typing import (
     BinaryIO,
     List,
     Union,
+    TYPE_CHECKING,
 )
 from os import environ, path
 from urllib.parse import urlsplit, urlunsplit
@@ -55,12 +56,13 @@ from sqlalchemy.orm import (
     scoped_session,
 )
 from sqlalchemy.dialects.postgresql import (
-    UUID as PGUUID,
+    UUID as _PGUUID,
     insert as pg_insert,
     BYTEA,
     JSONB,
     TSVECTOR,
 )
+
 from sqlalchemy.ext.declarative import declarative_base
 from flask_sqlalchemy import SQLAlchemy
 import flask
@@ -69,6 +71,12 @@ import missive
 from missive.adapters.rabbitmq import RabbitMQAdapter
 from flask_babel import Babel
 import magic
+
+# https://github.com/dropbox/sqlalchemy-stubs/issues/94
+if TYPE_CHECKING:
+    PGUUID = satypes.TypeEngine[UUID]
+else:
+    PGUUID = _PGUUID(as_uuid=True)
 
 log = logging.getLogger("quarchive")
 
@@ -239,7 +247,7 @@ class SQLAUrl(Base):
     __tablename__ = "urls"
 
     # Synthetic key for foreign references
-    url_uuid = Column(PGUUID(as_uuid=True), nullable=False, index=True, unique=True)
+    url_uuid = Column(PGUUID, nullable=False, index=True, unique=True)
 
     # The actual url
     scheme = Column(satypes.String, nullable=False, index=True, primary_key=True)
@@ -252,12 +260,8 @@ class SQLAUrl(Base):
 class SQLABookmark(Base):
     __tablename__ = "bookmarks"
 
-    url_uuid = Column(
-        PGUUID(as_uuid=True), ForeignKey("urls.url_uuid"), primary_key=True
-    )
-    user_uuid = Column(
-        PGUUID(as_uuid=True), ForeignKey("users.user_uuid"), primary_key=True
-    )
+    url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), primary_key=True)
+    user_uuid = Column(PGUUID, ForeignKey("users.user_uuid"), primary_key=True)
 
     title = Column(satypes.String, nullable=False, index=True)
     description = Column(satypes.String, nullable=False, index=True)
@@ -280,9 +284,9 @@ class SQLABookmark(Base):
 class CrawlRequest(Base):
     __tablename__ = "crawl_requests"
 
-    crawl_uuid = Column(PGUUID(as_uuid=True), primary_key=True)
+    crawl_uuid = Column(PGUUID, primary_key=True)
     # FIXME: url_uuid should be NOT NULL
-    url_uuid = Column(PGUUID(as_uuid=True), ForeignKey("urls.url_uuid"), index=True)
+    url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), index=True)
     requested = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
     got_response = Column(satypes.Boolean, index=True)
 
@@ -295,9 +299,9 @@ class CrawlResponse(Base):
     __tablename__ = "crawl_responses"
 
     crawl_uuid = Column(
-        PGUUID(as_uuid=True), ForeignKey("crawl_requests.crawl_uuid"), primary_key=True
+        PGUUID, ForeignKey("crawl_requests.crawl_uuid"), primary_key=True
     )
-    body_uuid = Column(PGUUID(as_uuid=True), unique=True, nullable=False)
+    body_uuid = Column(PGUUID, unique=True, nullable=False)
     headers = Column(JSONB(), nullable=False, index=False)
     status_code = Column(satypes.SmallInteger, nullable=False, index=True)
 
@@ -309,14 +313,9 @@ class CrawlResponse(Base):
 class FullText(Base):
     __tablename__ = "full_text"
 
-    url_uuid = Column(
-        PGUUID(as_uuid=True), ForeignKey("urls.url_uuid"), primary_key=True
-    )
+    url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), primary_key=True)
     crawl_uuid = Column(
-        PGUUID(as_uuid=True),
-        ForeignKey("crawl_requests.crawl_uuid"),
-        nullable=False,
-        index=True,
+        PGUUID, ForeignKey("crawl_requests.crawl_uuid"), nullable=False, index=True,
     )
     inserted = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
     full_text = Column(satypes.String(), nullable=False)
@@ -336,7 +335,7 @@ class FullText(Base):
 class SQLUser(Base):
     __tablename__ = "users"
 
-    user_uuid = Column(PGUUID(as_uuid=True), primary_key=True)
+    user_uuid = Column(PGUUID, primary_key=True)
     username = Column(
         satypes.String(length=200), nullable=False, unique=True, index=True
     )
@@ -354,18 +353,14 @@ class SQLUser(Base):
 class UserEmail(Base):
     __tablename__ = "user_emails"
 
-    user_uuid = Column(
-        PGUUID(as_uuid=True), ForeignKey("users.user_uuid"), primary_key=True
-    )
+    user_uuid = Column(PGUUID, ForeignKey("users.user_uuid"), primary_key=True)
     email_address = Column(satypes.String(length=200), nullable=False, index=True)
 
 
 class APIKey(Base):
     __tablename__ = "api_keys"
 
-    user_uuid = Column(
-        PGUUID(as_uuid=True), ForeignKey("users.user_uuid"), primary_key=True
-    )
+    user_uuid = Column(PGUUID, ForeignKey("users.user_uuid"), primary_key=True)
     api_key = Column(BYTEA(length=16), nullable=False, unique=True, index=True)
 
 
