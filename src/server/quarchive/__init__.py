@@ -7,11 +7,13 @@ import gzip
 from functools import wraps, lru_cache
 import itertools
 import logging
+import mimetypes
 from uuid import uuid4, UUID
 from typing import (
     Mapping,
     Sequence,
     Set,
+    FrozenSet,
     Any,
     Optional,
     Callable,
@@ -1197,6 +1199,12 @@ def download_file(bucket, filename: str) -> gzip.GzipFile:
     return gzip_fileobj
 
 
+@lru_cache(1)
+def known_content_types() -> FrozenSet[str]:
+    mimetypes.init()
+    return frozenset(mimetypes.types_map.values())
+
+
 @celery_app.task
 def ensure_crawled(url: str) -> None:
     """Crawl a url only if it has never been crawled before.
@@ -1219,6 +1227,13 @@ def ensure_crawled(url: str) -> None:
         if not is_crawled:
             crawl_uuid = uuid4()
             crawl_url(sesh, crawl_uuid, url)
+
+
+def infer_content_type(fileobj: Union[BinaryIO, gzip.GzipFile]) -> str:
+    """Use libmagic to infer the content type of a file from the first 2k."""
+    content_type = magic.from_buffer(fileobj.read(2048), mime=True)
+    fileobj.seek(0)
+    return content_type
 
 
 @celery_app.task
@@ -1253,16 +1268,19 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
         fileobj = None
 
         # FIXME: Some error modes not handled here:
-        # - junky content types "text/html, text/html"
         # - incorrect charset
         if content_type_header is not None:
             content_type, parameters = cgi.parse_header(content_type_header)
             # charset = parameters.get("charset")
+
+            # If we were given something we don't recognise, infer the content type
+            if content_type not in known_content_types():
+                fileobj = download_file(bucket, str(body_uuid))
+                content_type = infer_content_type(fileobj)
         else:
             # No Content-Type, so infer it
             fileobj = download_file(bucket, str(body_uuid))
-            content_type = magic.from_buffer(fileobj.read(2048), mime=True)
-            fileobj.seek(0)
+            content_type = infer_content_type(fileobj)
 
         if content_type != "text/html":
             log.info(
