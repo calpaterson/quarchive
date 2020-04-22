@@ -648,6 +648,11 @@ def put_user_in_g() -> None:
         flask.current_app.logger.debug("not signed in")
 
 
+@blueprint.before_app_first_request
+def log_db() -> None:
+    flask.current_app.logger.info("using engine: %s", db.session.bind)
+
+
 def sign_in_required(handler: V) -> V:
     @wraps(handler)
     def wrapper(*args, **kwargs):
@@ -1073,9 +1078,10 @@ adapted_processor = RabbitMQAdapter(missive.JSONMessage, processor, "quarchive-e
 @lru_cache(1)
 def get_session_cls() -> Session:
     url: str = environ["QM_SQL_URL"]
-    session_factory = sessionmaker(bind=create_engine(url))
+    engine = create_engine(url)
+    session_factory = sessionmaker(bind=engine)
     Session = scoped_session(session_factory)
-    log.info("created session class: %s", url)
+    log.info("using engine: %s", engine)
     return Session
 
 
