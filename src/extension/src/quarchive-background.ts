@@ -149,7 +149,7 @@ async function allTreeNodesFromBrowser(): Promise<Array<browser.bookmarks.Bookma
     while (unexplored.length > 0) {
         const treeNode = unexplored.pop();
         // Can't rely on treeNode.type - chrome doesn't populate that field
-        if (Object.prototype.hasOwnProperty.call(treeNode, 'url')) {
+        if (Object.prototype.hasOwnProperty.call(treeNode, 'url') && treeNode.url !== undefined) {
             treeNodes.push(treeNode);
         }
         if (Object.prototype.hasOwnProperty.call(treeNode, 'children')
