@@ -3,15 +3,11 @@
 const SCHEMA_VERSION = 2;
 
 // An hour
-const PERIODIC_FULL_SYNC_INTERVAL = 60 * 60 * 1000;
+const PERIODIC_FULL_SYNC_INTERVAL_IN_MINUTES = 60;
 
 var db: IDBDatabase;
 
 let listenersEnabled = false;
-
-// This variable is for debugging purposes only
-// eslint-disable-next-line no-unused-vars
-var periodicFullSyncIntervalId;
 
 export class Bookmark {
     url: string;
@@ -407,11 +403,12 @@ export async function fullSync() {
     enableListeners()
 }
 
-function enablePeriodicFullSync(){
-    var fullSyncWrapper = function() {
+export function enablePeriodicFullSync(){
+    browser.alarms.create("periodicFullSync", {"periodInMinutes": PERIODIC_FULL_SYNC_INTERVAL_IN_MINUTES});
+    browser.alarms.onAlarm.addListener(function(alarm) {
+        console.log("alarm: %o", alarm);
         fullSync().then();
-    }
-    periodicFullSyncIntervalId = setInterval(fullSyncWrapper, PERIODIC_FULL_SYNC_INTERVAL);
+    });
 }
 
 export async function createdListener(
@@ -527,6 +524,7 @@ if (typeof window !== 'undefined') {
         }
         fullSync().then(function() {
             enableListeners();
+            fullSync().then();  // do one immediately
             enablePeriodicFullSync();
         });
     };
