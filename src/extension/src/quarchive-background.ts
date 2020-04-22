@@ -129,8 +129,23 @@ async function getHTTPConfig() {
     var gettingKey = await browser.storage.sync.get("APIKey");
     var gettingUsername = await browser.storage.sync.get("username");
     var gettingURL = await browser.storage.sync.get("APIURL");
-    return [gettingURL.APIURL, gettingUsername.username, gettingKey.APIKey];
+    const returnValue = [gettingURL.APIURL, gettingUsername.username, gettingKey.APIKey];
+    if (returnValue.includes(undefined)) {
+        throw new NoConfigurationError();
+    } else {
+        return returnValue;
+    }
 }
+
+
+class NoConfigurationError extends Error {
+    constructor(message?: string) {
+        super(message);
+        Object.setPrototypeOf(this, new.target.prototype);
+        this.name = NoConfigurationError.name
+    }
+}
+
 
 // Lookup the bookmark from browser.bookmarks
 async function lookupTreeNodeFromBrowser(browserId: string) {
@@ -334,7 +349,17 @@ async function callSyncAPI(bookmark: Bookmark) {
     const sync_body = {
         "bookmarks": [bookmark.to_json()]};
     console.log("syncing %o", sync_body);
-    const [APIURL, username, APIKey] = await getHTTPConfig();
+    let [APIURL, username, APIKey] = [undefined, undefined, undefined];
+    try {
+        [APIURL, username, APIKey] = await getHTTPConfig();
+    } catch (e) {
+        if (e instanceof NoConfigurationError) {
+            console.warn("no configuration - unable to do sync")
+            return [];
+        } else {
+            throw e;
+        }
+    }
     // FIXME: failure should be logged
     const url = new URL("/sync", APIURL).toString();
     const response = await fetch(url, {
@@ -361,7 +386,17 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>){
         body.push(bookmark.to_json())
     }
     console.log("calling /sync?full=true");
-    const [APIURL, username, APIKey] = await getHTTPConfig();
+    let [APIURL, username, APIKey] = [undefined, undefined, undefined];
+    try {
+        [APIURL, username, APIKey] = await getHTTPConfig();
+    } catch (e) {
+        if (e instanceof NoConfigurationError) {
+            console.warn("no configuration - unable to do full sync")
+            return [];
+        } else {
+            throw e;
+        }
+    }
     const url = new URL("/sync?full=true", APIURL).toString();
     const response = await fetch(url, {
         method: "POST",
