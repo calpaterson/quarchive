@@ -60,13 +60,14 @@
         <label for="description-input">Description</label>
       </p>
       <textarea id="description-input"
-                name="description">{% if bookmark %}{{ bookmark.description }}{% endif %}</textarea>
+                name="description"
+                >{% if bookmark %}{{ bookmark.description }}{% endif %}</textarea>
       <p>
         <input id="unread" name="unread" type="checkbox"{% if bookmark and bookmark.unread %}checked{% endif %}>
         <label for="unread">Unread</label>
       </p>
       <p>
-        <button autofocus>{% if bookmark %}Save changes{% else %}Create{% endif %}</button>
+        <input type="submit" value="{% if bookmark %}Save changes{% else %}Create{% endif %}">
       </p>
     </fieldset>
 
