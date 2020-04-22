@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import uuid4
 from unittest import mock
 from datetime import datetime, timezone
 from os import environ
@@ -11,6 +11,7 @@ from freezegun import freeze_time
 import pytest
 
 import quarchive as sut
+from .conftest import random_string
 
 pytestmark = pytest.mark.crawler
 
@@ -29,10 +30,11 @@ def test_crawl_when_response_is_recieved(session, status_code, mock_s3):
 
     responses.add(responses.GET, url, body=b"hello", status=status_code, stream=True)
 
-    crawl_uuid = UUID("f" * 32)
+    crawl_uuid = uuid4()
     sut.crawl_url(session, crawl_uuid, url)
 
-    request, response = session.query(sut.CrawlRequest, sut.CrawlResponse).one()
+    request = session.query(sut.CrawlRequest).get(crawl_uuid)
+    response = session.query(sut.CrawlResponse).get(crawl_uuid)
 
     assert request.requested == datetime(2018, 1, 3, tzinfo=timezone.utc)
     assert request.got_response
@@ -56,47 +58,65 @@ def test_crawl_when_no_response(session):
         responses.GET, url, body=requests.exceptions.ConnectTimeout("connect timeout")
     )
 
-    crawl_uuid = UUID("f" * 32)
+    crawl_uuid = uuid4()
     sut.crawl_url(session, crawl_uuid, url)
 
-    request = session.query(sut.CrawlRequest).one()
-    response = session.query(sut.CrawlResponse).first()
+    request = session.query(sut.CrawlRequest).get(crawl_uuid)
+    response = session.query(sut.CrawlResponse).get(crawl_uuid)
     assert request is not None
     assert response is None
 
 
 @responses.activate
-def test_ensure_fulltext_indexing(session, mock_s3):
-    url = "http://example.com"
+def test_ensure_crawled_only_runs_once(session, mock_s3):
+    url = "http://example.com/" + random_string()
 
     responses.add(responses.GET, url, body=b"hello", stream=True)
 
     sut.ensure_crawled(url)
 
-    # Effectively assert that there's only one
-    pairs = session.query(sut.CrawlRequest, sut.CrawlResponse).all()
-    assert len(pairs) == 1
-
+    s, n, p, q, f = urlsplit(url)
+    resp_query = (
+        session.query(sut.CrawlResponse)
+        .join(sut.CrawlRequest)
+        .join(sut.SQLAUrl)
+        .filter(
+            sut.SQLAUrl.scheme == s,
+            sut.SQLAUrl.netloc == n,
+            sut.SQLAUrl.path == p,
+            sut.SQLAUrl.query == q,
+            sut.SQLAUrl.fragment == f,
+        )
+    )
+    assert resp_query.count() == 1
     sut.ensure_crawled(url)
 
     # Assert again
-    pairs = session.query(sut.CrawlRequest, sut.CrawlResponse).all()
-    assert len(pairs) == 1
+    assert resp_query.count() == 1
 
 
 @responses.activate
 def test_enqueue_crawls_for_uncrawled_urls(session, eager_celery, mock_s3):
-    url = "http://example.com"
+    url = "http://example.com/" + random_string()
     s, n, p, q, f = urlsplit(url)
     session.add(
-        sut.SQLAUrl(
-            url_uuid=UUID("f" * 32), scheme=s, netloc=n, path=p, query=q, fragment=f
-        )
+        sut.SQLAUrl(url_uuid=uuid4(), scheme=s, netloc=n, path=p, query=q, fragment=f)
     )
     session.commit()
 
     responses.add(responses.GET, url, body=b"hello", stream=True)
     sut.enqueue_crawls_for_uncrawled_urls()
 
-    pairs = session.query(sut.CrawlRequest, sut.CrawlRequest).all()
-    assert len(pairs) == 1
+    resp_query = (
+        session.query(sut.CrawlResponse)
+        .join(sut.CrawlRequest)
+        .join(sut.SQLAUrl)
+        .filter(
+            sut.SQLAUrl.scheme == s,
+            sut.SQLAUrl.netloc == n,
+            sut.SQLAUrl.path == p,
+            sut.SQLAUrl.query == q,
+            sut.SQLAUrl.fragment == f,
+        )
+    )
+    assert resp_query.count() == 1

@@ -108,9 +108,7 @@ def test_syncing_bookmark_that_already_exists_but_has_changed(
     # Then send the old version
     response = post_bookmarks(client, test_user, [bm_1], use_jsonlines=use_jl)
     if use_jl:
-        assert response.data == to_jl(
-            [bm_2]
-        )  # json.dumps(bm_2.to_json()).encode("utf-8")
+        assert response.data == to_jl([bm_2])
     else:
         assert response.json == {"bookmarks": [bm_2.to_json()]}
 
@@ -138,9 +136,7 @@ def test_syncing_bookmark_that_already_exists_but_is_old(
     # Then send the old version again - should get new back
     response = post_bookmarks(client, test_user, [bm_1], use_jsonlines=use_jl)
     if use_jl:
-        assert response.data == to_jl(
-            [bm_2]
-        )  # json.dumps(bm_2.to_json()).encode("utf-8")
+        assert response.data == to_jl([bm_2])
     else:
         assert response.json == {"bookmarks": [bm_2.to_json()]}
 

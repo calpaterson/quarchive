@@ -2,6 +2,7 @@ import flask
 import pytest
 
 import quarchive as sut
+from .conftest import random_string
 
 
 def test_registration_form(client, session):
@@ -10,25 +11,27 @@ def test_registration_form(client, session):
 
 
 def test_registration_no_email(client, session):
+    username = "testuser-" + random_string()
     response = client.post(
-        "/register", data={"username": "testuser1", "password": "password", "email": ""}
+        "/register", data={"username": username, "password": "password", "email": ""}
     )
     assert response.status_code == 303
     assert response.headers["Location"] == flask.url_for(
         "quarchive.index", _external=True
     )
 
-    user = session.query(sut.SQLUser).one()
-    assert user.username == "testuser1"
+    user = session.query(sut.SQLUser).filter(sut.SQLUser.username == username).one()
+    assert user.username == username
     assert user.password == "password"
     assert user.email_obj is None
 
 
 def test_registration_with_email(client, session):
+    username = "testuser-" + random_string()
     response = client.post(
         "/register",
         data={
-            "username": "testuser1",
+            "username": username,
             "password": "password",
             "email": "test@example.com",
         },
@@ -37,8 +40,8 @@ def test_registration_with_email(client, session):
     assert response.headers["Location"] == flask.url_for(
         "quarchive.index", _external=True
     )
-    user = session.query(sut.SQLUser).one()
-    assert user.username == "testuser1"
+    user = session.query(sut.SQLUser).filter(sut.SQLUser.username == username).one()
+    assert user.username == username
     assert user.password == "password"
     assert user.email_obj.email_address == "test@example.com"
 
@@ -52,26 +55,34 @@ def test_registration_with_invalid_email(client, session):
 
 
 def test_registration_existing_username(client, session):
+    username = "testuser-" + random_string()
     client.post(
-        "/register", data={"username": "testuser1", "password": "password", "email": ""}
+        "/register", data={"username": username, "password": "password", "email": ""}
     )
     # Registration gives an automatic sign in
     with client.session_transaction() as flask_session:
         flask_session.clear()
 
     response = client.post(
-        "/register", data={"username": "testuser1", "password": "password", "email": ""}
+        "/register", data={"username": username, "password": "password", "email": ""}
     )
     assert response.status_code == 400
-    assert session.query(sut.SQLUser).count() == 1
+    user_count = (
+        session.query(sut.SQLUser).filter(sut.SQLUser.username == username).count()
+    )
+    assert user_count == 1
 
 
 def test_registration_invalid_username(client, session):
+    username = "Test User" + random_string()
     response = client.post(
-        "/register", data={"username": "Test User", "password": "password", "email": ""}
+        "/register", data={"username": username, "password": "password", "email": ""}
     )
     assert response.status_code == 400
-    assert session.query(sut.SQLUser).count() == 0
+    user_count = (
+        session.query(sut.SQLUser).filter(sut.SQLUser.username == username).count()
+    )
+    assert user_count == 0
 
 
 def test_sign_in_success(client, test_user):

@@ -598,8 +598,8 @@ def merge_bookmarks(
     return changed_bookmarks
 
 
-def all_bookmarks(session) -> Iterable[Bookmark]:
-    query = session.query(SQLABookmark)
+def all_bookmarks(session, user_uuid: UUID) -> Iterable[Bookmark]:
+    query = session.query(SQLABookmark).filter(SQLABookmark.user_uuid == user_uuid)
     for sqla_bookmark in query:
         url_obj = sqla_bookmark.url_obj
         url = urlunsplit(
@@ -996,7 +996,7 @@ def sync() -> flask.Response:
     )
     db.session.commit()
     if "full" in flask.request.args:
-        response_bookmarks = all_bookmarks(db.session)
+        response_bookmarks = all_bookmarks(db.session, get_current_user().user_uuid)
     else:
         response_bookmarks = changed_bookmarks
 

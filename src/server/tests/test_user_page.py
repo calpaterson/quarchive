@@ -20,7 +20,7 @@ def test_own_user_page(signed_in_client, test_user):
     h1 = CSSSelector("h1")
     pre = CSSSelector("pre")
     tree = get_etree(response)
-    assert h1(tree)[0].text == "testuser"
+    assert h1(tree)[0].text == test_user.username
     assert pre(tree)[0].text == test_user.api_key.hex()
 
 

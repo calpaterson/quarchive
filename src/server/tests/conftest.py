@@ -8,6 +8,7 @@ from unittest import mock
 import secrets
 import random
 import contextlib
+import string
 
 import moto
 from passlib.context import CryptContext
@@ -44,8 +45,10 @@ def config():
 
 @pytest.fixture(scope="function")
 def session(app, config):
-    for table in reversed(sut.Base.metadata.sorted_tables):
-        sut.db.session.execute("delete from %s;" % table.name)
+    # FIXME: Do not tear down between test runs as an ongoing test of speed and
+    # multi-user isolation
+    # for table in reversed(sut.Base.metadata.sorted_tables):
+    #     sut.db.session.execute("delete from %s;" % table.name)
     sut.db.session.commit()
     return sut.db.session
 
@@ -80,8 +83,9 @@ def eager_celery():
 
 @pytest.fixture()
 def test_user(session, client):
-    username, password = ("testuser", "password1")
-    return register_user(session, client, username, password, "testuser@example.com")
+    username = "testuser-" + random_string()
+    username, password = (username, "password1")
+    return register_user(session, client, username, password, username + "@example.com")
 
 
 @pytest.fixture()
@@ -168,3 +172,7 @@ def register_user(session, client, username, password="password", email=None) ->
         user_uuid=user_uuid,
         email=email,
     )
+
+
+def random_string() -> str:
+    return "".join(random.choice(string.ascii_lowercase) for _ in range(32))
