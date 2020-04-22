@@ -47,8 +47,8 @@ def config():
 def session(app, config):
     # FIXME: Do not tear down between test runs as an ongoing test of speed and
     # multi-user isolation
-    # for table in reversed(sut.Base.metadata.sorted_tables):
-    #     sut.db.session.execute("delete from %s;" % table.name)
+    for table in reversed(sut.Base.metadata.sorted_tables):
+        sut.db.session.execute("delete from %s;" % table.name)
     sut.db.session.commit()
     return sut.db.session
 
