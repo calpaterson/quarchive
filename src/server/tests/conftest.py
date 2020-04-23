@@ -128,7 +128,7 @@ class User:
 
 def make_bookmark(**kwargs):
     bookmark_defaults: Mapping[str, Any] = {
-        "url": "http://example.com",
+        "url": "http://example.com",  # FIXME: Add random_string() to this,
         "title": "Example",
         "created": datetime(1970, 1, 1, tzinfo=timezone.utc),
         "updated": datetime(1970, 1, 1, tzinfo=timezone.utc),

@@ -8,7 +8,7 @@ from functools import wraps, lru_cache
 import itertools
 import logging
 import mimetypes
-from uuid import uuid4, UUID
+from uuid import uuid4, UUID, uuid5, NAMESPACE_URL as UUID_URL_NAMESPACE
 from typing import (
     Mapping,
     Sequence,
@@ -462,9 +462,14 @@ def get_bookmark_by_url_uuid(
     return bookmark_from_sqla(url, sqla_bookmark)
 
 
+def create_url_uuid(url: str) -> UUID:
+    # Use uuid5's namespace system to make url uuid deterministic
+    return uuid5(UUID_URL_NAMESPACE, url)
+
+
 def upsert_url(session: Session, url: str) -> UUID:
     scheme, netloc, path, query, fragment = urlsplit(url)
-    proposed_uuid = uuid4()
+    proposed_uuid = create_url_uuid(url)
     url_stmt = (
         pg_insert(SQLAUrl.__table__)
         .values(
@@ -505,7 +510,7 @@ def upsert_url(session: Session, url: str) -> UUID:
 
 def set_bookmark(session: Session, user_uuid: UUID, bookmark: Bookmark) -> UUID:
     scheme, netloc, path, query, fragment = urlsplit(bookmark.url)
-    proposed_uuid = uuid4()
+    proposed_uuid = create_url_uuid(bookmark.url)
     url_stmt = (
         pg_insert(SQLAUrl.__table__)
         .values(
