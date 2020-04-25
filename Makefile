@@ -37,7 +37,7 @@ ext_firefox_js_files := $(addprefix $(ext_firefox_build_dir)/, $(notdir $(ts_fil
 ext_firefox_manifest := $(ext_firefox_build_dir)/manifest.json
 
 dist/quarchive-$(ext_version)-firefox.zip: $(ext_path)/firefox-webextconfig.js $(web_ext) $(ext_firefox_manifest) $(jest_sentinel) $(ext_firefox_js_files) $(html_files) $(icons) $(webextension_polyfill) | dist
-	cp $(icons) $(webextension_polyfill) $(html_files) $(ext_firefox_build_dir)
+	cp $(icons) $(webextension_polyfill) $(webextension_polyfill).map $(ts_files) $(html_files) $(ext_firefox_build_dir)
 	cd $(ext_path)/; $(realpath $(web_ext)) build -c $(realpath $<)
 	mv $(ext_firefox_build_dir)/quarchive-$(ext_version).zip $@
 
@@ -53,7 +53,7 @@ ext_chrome_js_files := $(addprefix $(ext_chrome_build_dir)/, $(notdir $(ts_files
 ext_chrome_manifest := $(ext_chrome_build_dir)/manifest.json
 
 dist/quarchive-$(ext_version)-chrome.zip: $(ext_path)/chrome-webextconfig.js $(web_ext) $(ext_chrome_manifest) $(jest_sentinel) $(ext_chrome_js_files) $(html_files) $(icons) $(webextension_polyfill) | dist
-	cp $(icons) $(webextension_polyfill) $(html_files) $(ext_chrome_build_dir)
+	cp $(icons) $(webextension_polyfill) $(webextension_polyfill).map $(ts_files) $(html_files) $(ext_chrome_build_dir)
 	cd $(ext_path)/; $(realpath $(web_ext)) build -c $(realpath $<)
 	mv $(ext_chrome_build_dir)/quarchive-$(ext_version).zip $@
 

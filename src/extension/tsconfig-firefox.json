@@ -7,10 +7,11 @@
         "esModuleInterop": true,
         "sourceMap": true,
         "rootDir": "src/",
-        "outDir": "firefox-build/"
+        "outDir": "firefox-build/",
+        "sourceRoot": "."
     },
     "include": [
-        "src/*.ts"
+        "src/**/*.ts"
     ],
-  "lib": ["ES2018"]
+    "lib": ["ES2018"]
 }
