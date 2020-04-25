@@ -28,6 +28,12 @@ jobs:
       run: sudo apt-get install -y postgresql-server-dev-all
     - name: Install tox
       run: pip install tox
+    - uses: actions/cache@v1
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
     - name: Make
       run: make
       env:
