@@ -6,14 +6,11 @@
         "module": "ES6",
         "esModuleInterop": true,
         "sourceMap": true,
+        "rootDir": "src/",
         "outDir": "firefox-build/"
     },
     "include": [
         "src/*.ts"
-    ],
-    "exclude": [
-        // FIXME: exclude tests
-        // "src/*.test.ts",
     ],
   "lib": ["ES2018"]
 }
