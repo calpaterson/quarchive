@@ -1,5 +1,5 @@
 {# -*- mode: jinja2 -*- #}
-{% extends "base.j2" %}
+{% extends "base.html" %}
 {% block main %}
     <h1>{{ url.to_url() }}</h1>
     <p><a href="{{ url_for('quarchive.view_netloc', netloc=url.netloc) }}">{{ url.netloc }}</a></p>

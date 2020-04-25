@@ -774,7 +774,7 @@ def index() -> Tuple[flask.Response, int]:
 def create_bookmark_form() -> flask.Response:
     return flask.make_response(
         flask.render_template(
-            "create_or_edit_bookmark.j2", page_title="Create bookmark",
+            "create_or_edit_bookmark.html", page_title="Create bookmark",
         )
     )
 
@@ -782,7 +782,7 @@ def create_bookmark_form() -> flask.Response:
 @blueprint.route("/about")
 def about() -> flask.Response:
     return flask.make_response(
-        flask.render_template("about.j2", page_title="About Quarchive",)
+        flask.render_template("about.html", page_title="About Quarchive",)
     )
 
 
@@ -821,7 +821,7 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
         # FIXME: what if it doesn't exist?
         return flask.make_response(
             flask.render_template(
-                "create_or_edit_bookmark.j2",
+                "create_or_edit_bookmark.html",
                 url_uuid=url_uuid,
                 bookmark=bookmark,
                 page_title="Edit bookmark: %s" % bookmark.url,  # type: ignore
@@ -858,7 +858,7 @@ def view_url(url_uuid: UUID) -> Tuple[flask.Response, int]:
         url_obj = URL.from_sqla_url(sqla_obj)
         return flask.make_response(
             flask.render_template(
-                "url.j2", url=url_obj, page_title="View: %s" % url_obj.to_url()
+                "url.html", url=url_obj, page_title="View: %s" % url_obj.to_url()
             )
         )
 
@@ -872,7 +872,7 @@ def view_netloc(netloc: str) -> Tuple[flask.Response, int]:
     else:
         return flask.make_response(
             flask.render_template(
-                "netloc.j2",
+                "netloc.html",
                 netloc=netloc,
                 url_objs=url_objs,
                 page_title="Netloc: %s" % netloc,
@@ -884,7 +884,7 @@ def view_netloc(netloc: str) -> Tuple[flask.Response, int]:
 def register() -> flask.Response:
     if flask.request.method == "GET":
         return flask.make_response(
-            flask.render_template("register.j2", page_title="Register")
+            flask.render_template("register.html", page_title="Register")
         )
     else:
         username = flask.request.form["username"]
@@ -922,7 +922,7 @@ def register() -> flask.Response:
 def sign_in() -> flask.Response:
     if flask.request.method == "GET":
         return flask.make_response(
-            flask.render_template("sign-in.j2", page_title="Sign in")
+            flask.render_template("sign-in.html", page_title="Sign in")
         )
     else:
         crypt_context = flask.current_app.config["CRYPT_CONTEXT"]
@@ -960,7 +960,7 @@ def sign_in() -> flask.Response:
 def sign_out() -> flask.Response:
     flask.session.clear()
     flask.flash("Signed out")
-    return flask.make_response(flask.render_template("base.j2"))
+    return flask.make_response(flask.render_template("base.html"))
 
 
 @blueprint.route("/user/<username>")
@@ -972,7 +972,7 @@ def user_page(username: str) -> flask.Response:
     else:
         api_key = None
     return flask.make_response(
-        flask.render_template("user.j2", user=user, api_key=api_key,)
+        flask.render_template("user.html", user=user, api_key=api_key,)
     )
 
 
