@@ -758,7 +758,7 @@ def index() -> Tuple[flask.Response, int]:
         bookmarks.append((url, bookmark_from_sqla(url.to_url(), sqla_obj)))
     return flask.make_response(
         flask.render_template(
-            "index.j2",
+            "index.html",
             page_title=page_title,
             bookmarks=bookmarks,
             page=page,

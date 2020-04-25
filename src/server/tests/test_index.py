@@ -179,3 +179,17 @@ def test_full_text_search(app, signed_in_client, session, test_user):
     )
     returned_bookmarks = get_bookmark_urls(search_response)
     assert returned_bookmarks == ["star wars"]
+
+
+def test_full_text_search_with_quotes(app, signed_in_client, test_user):
+    search_term = '"roger kimball"'
+
+    search_response = signed_in_client.get(
+        flask.url_for("quarchive.index", q=search_term)
+    )
+
+    html_parser = etree.HTMLParser()
+    root = etree.fromstring(search_response.get_data(), html_parser)
+    selector = CSSSelector("#search-box")
+    (element,) = selector(root)
+    assert element.attrib["value"] == search_term

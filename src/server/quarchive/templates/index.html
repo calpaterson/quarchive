@@ -66,7 +66,7 @@
 {% macro render_bookmark(url, bookmark) -%}
   <div class="bookmark">
     <p class="bookmark-url">
-      <a href="{{url.to_url()}}">{{bookmark.title|e}}</a>
+      <a href="{{url.to_url()}}">{{bookmark.title}}</a>
       <a
         class="netloc"
         href="{{ url_for('quarchive.view_netloc', netloc=url.netloc) }}"
@@ -74,7 +74,7 @@
     </p>
     {% if bookmark.description|length > 0 %}
       <blockquote class="bookmark-description">
-        {{ bookmark.description|e }}
+        {{ bookmark.description }}
       </blockquote>
     {% endif %}
     <p class="bookmark-details">
