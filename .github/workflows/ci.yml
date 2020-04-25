@@ -45,10 +45,10 @@ jobs:
     - name: Use cache of npm
       uses: actions/cache@v1
       with:
-      path: ~/.npm
-      key: ${{ runner.os }}-node-${{ hashFiles('src/extension/package-lock.json') }}
-      restore-keys: |
-        ${{ runner.os }}-node-
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('src/extension/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
     - name: Make
       run: make
       env:
