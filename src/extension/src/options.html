@@ -9,18 +9,31 @@
   <body>
     <form>
       <p>
-        <label for="api-url">API URL</label>
-        <input type="text" id="api-url"/>
+        <label for="username">Username</label>
       </p>
       <p>
-        <label for="username">Username</label>
         <input type="text" id="username"/>
       </p>
       <p>
         <label for="api-key">API key</label>
-        <input type="text" size="64" id="api-key"/>
       </p>
-        <button type="submit">Save</button>
+      <p>
+        <small>Copy this from your user page</small>
+      </p>
+      <p>
+        <input type="text" size="60" id="api-key"/>
+      </p>
+      <fieldset>
+        <legend>Advanced</legend>
+        <small>This area for developers only</small>
+        <p>
+          <label for="api-url">API URL</label>
+        </p>
+        <p>
+          <input type="text" id="api-url"/>
+        </p>
+      </fieldset>
+      <button type="submit">Save</button>
     </form>
     <script type="module" src="browser-polyfill.js"></script>
     <script type="module" src="quarchive-options.js"></script>

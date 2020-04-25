@@ -14,19 +14,27 @@ var restoreOptions = function(){
     var gettingUsername = browser.storage.sync.get("username");
     gettingUsername.then(function (result) {
         let input = document.querySelector("#username") as HTMLInputElement;
-        input.value = result.username;
+        if (result.username !== undefined) {
+            input.value = result.username;
+        }
     })
 
     var gettingKey = browser.storage.sync.get("APIKey");
     gettingKey.then(function (result) {
         let input = document.querySelector("#api-key") as HTMLInputElement;
-        input.value = result.APIKey;
+        if (result.APIKey !== undefined) {
+            input.value = result.APIKey;
+        }
     })
 
     var gettingURL = browser.storage.sync.get("APIURL");
     gettingURL.then(function (result) {
         let input = document.querySelector("#api-url") as HTMLInputElement;
-        input.value = result.APIURL;
+        if (result.APIURL === undefined) {
+            input.value = "https://quarchive.com"
+        } else {
+            input.value = result.APIURL;
+        }
     })
 }
 
