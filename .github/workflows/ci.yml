@@ -32,3 +32,8 @@ jobs:
       run: make
       env:
         QM_SQL_URL_TEST: postgresql+psycopg2://quarchive:quarchive@localhost/quarchive_test
+    - name: Store artefacts
+      uses: actions/upload-artifact@v1
+      with:
+        - name: Binaries
+          path: dist/
