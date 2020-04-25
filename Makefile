@@ -78,4 +78,4 @@ $(web_ext) $(tsc) $(eslint) $(jest) $(webextension_polyfill):
 dist $(ext_firefox_build_dir) $(ext_chrome_build_dir):
 	mkdir -p $@
 
-build: dist/quarchive-$(ext_version)-firefox.zip dist/$(artefact)
+build: dist/quarchive-$(ext_version)-chrome.zip dist/quarchive-$(ext_version)-firefox.zip dist/$(artefact)
