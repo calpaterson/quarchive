@@ -1,13 +1,15 @@
-import flask
+from urllib.parse import urlsplit
 from uuid import UUID
 from datetime import datetime, timezone
 
+import flask
 import pytest
 from freezegun import freeze_time
 
-from quarchive import SQLABookmark
+from quarchive import SQLABookmark, SQLAUrl
+import quarchive as sut
 
-from .conftest import make_bookmark
+from .conftest import make_bookmark, random_string
 from .utils import sync_bookmarks
 
 pytestmark = pytest.mark.web
@@ -20,10 +22,9 @@ def test_create_bookmark_form(signed_in_client):
 
 @freeze_time("2018-01-03")
 @pytest.mark.parametrize("unread", [True, False])
-def test_creating_a_bookmark(signed_in_client, session, unread):
-    form_data = dict(
-        url="http://example.com", title="Example", description="Example description"
-    )
+def test_creating_a_bookmark(test_user, signed_in_client, session, unread):
+    url = "http://example.com/" + random_string()
+    form_data = dict(url=url, title="Example", description="Example description")
     if unread:
         form_data["unread"] = "on"
     response = signed_in_client.post(
@@ -31,9 +32,13 @@ def test_creating_a_bookmark(signed_in_client, session, unread):
     )
     assert response.status_code == 303
 
-    bookmark = session.query(SQLABookmark).one()
+    bookmark = sut.get_bookmark_by_url(session, test_user.user_uuid, url)
+    assert bookmark is not None
+
     assert response.headers["Location"].endswith(
-        flask.url_for("quarchive.edit_bookmark", url_uuid=bookmark.url_uuid)
+        flask.url_for(
+            "quarchive.edit_bookmark", url_uuid=str(sut.create_url_uuid(bookmark.url))
+        )
     )
     assert bookmark.title == form_data["title"]
     assert bookmark.description == form_data["description"]

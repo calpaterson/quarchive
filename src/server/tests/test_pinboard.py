@@ -92,7 +92,7 @@ def test_pinboard_uses_merge(session, tmpdir, test_user):
 
     pinboard_bookmarks = [
         dict(
-            href="http://example.com",
+            href=existing_bookmark.url,
             extended="",
             description="as of 2018-01-01",
             time=datetime(2018, 1, 12, tzinfo=timezone.utc).isoformat(),
@@ -112,7 +112,7 @@ def test_pinboard_uses_merge(session, tmpdir, test_user):
 
     assert session.query(sut.SQLABookmark).count() == 1
     final_bookmark = sut.get_bookmark_by_url(
-        session, test_user.user_uuid, "http://example.com"
+        session, test_user.user_uuid, existing_bookmark.url
     )
     assert final_bookmark is not None
     assert final_bookmark.created == datetime(2018, 1, 12, tzinfo=timezone.utc)

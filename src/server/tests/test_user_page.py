@@ -25,7 +25,8 @@ def test_own_user_page(signed_in_client, test_user):
 
 
 def test_others_user_page(session, client, test_user):
-    other_user = register_user(session, client, "other_user")
+    other_username = "not-" + test_user.username
+    other_user = register_user(session, client, other_username)
     sign_in_as(client, test_user)
 
     response = client.get(
@@ -36,5 +37,5 @@ def test_others_user_page(session, client, test_user):
     h1 = CSSSelector("h1")
     pre = CSSSelector("pre")
     tree = get_etree(response)
-    assert h1(tree)[0].text == "other_user"
+    assert h1(tree)[0].text == other_username
     assert pre(tree) == []

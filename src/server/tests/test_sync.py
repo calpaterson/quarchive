@@ -100,6 +100,7 @@ def test_syncing_bookmark_that_already_exists_but_has_changed(
     bm_2 = make_bookmark(
         title="Example 2",
         updated=datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=1),
+        url=bm_1.url,
     )
 
     # First put updated bookmark inside
@@ -121,6 +122,7 @@ def test_syncing_bookmark_that_already_exists_but_is_old(
     bm_2 = make_bookmark(
         title="Example 2",
         updated=datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=1),
+        url=bm_1.url,
     )
 
     # First put the bookmark
@@ -176,7 +178,8 @@ def test_full_sync_gets_all(client, session, use_jl, test_user):
 
 @pytest.mark.full_sync
 def test_logging_for_bug_6(client, caplog, session, test_user):
-    bm_json = make_bookmark().to_json()
+    bm = make_bookmark()
+    bm_json = bm.to_json()
     bm_json["updated"] = "+051979-10-24T11:59:23.000Z"
 
     with caplog.at_level(logging.ERROR) as e:
@@ -192,7 +195,9 @@ def test_logging_for_bug_6(client, caplog, session, test_user):
 
         messages = [r.getMessage() for r in caplog.records]
 
-        assert (
-            "Got invalid datetime: [+051979-10-24T11:59:23.000Z, 1970-01-01T00:00:00+00:00] for http://example.com"
-            in messages
+        expected_message = (
+            "Got invalid datetime: [+051979-10-24T11:59:23.000Z,"
+            " 1970-01-01T00:00:00+00:00] for %s" % bm.url
         )
+
+        assert expected_message in messages
