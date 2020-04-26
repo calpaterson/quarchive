@@ -166,7 +166,20 @@ class Bookmark:
     def merge(self, other: "Bookmark") -> "Bookmark":
         more_recent: "Bookmark" = sorted(
             (self, other),
-            key=lambda b: (b.updated, len(b.title) + len(b.description)),
+            # 1. Take the most recently updated.
+            # 2. If they're equally recent, take the longer title
+            # 3. If that's not enough add the longest description
+            # 4. If that's not enough compare the titles
+            # 5. If that's not enough compare the description
+            # FIXME: This should probably involve all fields taken from the
+            # most recent
+            key=lambda b: (
+                b.updated,
+                len(b.title),
+                len(b.description),
+                b.title,
+                b.description,
+            ),
             reverse=True,
         )[0]
         # The strategy in short:
