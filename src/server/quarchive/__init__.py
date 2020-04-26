@@ -1273,8 +1273,8 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
         # Try to avoid downloading the content unless we need it
         fileobj = None
 
-        # FIXME: Some error modes not handled here:
-        # - incorrect charset
+        # FIXME: Some error modes not handled here, see
+        # https://github.com/calpaterson/quarchive/issues/11
         if content_type_header is not None:
             content_type, parameters = cgi.parse_header(content_type_header)
             # charset = parameters.get("charset")
