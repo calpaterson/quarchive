@@ -47,8 +47,10 @@ from celery import Celery
 from werkzeug import exceptions as exc
 from werkzeug.urls import url_encode
 from dateutil.parser import isoparse
-from sqlalchemy import Column, ForeignKey, types as satypes, func, create_engine
+from sqlalchemy import Column, ForeignKey, types as satypes, func, create_engine, and_
 from sqlalchemy.orm import (
+    foreign,
+    remote,
     relationship,
     RelationshipProperty,
     Session,
@@ -362,6 +364,38 @@ class APIKey(Base):
 
     user_uuid = Column(PGUUID, ForeignKey("users.user_uuid"), primary_key=True)
     api_key = Column(BYTEA(length=16), nullable=False, unique=True, index=True)
+
+
+class BookmarkTag(Base):
+    __tablename__ = "bookmark_tags"
+
+    url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), primary_key=True)
+    user_uuid = Column(
+        PGUUID, ForeignKey("users.user_uuid"), primary_key=True, index=True
+    )
+    tag_id = Column(
+        satypes.Integer, ForeignKey("tags.tag_id"), nullable=False, index=True
+    )
+
+
+class Tag(Base):
+    __tablename__ = "tags"
+
+    # Presumably 4bn tags is enough
+    tag_id = Column(satypes.Integer, primary_key=True, autoincrement=True)
+    tag_name = Column(satypes.String(length=40), nullable=False, index=True)
+
+    bookmarks_objs: RelationshipProperty = relationship(
+        SQLABookmark,
+        backref="tags_objs",
+        secondary=BookmarkTag.__table__,
+        primaryjoin=tag_id == BookmarkTag.tag_id,
+        secondaryjoin=and_(
+            foreign(BookmarkTag.__table__.c.url_uuid) == remote(SQLABookmark.url_uuid),
+            foreign(BookmarkTag.__table__.c.user_uuid)
+            == remote(SQLABookmark.user_uuid),
+        ),
+    )
 
 
 def is_correct_api_key(session: Session, username: str, api_key: bytes) -> bool:
