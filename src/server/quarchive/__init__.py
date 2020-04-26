@@ -1315,12 +1315,20 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
 
             # If we were given something we don't recognise, infer the content type
             if content_type not in known_content_types():
+                old_content_type = content_type
                 fileobj = download_file(bucket, str(body_uuid))
                 content_type = infer_content_type(fileobj)
+                log.info(
+                    "inferred %s for %s (instead of %s)",
+                    content_type,
+                    url.to_url(),
+                    old_content_type,
+                )
         else:
             # No Content-Type, so infer it
             fileobj = download_file(bucket, str(body_uuid))
             content_type = infer_content_type(fileobj)
+            log.info("inferred %s for %s (none provided)", content_type, url.to_url())
 
         if content_type != "text/html":
             log.info(
