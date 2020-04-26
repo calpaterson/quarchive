@@ -6,7 +6,6 @@ import flask
 import pytest
 from freezegun import freeze_time
 
-from quarchive import SQLABookmark, SQLAUrl
 import quarchive as sut
 
 from .conftest import make_bookmark, random_string
@@ -55,7 +54,7 @@ def test_edit_bookmark_form(signed_in_client, session, test_user):
     bm = make_bookmark()
     sync_bookmarks(signed_in_client, test_user, [bm])
 
-    (url_uuid,) = session.query(SQLABookmark.url_uuid).one()
+    url_uuid = sut.create_url_uuid(bm.url)
 
     response = signed_in_client.get(
         flask.url_for("quarchive.edit_bookmark", url_uuid=url_uuid)
@@ -82,7 +81,7 @@ def test_editing_a_bookmark(
 
     sync_bookmarks(signed_in_client, test_user, [bm])
 
-    (url_uuid,) = session.query(SQLABookmark.url_uuid).one()
+    url_uuid = sut.create_url_uuid(bm.url)
     form_data = {
         "title": bm.title,
         "description": bm.description,
@@ -100,7 +99,7 @@ def test_editing_a_bookmark(
     assert response.status_code == 303
     assert response.headers["Location"] == "http://localhost/test_location"
 
-    bookmark_obj = session.query(SQLABookmark).one()
+    bookmark_obj = sut.get_bookmark_by_url(session, test_user.user_uuid, bm.url)
     assert getattr(bookmark_obj, field) == expected
 
 

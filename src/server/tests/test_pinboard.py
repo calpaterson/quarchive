@@ -110,7 +110,13 @@ def test_pinboard_uses_merge(session, tmpdir, test_user):
         catch_exceptions=False,
     )
 
-    assert session.query(sut.SQLABookmark).count() == 1
+    url_uuid = sut.create_url_uuid(existing_bookmark.url)
+    assert (
+        session.query(sut.SQLABookmark)
+        .filter(sut.SQLABookmark.url_uuid == url_uuid)
+        .count()
+        == 1
+    )
     final_bookmark = sut.get_bookmark_by_url(
         session, test_user.user_uuid, existing_bookmark.url
     )

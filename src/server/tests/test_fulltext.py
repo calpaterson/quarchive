@@ -1,5 +1,5 @@
 from os import path
-from uuid import UUID
+from uuid import UUID, uuid4
 import re
 from urllib.parse import urlsplit
 from datetime import datetime, timezone
@@ -9,7 +9,7 @@ from freezegun import freeze_time
 
 import quarchive as sut
 
-from .conftest import test_data_path
+from .conftest import test_data_path, random_string
 
 WORDS_REGEX = re.compile(r"\w+")
 
@@ -35,11 +35,11 @@ def test_calpaterson():
 
 @freeze_time("2018-01-03")
 def test_indexing_for_fresh(session, mock_s3):
-    url_str = "http://example.com"
+    url_str = "http://example.com/" + random_string()
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
-    crawl_uuid = UUID("f" * 31 + "0")
-    url_uuid = UUID("f" * 31 + "1")
-    body_uuid = UUID("f" * 31 + "2")
+    crawl_uuid = uuid4()
+    url_uuid = sut.create_url_uuid(url_str)
+    body_uuid = uuid4()
 
     url_obj = sut.SQLAUrl(
         url_uuid=url_uuid,
@@ -80,11 +80,11 @@ def test_indexing_for_fresh(session, mock_s3):
 
 
 def test_indexing_idempotent(session, mock_s3):
-    url_str = "http://example.com"
+    url_str = "http://example.com/" + random_string()
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
-    crawl_uuid = UUID("f" * 31 + "0")
-    url_uuid = UUID("f" * 31 + "1")
-    body_uuid = UUID("f" * 31 + "2")
+    crawl_uuid = uuid4()
+    url_uuid = sut.create_url_uuid(url_str)
+    body_uuid = uuid4()
 
     url_obj = sut.SQLAUrl(
         url_uuid=url_uuid,
@@ -119,15 +119,18 @@ def test_indexing_idempotent(session, mock_s3):
 
     sut.ensure_fulltext(crawl_uuid)
 
-    assert session.query(sut.FullText).count() == 1
+    fulltext_count = (
+        session.query(sut.FullText).filter(sut.FullText.url_uuid == url_uuid).count()
+    )
+    assert fulltext_count == 1
 
 
 def test_indexing_non_html(session):
-    url_str = "http://example.com"
+    url_str = "http://example.com/" + random_string()
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
-    crawl_uuid = UUID("f" * 31 + "0")
-    url_uuid = UUID("f" * 31 + "1")
-    body_uuid = UUID("f" * 31 + "2")
+    crawl_uuid = uuid4()
+    url_uuid = sut.create_url_uuid(url_str)
+    body_uuid = uuid4()
 
     url_obj = sut.SQLAUrl(
         url_uuid=url_uuid,
@@ -155,16 +158,21 @@ def test_indexing_non_html(session):
 
     sut.ensure_fulltext(crawl_uuid)
 
-    assert session.query(sut.FullText).count() == 0
+    fulltext_count = (
+        session.query(sut.FullText)
+        .filter(sut.FullText.crawl_uuid == crawl_uuid)
+        .count()
+    )
+    assert fulltext_count == 0
 
 
 @freeze_time("2018-01-03")
 def test_indexing_nonsense_content_type(session, mock_s3):
-    url_str = "http://example.com"
+    url_str = "http://example.com/" + random_string()
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
-    crawl_uuid = UUID("f" * 31 + "0")
-    url_uuid = UUID("f" * 31 + "1")
-    body_uuid = UUID("f" * 31 + "2")
+    crawl_uuid = uuid4()
+    url_uuid = sut.create_url_uuid(url_str)
+    body_uuid = uuid4()
 
     url_obj = sut.SQLAUrl(
         url_uuid=url_uuid,
@@ -206,11 +214,11 @@ def test_indexing_nonsense_content_type(session, mock_s3):
 
 @freeze_time("2018-01-03")
 def test_indexing_junk_content_type(session, mock_s3):
-    url_str = "http://example.com"
+    url_str = "http://example.com/" + random_string()
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
-    crawl_uuid = UUID("f" * 31 + "0")
-    url_uuid = UUID("f" * 31 + "1")
-    body_uuid = UUID("f" * 31 + "2")
+    crawl_uuid = uuid4()
+    url_uuid = sut.create_url_uuid(url_str)
+    body_uuid = uuid4()
 
     url_obj = sut.SQLAUrl(
         url_uuid=url_uuid,
@@ -249,11 +257,11 @@ def test_indexing_junk_content_type(session, mock_s3):
 
 @freeze_time("2018-01-03")
 def test_enqueue_fulltext_indexing(session, eager_celery, mock_s3):
-    url_str = "http://example.com"
+    url_str = "http://example.com/" + random_string()
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
-    crawl_uuid = UUID("f" * 31 + "0")
-    url_uuid = UUID("f" * 31 + "1")
-    body_uuid = UUID("f" * 31 + "2")
+    crawl_uuid = uuid4()
+    url_uuid = sut.create_url_uuid(url_str)
+    body_uuid = uuid4()
 
     url_obj = sut.SQLAUrl(
         url_uuid=url_uuid,

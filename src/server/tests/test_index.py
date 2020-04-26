@@ -10,7 +10,7 @@ from sqlalchemy import func
 
 import pytest
 
-from .conftest import make_bookmark, User, register_user, sign_in_as
+from .conftest import make_bookmark, User, register_user, sign_in_as, random_string
 from .utils import sync_bookmarks
 
 import quarchive as sut
@@ -61,12 +61,12 @@ def test_index_excludes_deleted_bookmarks(signed_in_client, session, test_user):
 
 
 def test_index_excludes_bookmarks_from_others(client, session):
-    bm1 = make_bookmark(url="http://example.com/1", title="Example 1")
-    user1 = register_user(session, client, "user1")
+    bm1 = make_bookmark(title="Example 1")
+    user1 = register_user(session, client, "test_user1" + random_string())
     sync_bookmarks(client, user1, [bm1])
 
-    bm2 = make_bookmark(url="http://example.com/2", title="Example 2")
-    user2 = register_user(session, client, "user2")
+    bm2 = make_bookmark(title="Example 2")
+    user2 = register_user(session, client, "test_user1" + random_string())
     sync_bookmarks(client, user2, [bm2])
 
     sign_in_as(client, user2)
@@ -163,8 +163,8 @@ def make_fulltext_indexed_bookmark(
 
 
 def test_full_text_search(app, signed_in_client, session, test_user):
-    star_wars_bm = make_bookmark(title="star wars", url="http://example/starwars")
-    star_trek_bm = make_bookmark(title="star trek", url="http://example/startrek")
+    star_wars_bm = make_bookmark(title="star wars")
+    star_trek_bm = make_bookmark(title="star trek")
 
     make_fulltext_indexed_bookmark(
         session, test_user, star_wars_bm, "wookies live on planet kashyyyk"
