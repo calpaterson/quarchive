@@ -382,12 +382,12 @@ class APIKey(Base):
 class BookmarkTag(Base):
     __tablename__ = "bookmark_tags"
 
-    url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), primary_key=True)
+    url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), primary_key=True, index=True)
     user_uuid = Column(
         PGUUID, ForeignKey("users.user_uuid"), primary_key=True, index=True
     )
     tag_id = Column(
-        satypes.Integer, ForeignKey("tags.tag_id"), nullable=False, index=True
+        satypes.Integer, ForeignKey("tags.tag_id"), primary_key=True, index=True
     )
 
 
@@ -396,7 +396,9 @@ class Tag(Base):
 
     # Presumably 4bn tags is enough
     tag_id = Column(satypes.Integer, primary_key=True, autoincrement=True)
-    tag_name = Column(satypes.String(length=40), nullable=False, index=True)
+    tag_name = Column(
+        satypes.String(length=40), nullable=False, index=True, unique=True
+    )
 
     bookmarks_objs: RelationshipProperty = relationship(
         SQLABookmark,
