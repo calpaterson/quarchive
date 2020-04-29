@@ -163,7 +163,10 @@ class Bookmark:
     unread: bool
     deleted: bool
 
-#    tag_triples: FrozenSet[Tuple[str, datetime, bool]] = frozenset()
+    tag_triples: FrozenSet[Tuple[str, datetime, bool]] = frozenset()
+
+    def tags(self) -> List[str]:
+        return []
 
     def merge(self, other: "Bookmark") -> "Bookmark":
         more_recent: "Bookmark" = sorted(
@@ -196,7 +199,7 @@ class Bookmark:
             description=more_recent.description,
             unread=more_recent.unread,
             deleted=more_recent.deleted,
-#            tag_triples=frozenset(),
+            tag_triples=frozenset(),
         )
 
     def to_json(self) -> Mapping:
