@@ -5,7 +5,6 @@ from datetime import datetime
 
 import pytest
 from hypothesis import given
-from hypothesis.strategies import text, datetimes, booleans
 from hypothesis import strategies as st
 from hypothesis.provisional import urls
 
@@ -20,15 +19,18 @@ def test_url_uuid_stability(url):
     sut.create_url_uuid(urlunsplit(urlsplit(url))) == sut.create_url_uuid(url)
 
 
+UrlStrategy = st.shared(urls())
+
+
 BookmarkStrategy = st.builds(
     sut.Bookmark,
-    url=st.just("http://example.com"),
-    created=datetimes(),
-    deleted=booleans(),
-    description=text(),
-    title=text(),
-    unread=booleans(),
-    updated=datetimes(),
+    url=UrlStrategy,
+    created=st.datetimes(),
+    deleted=st.booleans(),
+    description=st.text(),
+    title=st.text(),
+    unread=st.booleans(),
+    updated=st.datetimes(),
 )
 
 
