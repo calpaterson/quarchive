@@ -12,7 +12,7 @@ from freezegun import freeze_time
 import pytest
 
 import quarchive as sut
-from .conftest import random_string
+from .conftest import random_string, make_bookmark
 
 pytestmark = pytest.mark.crawler
 
@@ -97,13 +97,12 @@ def test_ensure_crawled_only_runs_once(session, mock_s3):
 
 
 @responses.activate
-def test_enqueue_crawls_for_uncrawled_urls(session, eager_celery, mock_s3):
-    url = "http://example.com/" + random_string()
-    s, n, p, q, f = urlsplit(url)
-    session.add(
-        sut.SQLAUrl(url_uuid=uuid4(), scheme=s, netloc=n, path=p, query=q, fragment=f)
-    )
+def test_enqueue_crawls_for_uncrawled_urls(session, eager_celery, mock_s3, test_user):
+    bookmark = make_bookmark()
+    sut.set_bookmark(session, test_user.user_uuid, bookmark)
     session.commit()
+    url = bookmark.url
+    s, n, p, q, f = urlsplit(url)
 
     responses.add(
         responses.GET, re.compile(r"http://example.com/.*"), body=b"hello", stream=True

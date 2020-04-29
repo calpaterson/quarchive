@@ -1194,10 +1194,12 @@ def enqueue_crawls_for_uncrawled_urls():
                 SQLAUrl.query,
                 SQLAUrl.fragment,
             )
+            .join(SQLABookmark)
             .outerjoin(CrawlRequest, SQLAUrl.url_uuid == CrawlRequest.url_uuid)
             .filter(CrawlRequest.crawl_uuid.is_(None))
         )
         uncrawled_urls = (urlunsplit(tup) for tup in rs)
+    index = 0
     for index, uncrawled_url in enumerate(uncrawled_urls, start=1):
         log.info("enqueuing %s for crawl", uncrawled_url)
         ensure_crawled.delay(uncrawled_url)
