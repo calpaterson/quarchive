@@ -217,19 +217,14 @@ class Bookmark:
 
     @staticmethod
     def merge_tag_triples(triples_1: TagTriples, triples_2: TagTriples) -> TagTriples:
-        result_set: Set[TagTriple] = set()
-        for _, group_iter in itertools.groupby(
+        grouped_by_tag = itertools.groupby(
             sorted(itertools.chain(triples_1, triples_2), key=Bookmark.tag_from_triple),
             key=Bookmark.tag_from_triple,
-        ):
-            group = list(group_iter)
-            merged = max(group, key=Bookmark.tag_triple_order_key)
-            result_set.add(merged)
-        return frozenset(result_set)
-
-    # @staticmethod
-    # def merge_pair_of_tag_triples(a: TagTriple, b: TagTriple) -> TagTriple:
-    #     return max([a, b], key=lambda tt: tt[1])
+        )
+        merged = frozenset(
+            max(group, key=Bookmark.tag_triple_order_key) for _, group in grouped_by_tag
+        )
+        return merged
 
     def to_json(self) -> Mapping:
         return {
