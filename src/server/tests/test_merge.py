@@ -21,6 +21,14 @@ def test_url_uuid_stability(url):
 
 UrlStrategy = st.shared(urls())
 
+TagStrategy = st.one_of(st.just("tag_a"), st.just("tag_b"), st.just("tag_c"))
+
+
+@st.composite
+def tag_triples(draw, tags=TagStrategy, dts=st.datetimes(), bools=st.booleans()):
+    as_list = draw(st.lists(st.tuples(tags, dts, bools), unique_by=lambda tt: tt[0]))
+    return frozenset(as_list)
+
 
 BookmarkStrategy = st.builds(
     sut.Bookmark,
@@ -31,6 +39,7 @@ BookmarkStrategy = st.builds(
     title=st.text(),
     unread=st.booleans(),
     updated=st.datetimes(),
+    tag_triples=tag_triples(),
 )
 
 

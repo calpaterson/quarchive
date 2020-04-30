@@ -150,6 +150,10 @@ class URL:
         )
 
 
+TagTriple = Tuple[str, datetime, bool]
+TagTriples = FrozenSet[TagTriple]
+
+
 @dataclass(frozen=True)
 class Bookmark:
     url: str
@@ -163,7 +167,7 @@ class Bookmark:
     unread: bool
     deleted: bool
 
-    tag_triples: FrozenSet[Tuple[str, datetime, bool]] = frozenset()
+    tag_triples: TagTriples = frozenset()
 
     def tags(self) -> List[str]:
         return []
@@ -176,14 +180,15 @@ class Bookmark:
             # 3. If that's not enough add the longest description
             # 4. If that's not enough compare the titles
             # 5. If that's not enough compare the description
-            # FIXME: This should probably involve all fields taken from the
-            # most recent
+            # 6. Then compare everything else
             key=lambda b: (
                 b.updated,
                 len(b.title),
                 len(b.description),
                 b.title,
                 b.description,
+                b.unread,
+                not b.deleted,
             ),
             reverse=True,
         )[0]
@@ -199,8 +204,32 @@ class Bookmark:
             description=more_recent.description,
             unread=more_recent.unread,
             deleted=more_recent.deleted,
-            tag_triples=frozenset(),
+            tag_triples=Bookmark.merge_tag_triples(self.tag_triples, other.tag_triples),
         )
+
+    @staticmethod
+    def tag_from_triple(triple: TagTriple) -> str:
+        return triple[0]
+
+    @staticmethod
+    def tag_triple_order_key(triple: TagTriple) -> Tuple[datetime, bool]:
+        return triple[1], not triple[2]
+
+    @staticmethod
+    def merge_tag_triples(triples_1: TagTriples, triples_2: TagTriples) -> TagTriples:
+        result_set: Set[TagTriple] = set()
+        for _, group_iter in itertools.groupby(
+            sorted(itertools.chain(triples_1, triples_2), key=Bookmark.tag_from_triple),
+            key=Bookmark.tag_from_triple,
+        ):
+            group = list(group_iter)
+            merged = max(group, key=Bookmark.tag_triple_order_key)
+            result_set.add(merged)
+        return frozenset(result_set)
+
+    # @staticmethod
+    # def merge_pair_of_tag_triples(a: TagTriple, b: TagTriple) -> TagTriple:
+    #     return max([a, b], key=lambda tt: tt[1])
 
     def to_json(self) -> Mapping:
         return {
