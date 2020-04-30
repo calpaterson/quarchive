@@ -254,8 +254,8 @@ class Bookmark:
             url=mapping["url"],
             title=mapping["title"],
             description=mapping["description"],
-            updated=isoparse(mapping["updated"]),
-            created=isoparse(mapping["created"]),
+            updated=updated,
+            created=created,
             unread=mapping["unread"],
             deleted=mapping["deleted"],
         )
