@@ -84,7 +84,7 @@ def test_creating_a_bookmark(test_user, signed_in_client, session, unread):
 
     assert response.headers["Location"].endswith(
         flask.url_for(
-            "quarchive.edit_bookmark", url_uuid=str(sut.create_url_uuid(bookmark.url))
+            "quarchive.edit_bookmark_form", url_uuid=str(sut.create_url_uuid(bookmark.url))
         )
     )
     assert bookmark.title == form_data["title"]
@@ -105,7 +105,7 @@ def test_edit_bookmark_form(signed_in_client, session, test_user):
     url_uuid = sut.create_url_uuid(bm.url)
 
     response = signed_in_client.get(
-        flask.url_for("quarchive.edit_bookmark", url_uuid=url_uuid)
+        flask.url_for("quarchive.edit_bookmark_form", url_uuid=url_uuid)
     )
     assert response.status_code == 200
 
@@ -154,7 +154,7 @@ def test_editing_a_bookmark(
 def test_editing_a_bookmark_that_doesnt_exist(signed_in_client):
     response = signed_in_client.post(
         flask.url_for(
-            "quarchive.edit_bookmark",
+            "quarchive.edit_bookmark_form",
             url_uuid=UUID("f" * 32),
             redirect_to="/test_location",
         ),
