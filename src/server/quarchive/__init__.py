@@ -851,17 +851,36 @@ def index() -> Tuple[flask.Response, int]:
 @blueprint.route("/create-bookmark")
 @sign_in_required
 def create_bookmark_form() -> flask.Response:
+    template_kwargs = dict(
+        url=flask.request.args.get("url", ""),
+        title=flask.request.args.get("title", ""),
+        unread=flask.request.args.get("unread", "off"),
+        description=flask.request.args.get("description", ""),
+        page_title="Create bookmark",
+    )
+
+    raw_tags: Optional[str] = flask.request.args.get("tags", "").strip() or None
+    tags: Sequence[str]
+    if raw_tags is not None:
+        tags = raw_tags.split(",")
+    else:
+        tags = []
+
+    add_tag: Optional[str] = flask.request.args.get("add-tag", "").strip() or None
+    if add_tag is not None:
+        tags.append(add_tag)
+
+    template_kwargs["tags"] = tags
+
     return flask.make_response(
-        flask.render_template(
-            "create_or_edit_bookmark.html", page_title="Create bookmark",
-        )
+        flask.render_template("create_bookmark.html", **template_kwargs)
     )
 
 
 @blueprint.route("/about")
 def about() -> flask.Response:
     return flask.make_response(
-        flask.render_template("about.html", page_title="About Quarchive",)
+        flask.render_template("about.html", page_title="About Quarchive")
     )
 
 

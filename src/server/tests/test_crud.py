@@ -1,7 +1,8 @@
-from urllib.parse import urlsplit
 from uuid import UUID
 from datetime import datetime, timezone
 
+from lxml import etree
+from lxml.cssselect import CSSSelector
 import flask
 import pytest
 from freezegun import freeze_time
@@ -14,9 +15,46 @@ from .utils import sync_bookmarks
 pytestmark = pytest.mark.web
 
 
-def test_create_bookmark_form(signed_in_client):
+def test_create_bookmark_form_simple_get(signed_in_client):
     response = signed_in_client.get(flask.url_for("quarchive.create_bookmark_form"))
     assert response.status_code == 200
+
+
+def test_create_bookmark_form_add_tag(signed_in_client):
+    url = "http://example.com"
+    title = "Example"
+    description = "A sample website"
+    unread = "on"
+    tags = ",".join(["a", "b"])
+    add_tag = "c"
+    params = {
+        "url": url,
+        "title": title,
+        "description": description,
+        "unread": unread,
+        "tags": tags,
+        "add-tag": add_tag,
+    }
+    response = signed_in_client.get(
+        flask.url_for("quarchive.create_bookmark_form", **params),
+    )
+
+    assert response.status_code == 200
+    html_parser = etree.HTMLParser()
+    root = etree.fromstring(response.get_data(), html_parser)
+    input_elements = CSSSelector("input")(root)
+    inputs = {
+        ie.attrib["name"].replace("-input", ""): ie.attrib.get("value", None)
+        for ie in input_elements
+    }
+    description_textarea = CSSSelector("textarea#description-textarea")(root)[0]
+
+    assert inputs["url"] == url
+    assert inputs["title"] == title
+    assert description_textarea.text == description
+    assert inputs["unread"] == unread
+    assert inputs["tags"] == "a,b,c"
+    assert inputs["add-tag"] is None
 
 
 @freeze_time("2018-01-03")

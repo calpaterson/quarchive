@@ -1,0 +1,92 @@
+{# -*- mode: jinja2 -*- #}
+{% extends "base.html" %}
+{% block main %}
+  <form
+    id="create-bookmark-form"
+    method="POST"
+    action="{{  url_for('quarchive.create_bookmark', redirect_to=request.url) }}"
+    >
+
+    <h1>Create a bookmark</h1>
+
+    <p>
+      <label for="url-input">URL</label>
+    </p>
+    <p>
+      <input
+        id="url-input"
+        name="url"
+        type="text"
+        value="{{ url }}"
+        >
+    </p>
+
+    <p>
+      <label for="title-input">Title</label>
+    </p>
+    <p>
+      <input
+        id="title-input"
+        name="title"
+        value="{{ title }}"
+        type="text"
+        >
+    </p>
+
+    <p>
+      <label for="description-textarea">Description</label>
+    </p>
+    <textarea id="description-textarea" name="description">{{ description }}</textarea>
+    <p>
+      <input id="unread-input" name="unread" type="checkbox" value={{ unread }}>
+      <label for="unread-input">Unread</label>
+    </p>
+
+    <fieldset>
+      <legend>Tags</legend>
+    <p>
+      {% if not tags %}
+        (no tags set)
+      {% else %}
+        Tags:
+        {% for tag in tags %}
+          <a href="/tags/{{ tag }}">{{ tag }}</a>{% if not loop.last %},{% endif %}
+        {% endfor %}
+      {% endif %}
+    </p>
+    <p>
+      <input id="tags" name="tags" type="text" hidden value="{{ ",".join(tags or "") }}">
+      <input
+        id="add-tag"
+        name="add-tag"
+        type="text"
+        {# list="user-tags" #}
+        pattern="[a-z\-]"
+        title="Lowercase letters and hypens"
+        >
+
+        {# TODO: Use this datalist #}
+        {# <datalist id="user-tags"> #}
+        {#   {% for tag in user_tags %} #}
+        {#     <option value="{{ tag }}"> #}
+        {#   {% endfor %} #}
+        {# </datalist> #}
+
+      <button
+        form="create-bookmark-form"
+        formmethod="GET"
+        formaction="{{ url_for('quarchive.create_bookmark_form') }}"
+        >Add to list</button>
+    </p>
+    <p>
+      <small>Tags can only use lowercase letters and hyphens</small>
+    </p>
+    </fieldset>
+
+
+
+    <p>
+      <button name="save-bookmark-button" type="submit">Create bookmark</button>
+    </p>
+  </form>
+{% endblock %}
