@@ -38,7 +38,7 @@
     </p>
     <textarea id="description-textarea" name="description">{{ description }}</textarea>
     <p>
-      <input id="unread-input" name="unread" type="checkbox" value={{ unread }}>
+      <input id="unread-input" name="unread" type="checkbox" {% if unread %}checked{% endif %}>
       <label for="unread-input">Unread</label>
     </p>
 

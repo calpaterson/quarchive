@@ -15,6 +15,20 @@ from .utils import sync_bookmarks
 pytestmark = pytest.mark.web
 
 
+@pytest.mark.parametrize(
+    "inp, exp",
+    [
+        ({"unread": ""}, {}),
+        ({"unread": "on"}, {"unread": "on"}),
+        ({"tags": "a,b,c"}, {"tags": ["a", "b", "c"]}),
+        ({"tags": "a,b", "add-tag": "c"}, {"tags": ["a", "b", "c"]}),
+        ({"tags": "", "add-tag": "a"}, {"tags": ["a"]}),
+    ],
+)
+def test_form_fields_from_querystring(inp, exp):
+    assert sut.form_fields_from_querystring(inp) == exp
+
+
 def test_create_bookmark_form_simple_get(signed_in_client):
     response = signed_in_client.get(flask.url_for("quarchive.create_bookmark_form"))
     assert response.status_code == 200
@@ -67,18 +81,15 @@ def test_create_bookmark_form_add_tag(
     html_parser = etree.HTMLParser()
     root = etree.fromstring(response.get_data(), html_parser)
     input_elements = CSSSelector("input")(root)
-    inputs = {
-        ie.attrib["name"].replace("-input", ""): ie.attrib.get("value", None)
-        for ie in input_elements
-    }
+    inputs = {ie.attrib["name"].replace("-input", ""): ie for ie in input_elements}
     description_textarea = CSSSelector("textarea#description-textarea")(root)[0]
 
-    assert inputs["url"] == url
-    assert inputs["title"] == title
+    assert inputs["url"].attrib["value"] == url
+    assert inputs["title"].attrib["value"] == title
     assert description_textarea.text == description
-    assert inputs["unread"] == unread
-    assert inputs["tags"] == ",".join(expected_tags)
-    assert inputs["add-tag"] is None
+    assert "checked" in inputs["unread"].attrib
+    assert inputs["tags"].attrib["value"] == ",".join(expected_tags)
+    assert "value" not in inputs["add-tag"].attrib
 
 
 @freeze_time("2018-01-03")

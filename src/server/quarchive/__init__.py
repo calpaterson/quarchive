@@ -47,7 +47,7 @@ import requests
 from celery import Celery
 from werkzeug import exceptions as exc
 from werkzeug.urls import url_encode
-import werkzeug.wrappers
+from werkzeug.datastructures import ImmutableMultiDict
 from dateutil.parser import isoparse
 from sqlalchemy import Column, ForeignKey, types as satypes, func, create_engine, and_
 from sqlalchemy.orm import (
@@ -860,41 +860,48 @@ def index() -> Tuple[flask.Response, int]:
 
 
 def form_fields_from_querystring(
-    request: werkzeug.wrappers.Request,
-) -> Mapping[str, str]:
-    # FIXME: this BADLY needs a test
-    form_fields = {}
+    querystring: Mapping[str, str],
+) -> Mapping[str, Union[str, List[str]]]:
+    """Examine the querystring passed to the create or edit bookmark form and
+    return a mapping representing the form fields to fill."""
+    form_fields: Dict[str, Union[str, List[str]]] = {}
 
     simple_fields = {"url", "title", "description"}
     for field_name in simple_fields:
-        field_value = request.args.get(field_name, "")
+        field_value = querystring.get(field_name, "")
         if field_value != "":
             form_fields[field_name] = field_value
 
-    unread_value = request.args.get("unread", None)
+    unread_value = querystring.get("unread", None) or None
     if unread_value is not None:
         form_fields["unread"] = unread_value
 
-    raw_tags: Optional[str] = request.args.get("tags", "").strip() or None
-    tags: Sequence[str]
-    if raw_tags is not None:
-        tags = raw_tags.split(",")
-    else:
-        tags = []
+    raw_tags: str = querystring.get("tags", "").strip()
+    add_tag: Optional[str] = querystring.get("add-tag", "").strip() or None
+    if raw_tags != "" or add_tag is not None:
+        tags: List[str]
+        if raw_tags == "":
+            tags = []
+        else:
+            tags = raw_tags.split(",")
 
-    add_tag: Optional[str] = request.args.get("add-tag", "").strip() or None
-    if add_tag is not None:
-        tags.append(add_tag)
+        if add_tag is not None:
+            tags.append(add_tag)
+        form_fields["tags"] = tags
 
-    form_fields["tags"] = tags
+    log.debug(
+        "calculated form fields: %s from querystring %s", form_fields, querystring
+    )
     return form_fields
 
 
 @blueprint.route("/create-bookmark")
 @sign_in_required
 def create_bookmark_form() -> flask.Response:
-    template_kwargs = {"page_title": "Create bookmark"}
-    template_kwargs.update(form_fields_from_querystring(flask.request))
+    template_kwargs: Dict[str, Union[str, List[str]]] = {
+        "page_title": "Create bookmark"
+    }
+    template_kwargs.update(form_fields_from_querystring(flask.request.args))
 
     return flask.make_response(
         flask.render_template("create_bookmark.html", **template_kwargs)
@@ -913,7 +920,7 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
         flask.abort(404, description="bookmark not found")
 
     # Step one, load the template kwargs from the bookmark
-    template_kwargs: Dict[str, Union[str, bool, UUID]] = dict(
+    template_kwargs: Dict[str, Union[str, bool, UUID, List[str]]] = dict(
         url=bookmark.url,
         title=bookmark.title,
         description=bookmark.description,
@@ -924,7 +931,7 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
         template_kwargs["unread"] = "on"
 
     # Then update it from the querystring
-    template_kwargs.update(form_fields_from_querystring(flask.request))
+    template_kwargs.update(form_fields_from_querystring(flask.request.args))
 
     template_kwargs["deleted"] = bookmark.deleted
 
