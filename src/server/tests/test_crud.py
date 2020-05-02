@@ -21,6 +21,9 @@ def test_create_bookmark_form_simple_get(signed_in_client):
 
 
 @pytest.mark.parametrize(
+    "viewfunc", ["quarchive.create_bookmark_form", "quarchive.edit_bookmark_form"]
+)
+@pytest.mark.parametrize(
     "tags_for_param, add_tag, expected_tags",
     [
         (["a", "b"], "c", ["a", "b", "c"]),
@@ -29,9 +32,20 @@ def test_create_bookmark_form_simple_get(signed_in_client):
     ],
 )
 def test_create_bookmark_form_add_tag(
-    signed_in_client, tags_for_param, add_tag, expected_tags
+    signed_in_client,
+    viewfunc,
+    tags_for_param,
+    add_tag,
+    expected_tags,
+    session,
+    test_user,
 ):
-    url = "http://example.com"
+    if viewfunc == "quarchive.edit_bookmark_form":
+        bookmark = make_bookmark()
+        sut.set_bookmark(session, test_user.user_uuid, bookmark)
+        url = bookmark.url
+    else:
+        url = "http://example.com"
     title = "Example"
     description = "A sample website"
     unread = "on"
@@ -45,9 +59,9 @@ def test_create_bookmark_form_add_tag(
         "tags": tags,
         "add-tag": add_tag,
     }
-    response = signed_in_client.get(
-        flask.url_for("quarchive.create_bookmark_form", **params),
-    )
+    if viewfunc == "quarchive.edit_bookmark_form":
+        params["url_uuid"] = sut.create_url_uuid(bookmark.url)
+    response = signed_in_client.get(flask.url_for(viewfunc, **params),)
 
     assert response.status_code == 200
     html_parser = etree.HTMLParser()
@@ -68,6 +82,19 @@ def test_create_bookmark_form_add_tag(
 
 
 @freeze_time("2018-01-03")
+def test_edit_bookmark_form_simple_get(signed_in_client, session, test_user):
+    bm = make_bookmark()
+    sync_bookmarks(signed_in_client, test_user, [bm])
+
+    url_uuid = sut.create_url_uuid(bm.url)
+
+    response = signed_in_client.get(
+        flask.url_for("quarchive.edit_bookmark_form", url_uuid=url_uuid)
+    )
+    assert response.status_code == 200
+
+
+@freeze_time("2018-01-03")
 @pytest.mark.parametrize("unread", [True, False])
 def test_creating_a_bookmark(test_user, signed_in_client, session, unread):
     url = "http://example.com/" + random_string()
@@ -84,7 +111,8 @@ def test_creating_a_bookmark(test_user, signed_in_client, session, unread):
 
     assert response.headers["Location"].endswith(
         flask.url_for(
-            "quarchive.edit_bookmark_form", url_uuid=str(sut.create_url_uuid(bookmark.url))
+            "quarchive.edit_bookmark_form",
+            url_uuid=str(sut.create_url_uuid(bookmark.url)),
         )
     )
     assert bookmark.title == form_data["title"]
@@ -95,19 +123,6 @@ def test_creating_a_bookmark(test_user, signed_in_client, session, unread):
         == bookmark.updated
         == datetime(2018, 1, 3, tzinfo=timezone.utc)
     )
-
-
-@freeze_time("2018-01-03")
-def test_edit_bookmark_form(signed_in_client, session, test_user):
-    bm = make_bookmark()
-    sync_bookmarks(signed_in_client, test_user, [bm])
-
-    url_uuid = sut.create_url_uuid(bm.url)
-
-    response = signed_in_client.get(
-        flask.url_for("quarchive.edit_bookmark_form", url_uuid=url_uuid)
-    )
-    assert response.status_code == 200
 
 
 @pytest.mark.parametrize(

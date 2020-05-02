@@ -10,6 +10,7 @@ import logging
 import mimetypes
 from uuid import uuid4, UUID, uuid5, NAMESPACE_URL as UUID_URL_NAMESPACE
 from typing import (
+    Dict,
     Mapping,
     Sequence,
     Set,
@@ -46,6 +47,7 @@ import requests
 from celery import Celery
 from werkzeug import exceptions as exc
 from werkzeug.urls import url_encode
+import werkzeug.wrappers
 from dateutil.parser import isoparse
 from sqlalchemy import Column, ForeignKey, types as satypes, func, create_engine, and_
 from sqlalchemy.orm import (
@@ -857,32 +859,77 @@ def index() -> Tuple[flask.Response, int]:
     )
 
 
-@blueprint.route("/create-bookmark")
-@sign_in_required
-def create_bookmark_form() -> flask.Response:
-    template_kwargs = dict(
-        url=flask.request.args.get("url", ""),
-        title=flask.request.args.get("title", ""),
-        unread=flask.request.args.get("unread", "off"),
-        description=flask.request.args.get("description", ""),
-        page_title="Create bookmark",
-    )
+def form_fields_from_querystring(
+    request: werkzeug.wrappers.Request,
+) -> Mapping[str, str]:
+    # FIXME: this BADLY needs a test
+    form_fields = {}
 
-    raw_tags: Optional[str] = flask.request.args.get("tags", "").strip() or None
+    simple_fields = {"url", "title", "description"}
+    for field_name in simple_fields:
+        field_value = request.args.get(field_name, "")
+        if field_value != "":
+            form_fields[field_name] = field_value
+
+    unread_value = request.args.get("unread", None)
+    if unread_value is not None:
+        form_fields["unread"] = unread_value
+
+    raw_tags: Optional[str] = request.args.get("tags", "").strip() or None
     tags: Sequence[str]
     if raw_tags is not None:
         tags = raw_tags.split(",")
     else:
         tags = []
 
-    add_tag: Optional[str] = flask.request.args.get("add-tag", "").strip() or None
+    add_tag: Optional[str] = request.args.get("add-tag", "").strip() or None
     if add_tag is not None:
         tags.append(add_tag)
 
-    template_kwargs["tags"] = tags
+    form_fields["tags"] = tags
+    return form_fields
+
+
+@blueprint.route("/create-bookmark")
+@sign_in_required
+def create_bookmark_form() -> flask.Response:
+    template_kwargs = {"page_title": "Create bookmark"}
+    template_kwargs.update(form_fields_from_querystring(flask.request))
 
     return flask.make_response(
         flask.render_template("create_bookmark.html", **template_kwargs)
+    )
+
+
+@blueprint.route("/bookmark/<uuid:url_uuid>", methods=["GET"])
+@sign_in_required
+@observe_redirect_to
+def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
+    bookmark = get_bookmark_by_url_uuid(
+        db.session, get_current_user().user_uuid, url_uuid
+    )
+    if bookmark is None:
+        # FIXME: er, write a test for this
+        flask.abort(404, description="bookmark not found")
+
+    # Step one, load the template kwargs from the bookmark
+    template_kwargs: Dict[str, Union[str, bool, UUID]] = dict(
+        url=bookmark.url,
+        title=bookmark.title,
+        description=bookmark.description,
+        page_title="Edit %s" % bookmark.title,
+        url_uuid=url_uuid,
+    )
+    if bookmark.unread:
+        template_kwargs["unread"] = "on"
+
+    # Then update it from the querystring
+    template_kwargs.update(form_fields_from_querystring(flask.request))
+
+    template_kwargs["deleted"] = bookmark.deleted
+
+    return flask.make_response(
+        flask.render_template("edit_bookmark.html", **template_kwargs)
     )
 
 
@@ -908,24 +955,6 @@ def create_bookmark() -> flask.Response:
         "quarchive.edit_bookmark_form", url_uuid=url_uuid
     )
     return response
-
-
-@blueprint.route("/bookmark/<uuid:url_uuid>", methods=["GET"])
-@sign_in_required
-@observe_redirect_to
-def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
-    bookmark = get_bookmark_by_url_uuid(
-        db.session, get_current_user().user_uuid, url_uuid
-    )
-    # FIXME: what if it doesn't exist?
-    return flask.make_response(
-        flask.render_template(
-            "create_or_edit_bookmark.html",
-            url_uuid=url_uuid,
-            bookmark=bookmark,
-            page_title="Edit bookmark: %s" % bookmark.url,  # type: ignore
-        )
-    )
 
 
 @blueprint.route("/bookmark/<uuid:url_uuid>", methods=["POST"])
