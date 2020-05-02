@@ -786,6 +786,8 @@ def api_key_required(handler: V) -> V:
 @blueprint.route("/")
 @sign_in_required
 def index() -> Tuple[flask.Response, int]:
+    # FIXME: This viewfunc really needs to get split up and work via the data
+    # layer to get what it wants.
     page_size = flask.current_app.config["PAGE_SIZE"]
     page = int(flask.request.args.get("page", "1"))
     offset = (page - 1) * page_size
