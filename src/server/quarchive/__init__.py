@@ -927,6 +927,7 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
         )
     )
 
+
 @blueprint.route("/bookmark/<uuid:url_uuid>", methods=["POST"])
 @sign_in_required
 @observe_redirect_to
@@ -1135,7 +1136,6 @@ def init_app() -> flask.Flask:
     app.config["SQLALCHEMY_DATABASE_URI"] = environ["QM_SQL_URL"]
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["CRYPT_CONTEXT"] = CryptContext(["bcrypt"])
-    log.info("setting sql url to: %s", environ["QM_SQL_URL"])
 
     # By default Postgres will consult the locale to decide what timezone to
     # return datetimes in.  We want UTC in all cases.
@@ -1145,6 +1145,9 @@ def init_app() -> flask.Flask:
 
     app.config["PAGE_SIZE"] = 30
     db.init_app(app)
+    with app.app_context():
+        log.info("using engine: %s", db.session.bind)
+
     cors.init_app(app)
     Babel(app, default_locale="en_GB", default_timezone="Europe/London")
     app.register_blueprint(blueprint)
