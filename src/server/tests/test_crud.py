@@ -20,13 +20,23 @@ def test_create_bookmark_form_simple_get(signed_in_client):
     assert response.status_code == 200
 
 
-def test_create_bookmark_form_add_tag(signed_in_client):
+@pytest.mark.parametrize(
+    "tags_for_param, add_tag, expected_tags",
+    [
+        (["a", "b"], "c", ["a", "b", "c"]),
+        (["a", "b"], "", ["a", "b"]),
+        (["a"], "b", ["a", "b"]),
+    ],
+)
+def test_create_bookmark_form_add_tag(
+    signed_in_client, tags_for_param, add_tag, expected_tags
+):
     url = "http://example.com"
     title = "Example"
     description = "A sample website"
     unread = "on"
-    tags = ",".join(["a", "b"])
-    add_tag = "c"
+    tags = ",".join(tags_for_param)
+    add_tag = add_tag
     params = {
         "url": url,
         "title": title,
@@ -53,7 +63,7 @@ def test_create_bookmark_form_add_tag(signed_in_client):
     assert inputs["title"] == title
     assert description_textarea.text == description
     assert inputs["unread"] == unread
-    assert inputs["tags"] == "a,b,c"
+    assert inputs["tags"] == ",".join(expected_tags)
     assert inputs["add-tag"] is None
 
 

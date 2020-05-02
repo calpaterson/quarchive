@@ -1076,6 +1076,11 @@ def user_page(username: str) -> flask.Response:
     )
 
 
+@blueprint.route("/user/<username>/tag/<tag>")
+def user_tags(username: str, tag: str) -> flask.Response:
+    raise NotImplementedError()
+
+
 @blueprint.route("/ok")
 def ok() -> flask.Response:
     return flask.json.jsonify({"ok": True})

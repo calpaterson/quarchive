@@ -50,7 +50,8 @@
       {% else %}
         Tags:
         {% for tag in tags %}
-          <a href="/tags/{{ tag }}">{{ tag }}</a>{% if not loop.last %},{% endif %}
+          <a href="{{ url_for("quarchive.user_tags", username=g.user.username, tag=tag) }}"
+             >{{ tag }}</a>{% if not loop.last %},{% endif %}
         {% endfor %}
       {% endif %}
     </p>
@@ -61,7 +62,7 @@
         name="add-tag"
         type="text"
         {# list="user-tags" #}
-        pattern="[a-z\-]"
+        pattern="[a-z\-]*"
         title="Lowercase letters and hypens"
         >
 
