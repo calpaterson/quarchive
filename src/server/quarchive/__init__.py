@@ -66,7 +66,7 @@ from sqlalchemy.dialects.postgresql import (
     JSONB,
     TSVECTOR,
 )
-
+from sqlalchemy.schema import CheckConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from flask_sqlalchemy import SQLAlchemy
 import flask
@@ -381,6 +381,7 @@ class FullText(Base):
 
 class SQLUser(Base):
     __tablename__ = "users"
+    __tableargs__ = (CheckConstraint("username ~ '^[-A-z0-9]+$'"),)
 
     user_uuid = Column(PGUUID, primary_key=True)
     username = Column(
@@ -421,10 +422,13 @@ class BookmarkTag(Base):
     tag_id = Column(
         satypes.Integer, ForeignKey("tags.tag_id"), primary_key=True, index=True
     )
+    updated = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
+    deleted = Column(satypes.Boolean, nullable=False, index=True)
 
 
 class Tag(Base):
     __tablename__ = "tags"
+    __tableargs__ = (CheckConstraint("tag_name ~ '^[-a-z0-9]+$'"),)
 
     # Presumably 4bn tags is enough
     tag_id = Column(satypes.Integer, primary_key=True, autoincrement=True)
