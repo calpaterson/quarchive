@@ -1,3 +1,21 @@
+"""Add insert_bookmark_v1
+
+Revision ID: d377220a4f4d
+Revises: 37895c82dca1
+Create Date: 2020-05-04 21:12:26.365105
+
+"""
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision = "d377220a4f4d"
+down_revision = "37895c82dca1"
+branch_labels = None
+depends_on = None
+
+FUNCTION_SQL = """
 -- Insert a single bookmark
 --
 -- This is done as a "SQL" language query instead of via ORM-generated
@@ -73,3 +91,13 @@ updated = excluded.updated
 ;
 
 $$ LANGUAGE SQL;
+
+"""
+
+
+def upgrade():
+    op.execute(FUNCTION_SQL)
+
+
+def downgrade():
+    op.execute("DROP FUNCTION insert_bookmark_v1;")
