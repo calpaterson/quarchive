@@ -141,21 +141,46 @@ def test_creating_a_bookmark(test_user, signed_in_client, session, unread, tags)
     assert bookmark.tags() == tags
 
 
+mifid2_start_date = datetime(2018, 1, 3)
+
+tag_params = [
+    pytest.param(
+        "tag_triples",
+        "tags",
+        frozenset(),
+        "a,b",
+        frozenset([("a", mifid2_start_date, False), ("b", mifid2_start_date, True)]),
+        marks=pytest.mark.xfail,
+        id="test adding two tags",
+    ),
+]
+
+
+@freeze_time("2018-01-03")
 @pytest.mark.parametrize(
-    "field, start_value, form_value, expected",
+    "obj_attr, form_attr, obj_start, form_value, obj_end",
     [
-        ("deleted", False, "on", True),
-        ("deleted", True, None, False),
-        ("unread", False, "on", True),
-        ("unread", True, None, False),
-        ("title", "example", "Something else", "Something else"),
-        ("description", "example desc", "A desc", "A desc"),
-    ],
+        ("deleted", "deleted", False, "on", True),
+        ("deleted", "deleted", True, None, False),
+        ("unread", "unread", False, "on", True),
+        ("unread", "unread", True, None, False),
+        ("title", "title", "example", "Something else", "Something else"),
+        ("description", "description", "example desc", "A desc", "A desc"),
+    ]
+    + tag_params,
 )
 def test_editing_a_bookmark(
-    signed_in_client, session, test_user, field, start_value, form_value, expected
+    signed_in_client,
+    session,
+    test_user,
+    obj_attr,
+    form_attr,
+    obj_start,
+    form_value,
+    obj_end,
 ):
-    bm_args = {field: start_value}
+    """Submits the edit bookmark form with varying arguments."""
+    bm_args = {obj_attr: obj_start}
     bm = make_bookmark(**bm_args)
 
     sync_bookmarks(signed_in_client, test_user, [bm])
@@ -167,7 +192,7 @@ def test_editing_a_bookmark(
         # "unread": False and "deleted": False are by default
     }
     if form_value is not None:
-        form_data[field] = form_value
+        form_data[form_attr] = form_value
 
     response = signed_in_client.post(
         flask.url_for(
@@ -179,7 +204,7 @@ def test_editing_a_bookmark(
     assert response.headers["Location"] == "http://localhost/test_location"
 
     bookmark_obj = sut.get_bookmark_by_url(session, test_user.user_uuid, bm.url)
-    assert getattr(bookmark_obj, field) == expected
+    assert getattr(bookmark_obj, obj_attr) == obj_end
 
 
 def test_editing_a_bookmark_that_doesnt_exist(signed_in_client):
