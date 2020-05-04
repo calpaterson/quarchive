@@ -338,11 +338,11 @@ class SQLABookmark(Base):
     unread = Column(satypes.Boolean, nullable=False, index=True)
     deleted = Column(satypes.Boolean, nullable=False, index=True)
 
-    url_obj: RelationshipProperty = relationship(
+    url_obj: "RelationshipProperty[SQLAUrl]" = relationship(
         SQLAUrl, uselist=False, backref="bookmark_objs"
     )
 
-    user_obj: RelationshipProperty = relationship(
+    user_obj: "RelationshipProperty[SQLUser]" = relationship(
         "SQLUser", uselist=False, backref="bookmarks"
     )
     bookmark_tag_objs: "RelationshipProperty[List[BookmarkTag]]"
@@ -357,7 +357,7 @@ class CrawlRequest(Base):
     requested = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
     got_response = Column(satypes.Boolean, index=True)
 
-    url_obj: RelationshipProperty = relationship(
+    url_obj: "RelationshipProperty[SQLAUrl]" = relationship(
         SQLAUrl, uselist=False, backref="crawl_reqs"
     )
 
@@ -372,7 +372,7 @@ class CrawlResponse(Base):
     headers = Column(JSONB(), nullable=False, index=False)
     status_code = Column(satypes.SmallInteger, nullable=False, index=True)
 
-    request_obj: RelationshipProperty = relationship(
+    request_obj: "RelationshipProperty[CrawlRequest]" = relationship(
         CrawlRequest, uselist=False, backref="response_obj"
     )
 
@@ -390,11 +390,11 @@ class FullText(Base):
 
     # __table_args__ = (Index("abc", "tsvector", postgresql_using="gin"),)
 
-    crawl_req: RelationshipProperty = relationship(
+    crawl_req: "RelationshipProperty[CrawlRequest]" = relationship(
         CrawlRequest, uselist=False, backref="full_text_obj"
     )
 
-    url_obj: RelationshipProperty = relationship(
+    url_obj: "RelationshipProperty[SQLAUrl]" = relationship(
         SQLAUrl, uselist=False, backref="full_text_obj"
     )
 
@@ -409,11 +409,11 @@ class SQLUser(Base):
     )
     password = Column(satypes.String, nullable=False)
 
-    email_obj: RelationshipProperty = relationship(
+    email_obj: "RelationshipProperty[UserEmail]" = relationship(
         "UserEmail", uselist=False, backref="user"
     )
 
-    api_key_obj: RelationshipProperty = relationship(
+    api_key_obj: "RelationshipProperty[APIKey]" = relationship(
         "APIKey", uselist=False, backref="user"
     )
 
@@ -445,9 +445,11 @@ class BookmarkTag(Base):
     updated = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
     deleted = Column(satypes.Boolean, nullable=False, index=True)
 
-    tag_obj: RelationshipProperty = relationship("Tag", backref="bookmark_tag_objs")
+    tag_obj: "RelationshipProperty[Tag]" = relationship(
+        "Tag", uselist=False, backref="bookmark_tag_objs"
+    )
 
-    bookmark_obj: RelationshipProperty = relationship(
+    bookmark_obj: "RelationshipProperty[SQLABookmark]" = relationship(
         SQLABookmark,
         primaryjoin=and_(
             foreign(url_uuid) == remote(SQLABookmark.url_uuid),
@@ -468,7 +470,7 @@ class Tag(Base):
         satypes.String(length=40), nullable=False, index=True, unique=True
     )
 
-    bookmarks_objs: RelationshipProperty = relationship(
+    bookmarks_objs: "RelationshipProperty[SQLABookmark]" = relationship(
         SQLABookmark,
         backref="tag_objs",
         secondary=BookmarkTag.__table__,
