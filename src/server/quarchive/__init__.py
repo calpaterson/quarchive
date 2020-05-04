@@ -49,7 +49,15 @@ from werkzeug import exceptions as exc
 from werkzeug.urls import url_encode
 from werkzeug.datastructures import ImmutableMultiDict
 from dateutil.parser import isoparse
-from sqlalchemy import Column, ForeignKey, types as satypes, func, create_engine, and_
+from sqlalchemy import (
+    Column,
+    ForeignKey,
+    types as satypes,
+    func,
+    create_engine,
+    and_,
+    cast as sa_cast,
+)
 from sqlalchemy.orm import (
     foreign,
     remote,
@@ -65,6 +73,8 @@ from sqlalchemy.dialects.postgresql import (
     BYTEA,
     JSONB,
     TSVECTOR,
+    array as pg_array,
+    ARRAY as PGARRAY,
 )
 from sqlalchemy.schema import CheckConstraint
 from sqlalchemy.ext.declarative import declarative_base
@@ -169,10 +179,10 @@ class Bookmark:
     unread: bool
     deleted: bool
 
-    tag_triples: TagTriples = frozenset()
+    tag_triples: TagTriples
 
-    def tags(self) -> List[str]:
-        return []
+    def tags(self) -> Sequence[str]:
+        return [tt[0] for tt in self.tag_triples]
 
     def merge(self, other: "Bookmark") -> "Bookmark":
         more_recent: "Bookmark" = sorted(
@@ -237,6 +247,7 @@ class Bookmark:
             "updated": self.updated.isoformat(),
             "unread": self.unread,
             "deleted": self.deleted,
+            "tag_triples": [[n, dt.isoformat(), d] for n, dt, d in self.tag_triples],
         }
 
     @classmethod
@@ -252,6 +263,9 @@ class Bookmark:
                 mapping["url"],
             )
             raise
+        tag_triples = frozenset(
+            (n, isoparse(dt), d) for n, dt, d in mapping.get("tag_triples", [])
+        )
         return cls(
             url=mapping["url"],
             title=mapping["title"],
@@ -260,6 +274,7 @@ class Bookmark:
             created=created,
             unread=mapping["unread"],
             deleted=mapping["deleted"],
+            tag_triples=tag_triples,
         )
 
 
@@ -272,6 +287,10 @@ def bookmark_from_sqla(url: str, sqla_obj: "SQLABookmark") -> Bookmark:
         unread=sqla_obj.unread,
         deleted=sqla_obj.deleted,
         title=sqla_obj.title,
+        tag_triples=frozenset(
+            (btag.tag_obj.tag_name, btag.updated, btag.deleted)
+            for btag in sqla_obj.bookmark_tag_objs
+        ),
     )
 
 
@@ -326,6 +345,7 @@ class SQLABookmark(Base):
     user_obj: RelationshipProperty = relationship(
         "SQLUser", uselist=False, backref="bookmarks"
     )
+    bookmark_tag_objs: "RelationshipProperty[List[BookmarkTag]]"
 
 
 class CrawlRequest(Base):
@@ -425,6 +445,18 @@ class BookmarkTag(Base):
     updated = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
     deleted = Column(satypes.Boolean, nullable=False, index=True)
 
+    tag_obj: RelationshipProperty = relationship("Tag", backref="bookmark_tag_objs")
+
+    bookmark_obj: RelationshipProperty = relationship(
+        SQLABookmark,
+        primaryjoin=and_(
+            foreign(url_uuid) == remote(SQLABookmark.url_uuid),
+            foreign(user_uuid) == remote(SQLABookmark.user_uuid),
+        ),
+        backref="bookmark_tag_objs",
+        uselist=False,
+    )
+
 
 class Tag(Base):
     __tablename__ = "tags"
@@ -438,7 +470,7 @@ class Tag(Base):
 
     bookmarks_objs: RelationshipProperty = relationship(
         SQLABookmark,
-        backref="tags_objs",
+        backref="tag_objs",
         secondary=BookmarkTag.__table__,
         primaryjoin=tag_id == BookmarkTag.tag_id,
         secondaryjoin=and_(
@@ -594,66 +626,36 @@ def upsert_url(session: Session, url: str) -> UUID:
 
 
 def set_bookmark(session: Session, user_uuid: UUID, bookmark: Bookmark) -> UUID:
+    url_uuid = create_url_uuid(bookmark.url)
     scheme, netloc, path, query, fragment = urlsplit(bookmark.url)
-    proposed_uuid = create_url_uuid(bookmark.url)
-    url_stmt = (
-        pg_insert(SQLAUrl.__table__)
-        .values(
-            url_uuid=proposed_uuid,
-            scheme=scheme,
-            netloc=netloc,
-            path=path,
-            query=query,
-            fragment=fragment,
-        )
-        .on_conflict_do_nothing(
-            index_elements=["scheme", "netloc", "path", "query", "fragment"]
-        )
-        .returning(SQLAUrl.__table__.c.url_uuid)
-    )
-    upsert_result_set = session.execute(url_stmt).fetchone()
-
-    url_uuid: UUID
-    if upsert_result_set is None:
-        # The update didn't happen, but we still need to know what the url uuid
-        # is...
-        (url_uuid,) = (
-            session.query(SQLAUrl.url_uuid)
-            .filter(
-                SQLAUrl.scheme == scheme,
-                SQLAUrl.netloc == netloc,
-                SQLAUrl.path == path,
-                SQLAUrl.query == query,
-                SQLAUrl.fragment == fragment,
-            )
-            .one()
-        )
+    if len(bookmark.tag_triples) > 0:
+        tag_names, tag_updates, tag_deleted = zip(*bookmark.tag_triples)
     else:
-        # If the update did happen, we know our proposed uuid was used
-        url_uuid = proposed_uuid
+        tag_names, tag_updates, tag_deleted = [()] * 3
+    session.execute(
+        func.insert_bookmark_v1(
+            url_uuid,
+            scheme,
+            netloc,
+            path,
+            query,
+            fragment,
+            user_uuid,
+            bookmark.title,
+            bookmark.description,
+            bookmark.created,
+            bookmark.updated,
+            bookmark.unread,
+            bookmark.deleted,
+            sa_cast(pg_array(tag_names), PGARRAY(satypes.String)),  # type:ignore
+            sa_cast(
+                pg_array(tag_updates),  # type:ignore
+                PGARRAY(satypes.DateTime(timezone=True)),
+            ),
+            sa_cast(pg_array(tag_deleted), PGARRAY(satypes.Boolean)),  # type:ignore
+        )
+    )
 
-    bookmark_insert_stmt = pg_insert(SQLABookmark.__table__).values(
-        created=bookmark.created.replace(tzinfo=timezone.utc),
-        deleted=bookmark.deleted,
-        description=bookmark.description,
-        title=bookmark.title,
-        unread=bookmark.unread,
-        updated=bookmark.updated.replace(tzinfo=timezone.utc),
-        url_uuid=url_uuid,
-        user_uuid=user_uuid,
-    )
-    bookmark_upsert_stmt = bookmark_insert_stmt.on_conflict_do_update(
-        index_elements=["url_uuid", "user_uuid"],
-        set_=dict(
-            created=bookmark_insert_stmt.excluded.created,
-            deleted=bookmark_insert_stmt.excluded.deleted,
-            description=bookmark_insert_stmt.excluded.description,
-            title=bookmark_insert_stmt.excluded.title,
-            unread=bookmark_insert_stmt.excluded.unread,
-            updated=bookmark_insert_stmt.excluded.updated,
-        ),
-    )
-    session.execute(bookmark_upsert_stmt)
     return url_uuid
 
 
@@ -949,6 +951,13 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
 def create_bookmark() -> flask.Response:
     form = flask.request.form
     creation_time = datetime.utcnow().replace(tzinfo=timezone.utc)
+    raw_tags = flask.request.form["tags"].strip()
+    if raw_tags != "":
+        tag_triples = frozenset(
+            (tag, creation_time, False) for tag in raw_tags.split(",")
+        )
+    else:
+        tag_triples = frozenset()
     bookmark = Bookmark(
         url=form["url"],
         title=form["title"],
@@ -957,6 +966,7 @@ def create_bookmark() -> flask.Response:
         deleted=False,
         updated=creation_time,
         created=creation_time,
+        tag_triples=tag_triples,
     )
     url_uuid = set_bookmark(db.session, get_current_user().user_uuid, bookmark)
     db.session.commit()
@@ -1638,14 +1648,22 @@ def pinboard_import(user_uuid: UUID, json_file, as_of: datetime):
     log.info("as of: %s", as_of_dt)
 
     def pinboard_bookmark_to_bookmark(mapping: Mapping[str, str]) -> Bookmark:
+        creation_dt = isoparse(mapping["time"])
+        if len(mapping.get("tags", "").strip()) == 0:
+            tag_triples: TagTriples = frozenset()
+        else:
+            tag_triples = frozenset(
+                (tag, creation_dt, False) for tag in mapping["tags"].split(" ")
+            )
         return Bookmark(
             url=mapping["href"],
             title=mapping["description"],
             description=mapping["extended"],
             updated=as_of_dt,
-            created=isoparse(mapping["time"]),
+            created=creation_dt,
             unread=True if mapping["toread"] == "yes" else False,
             deleted=False,
+            tag_triples=tag_triples,
         )
 
     logging.basicConfig(level=logging.INFO)

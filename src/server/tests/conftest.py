@@ -122,14 +122,16 @@ class User:
 
 
 def make_bookmark(**kwargs):
+    epoch_start = datetime(1970, 1, 1, tzinfo=timezone.utc)
     bookmark_defaults: Mapping[str, Any] = {
         "url": "http://example.com/" + random_string(),
         "title": "Example",
-        "created": datetime(1970, 1, 1, tzinfo=timezone.utc),
-        "updated": datetime(1970, 1, 1, tzinfo=timezone.utc),
+        "created": epoch_start,
+        "updated": epoch_start,
         "description": "An example bookmark",
         "unread": False,
         "deleted": False,
+        "tag_triples": frozenset([("test", epoch_start, False)]),
     }
     return sut.Bookmark(**{**bookmark_defaults, **kwargs})
 

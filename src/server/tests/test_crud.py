@@ -107,11 +107,15 @@ def test_edit_bookmark_form_simple_get(signed_in_client, session, test_user):
 
 @freeze_time("2018-01-03")
 @pytest.mark.parametrize("unread", [True, False])
-def test_creating_a_bookmark(test_user, signed_in_client, session, unread):
+@pytest.mark.parametrize("tags", ([], ["a"]))
+def test_creating_a_bookmark(test_user, signed_in_client, session, unread, tags):
     url = "http://example.com/" + random_string()
-    form_data = dict(url=url, title="Example", description="Example description")
+    form_data = dict(
+        url=url, title="Example", description="Example description", tags=",".join(tags)
+    )
     if unread:
         form_data["unread"] = "on"
+
     response = signed_in_client.post(
         flask.url_for("quarchive.create_bookmark",), data=form_data
     )
@@ -134,6 +138,7 @@ def test_creating_a_bookmark(test_user, signed_in_client, session, unread):
         == bookmark.updated
         == datetime(2018, 1, 3, tzinfo=timezone.utc)
     )
+    assert bookmark.tags() == tags
 
 
 @pytest.mark.parametrize(

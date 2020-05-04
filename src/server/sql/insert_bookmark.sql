@@ -24,6 +24,7 @@ CREATE OR REPLACE FUNCTION insert_bookmark_v1 (
 ) RETURNS void AS $$
 
 -- Upsert url
+-- FIXME: this requires that all url_uuids are url_uuids
 INSERT INTO urls (url_uuid, scheme, netloc, path, query, fragment)
 VALUES (url_uuid, url_scheme, url_netloc, url_path, url_query, url_fragment)
 ON CONFLICT DO NOTHING;
