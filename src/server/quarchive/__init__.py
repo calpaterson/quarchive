@@ -229,6 +229,7 @@ class Bookmark:
 
     @staticmethod
     def merge_tag_triples(triples_1: TagTriples, triples_2: TagTriples) -> TagTriples:
+        # FIXME: If a tag has not been updated nothing about the tag triple should change
         grouped_by_tag = itertools.groupby(
             sorted(itertools.chain(triples_1, triples_2), key=Bookmark.tag_from_triple),
             key=Bookmark.tag_from_triple,
@@ -948,18 +949,24 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
     )
 
 
+def tag_triples_from_form(form: Mapping[str, str]) -> TagTriples:
+    """Parse a form for tag triples, consulting the hidden "tags" field."""
+    raw_tags = flask.request.form["tags"].strip()
+    now = datetime.utcnow().replace(tzinfo=timezone.utc)
+    if raw_tags != "":
+        tag_triples = frozenset((tag, now, False) for tag in raw_tags.split(","))
+    else:
+        tag_triples = frozenset()
+    log.debug("got tag_triples: %s from raw_tags: %s", tag_triples, raw_tags)
+    return tag_triples
+
+
 @blueprint.route("/bookmark", methods=["POST"])
 @sign_in_required
 def create_bookmark() -> flask.Response:
     form = flask.request.form
     creation_time = datetime.utcnow().replace(tzinfo=timezone.utc)
-    raw_tags = flask.request.form["tags"].strip()
-    if raw_tags != "":
-        tag_triples = frozenset(
-            (tag, creation_time, False) for tag in raw_tags.split(",")
-        )
-    else:
-        tag_triples = frozenset()
+    tag_triples = tag_triples_from_form(form)
     bookmark = Bookmark(
         url=form["url"],
         title=form["title"],
@@ -985,7 +992,6 @@ def create_bookmark() -> flask.Response:
 @observe_redirect_to
 def edit_bookmark(url_uuid: UUID) -> flask.Response:
     form = flask.request.form
-    fields = set(["title", "description", "unread", "deleted"])
     bookmark = get_bookmark_by_url_uuid(
         db.session, get_current_user().user_uuid, url_uuid
     )
@@ -997,6 +1003,7 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
     bookmark_fields["unread"] = "unread" in form
     bookmark_fields["deleted"] = "deleted" in form
     bookmark_fields["updated"] = datetime.utcnow().replace(tzinfo=timezone.utc)
+    bookmark_fields["tag_triples"] = tag_triples_from_form(form)
     final_bookmark = Bookmark(**bookmark_fields)
     set_bookmark(db.session, get_current_user().user_uuid, final_bookmark)
     db.session.commit()

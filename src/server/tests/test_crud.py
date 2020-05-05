@@ -141,7 +141,8 @@ def test_creating_a_bookmark(test_user, signed_in_client, session, unread, tags)
     assert bookmark.tags() == tags
 
 
-mifid2_start_date = datetime(2018, 1, 3)
+jan_1 = datetime(2018, 1, 1, tzinfo=timezone.utc)
+mifid2_start_date = datetime(2018, 1, 3, tzinfo=timezone.utc)
 
 tag_params = [
     pytest.param(
@@ -149,9 +150,17 @@ tag_params = [
         "tags",
         frozenset(),
         "a,b",
-        frozenset([("a", mifid2_start_date, False), ("b", mifid2_start_date, True)]),
-        marks=pytest.mark.xfail,
+        frozenset([("a", mifid2_start_date, False), ("b", mifid2_start_date, False)]),
         id="test adding two tags",
+    ),
+    pytest.param(
+        "tag_triples",
+        "tags",
+        frozenset([("a", jan_1, False), ("b", jan_1, False)]),
+        "a",
+        frozenset([("a", jan_1, False), ("b", mifid2_start_date, True)]),
+        marks=pytest.mark.xfail,
+        id="removing a tag",
     ),
 ]
 
@@ -189,6 +198,7 @@ def test_editing_a_bookmark(
     form_data = {
         "title": bm.title,
         "description": bm.description,
+        "tags": "",
         # "unread": False and "deleted": False are by default
     }
     if form_value is not None:
