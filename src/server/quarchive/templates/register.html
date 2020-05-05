@@ -4,17 +4,35 @@
     <h1>Register</h1>
     <form action="register" method="POST">
       <p>
-        <label>username</label>
-        <input type="text" name="username" required>
+        <label>Username</label>
       </p>
       <p>
-        <label>password</label>
+        <input
+          type="text"
+          name="username"
+          required
+          pattern="^[0-9A-z\-]+"
+          title="Numbers, letters and hyphens"
+          autocomplete="username"
+          >
+      </p>
+      <p>
+        <label>Password</label>
+      </p>
+      <p>
         <input type="password" name="password" required>
       </p>
       <p>
-        <label>email</label>
-        <input type="email" name="email">
+        <label>Email Address</label>
       </p>
-      <button type="submit">Register</button>
+      <p>
+        <input type="email" name="email" autocomplete="email">
+      </p>
+      <p>
+        <small>Optional, but could help if you forget your password</small>
+      </p>
+      <p>
+        <button type="submit">Register</button>
+      </p>
     </form>
 {% endblock %}
