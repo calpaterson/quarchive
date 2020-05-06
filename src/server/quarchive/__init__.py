@@ -224,20 +224,24 @@ class Bookmark:
         return triple[0]
 
     @staticmethod
-    def tag_triple_order_key(triple: TagTriple) -> Tuple[datetime, bool]:
-        return triple[1], not triple[2]
-
-    @staticmethod
     def merge_tag_triples(triples_1: TagTriples, triples_2: TagTriples) -> TagTriples:
-        # FIXME: If a tag has not been updated nothing about the tag triple should change
         grouped_by_tag = itertools.groupby(
             sorted(itertools.chain(triples_1, triples_2), key=Bookmark.tag_from_triple),
             key=Bookmark.tag_from_triple,
         )
-        merged = frozenset(
-            max(group, key=Bookmark.tag_triple_order_key) for _, group in grouped_by_tag
-        )
-        return merged
+        merged: Set[TagTriple] = set()
+        for _, group in grouped_by_tag:
+            list_group = list(group)
+            if len(list_group) == 1:
+                merged.add(list_group[0])
+            else:
+                a, b = list_group
+                if a == b:
+                    merged.add(a)
+                else:
+                    merged.add(min(a, b, key=lambda tt: tt[1]))
+
+        return frozenset(merged)
 
     def to_json(self) -> Mapping:
         return {
@@ -992,22 +996,28 @@ def create_bookmark() -> flask.Response:
 @observe_redirect_to
 def edit_bookmark(url_uuid: UUID) -> flask.Response:
     form = flask.request.form
-    bookmark = get_bookmark_by_url_uuid(
+    existing_bookmark = get_bookmark_by_url_uuid(
         db.session, get_current_user().user_uuid, url_uuid
     )
-    if bookmark is None:
+    if existing_bookmark is None:
         raise exc.NotFound()
-    bookmark_fields = dataclass_as_dict(bookmark)
-    bookmark_fields["title"] = form["title"]
-    bookmark_fields["description"] = form["description"]
-    bookmark_fields["unread"] = "unread" in form
-    bookmark_fields["deleted"] = "deleted" in form
-    bookmark_fields["updated"] = datetime.utcnow().replace(tzinfo=timezone.utc)
-    bookmark_fields["tag_triples"] = tag_triples_from_form(form)
-    final_bookmark = Bookmark(**bookmark_fields)
-    set_bookmark(db.session, get_current_user().user_uuid, final_bookmark)
+
+    updated_bookmark = Bookmark(
+        url=existing_bookmark.url,
+        created=existing_bookmark.created,
+        title=form["title"],
+        description=form["description"],
+        unread="unread" in form,
+        deleted="deleted" in form,
+        updated=datetime.utcnow().replace(tzinfo=timezone.utc),
+        tag_triples=tag_triples_from_form(form),
+    )
+
+    merged_bookmark = updated_bookmark.merge(existing_bookmark)
+
+    set_bookmark(db.session, get_current_user().user_uuid, merged_bookmark)
     db.session.commit()
-    flask.flash("Edited: %s" % bookmark.title)
+    flask.flash("Edited: %s" % merged_bookmark.title)
     return flask.make_response("ok")
 
 
