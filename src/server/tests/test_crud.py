@@ -107,7 +107,7 @@ def test_edit_bookmark_form_simple_get(signed_in_client, session, test_user):
 
 @freeze_time("2018-01-03")
 @pytest.mark.parametrize("unread", [True, False])
-@pytest.mark.parametrize("tags", ([], ["a"]))
+@pytest.mark.parametrize("tags", (frozenset([]), frozenset(["a"])))
 def test_creating_a_bookmark(test_user, signed_in_client, session, unread, tags):
     url = "http://example.com/" + random_string()
     form_data = dict(
