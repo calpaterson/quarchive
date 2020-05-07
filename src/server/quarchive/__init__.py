@@ -235,12 +235,10 @@ class Bookmark:
             if len(list_group) == 1:
                 merged.add(list_group[0])
             else:
-                # FIXME: this isn't considering deletion at all
-                a, b = list_group
-                if a == b:
-                    merged.add(a)
-                else:
-                    merged.add(min(a, b, key=lambda tt: tt[1]))
+                newer, older = sorted(
+                    list_group, key=lambda tt: (tt[1], not tt[2]), reverse=True
+                )
+                merged.add(newer)
 
         return frozenset(merged)
 
