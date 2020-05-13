@@ -57,7 +57,9 @@
         {% else %}
           Tags:
           {% for tag in tags %}
-            <a href="{{ url_for("quarchive.user_tags", username=g.user.username, tag=tag) }}"
+            {# FIXME: Convert to common macro #}
+            <a class="tag-link tag-colour-{{tag_colour(tag)}}"
+               href="{{ url_for("quarchive.user_tags", username=g.user.username, tag=tag) }}"
                >{{ tag }}</a>{% if not loop.last %},{% endif %}
           {% endfor %}
         {% endif %}
@@ -92,7 +94,7 @@
     </fieldset>
 
     <p>
-      <button name="save-bookmark-button" type="submit">Create bookmark</button>
+      <button name="save-bookmark-button" type="submit">Save changes</button>
     </p>
 
     {# Deletion #}

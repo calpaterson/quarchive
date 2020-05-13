@@ -26,6 +26,7 @@ setup(
         "passlib~=1.7.2",
         "bcrypt~=3.1.7",
         "python-magic~=0.4.15",
+        "pyhash~=0.9.3",
     ],
     extras_require={
         "tests": [

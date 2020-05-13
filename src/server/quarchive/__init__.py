@@ -37,6 +37,7 @@ from abc import ABCMeta, abstractmethod
 import cgi
 import secrets
 
+import pyhash
 from passlib.context import CryptContext
 import lxml
 import lxml.html
@@ -932,12 +933,15 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
         flask.abort(404, description="bookmark not found")
 
     # Step one, load the template kwargs from the bookmark
-    template_kwargs: Dict[str, Union[str, bool, UUID, List[str]]] = dict(
+    template_kwargs: Dict[
+        str, Union[str, bool, UUID, List[str], FrozenSet[str]]
+    ] = dict(
         url=bookmark.url,
         title=bookmark.title,
         description=bookmark.description,
         page_title="Edit %s" % bookmark.title,
         url_uuid=url_uuid,
+        tags=bookmark.tags(),
     )
     if bookmark.unread:
         template_kwargs["unread"] = "on"
@@ -1230,6 +1234,16 @@ def sync() -> flask.Response:
         return flask.Response(generator(), mimetype="application/x-ndjson",)
 
 
+@lru_cache(1)
+def get_hasher():
+    return pyhash.fnv1_32()
+
+
+@lru_cache()
+def tag_colour(tag: str) -> int:
+    return get_hasher()(tag) % 5
+
+
 def init_app() -> flask.Flask:
     load_config(env_ini=environ.get("QM_ENV_INI", None))
     app = flask.Flask("quarchive")
@@ -1254,8 +1268,12 @@ def init_app() -> flask.Flask:
     app.register_blueprint(blueprint)
 
     @app.context_processor
-    def context_processor():
+    def urlsplit_cp():
         return {"urlunsplit": urlunsplit}
+
+    @app.context_processor
+    def tag_colour_cp():
+        return {"tag_colour": tag_colour}
 
     @app.template_global(name="modify_query")
     def modify_query(**new_args):

@@ -104,11 +104,11 @@ nav > a {
     font-style: oblique;
 }
 
-.bookmark-details a:link {
+.bookmark-details a.bookmark-meta:link {
     color: inherit;
 }
 
-.bookmark-details a:visited {
+.bookmark-details a.bookmark-meta:visited {
     color: inherit;
 }
 
@@ -142,6 +142,34 @@ textarea, input, button, select {
 
 #register-link {
     font-weight: bold;
+}
+
+a.tag-link {
+    text-decoration: none;
+}
+
+a.tag-colour-0 {
+    color: #AE0057;
+}
+
+a.tag-colour-1 {
+    color: #5700AE;
+}
+
+a.tag-colour-2 {
+    color: #00AEAE;
+}
+
+a.tag-colour-3 {
+    color: #AEAE00;
+}
+
+a.tag-colour-4 {
+    color: #00AE00;
+}
+
+a.tag-colour-5 {
+    color: #AE5700;
 }
 
 @font-face {
