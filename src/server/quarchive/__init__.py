@@ -953,33 +953,48 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
 
 
 def tag_triples_from_form(
-    form: Mapping[str, str], expected: FrozenSet[str]
+    form: Mapping[str, str], current: TagTriples = frozenset()
 ) -> TagTriples:
     """Parse a form for tag triples, consulting the hidden "tags" field and
     considering which tags are expected (if any are missing, they have been
     implicitly deleted)."""
+    current_as_map = {tt[0]: tt for tt in current}
+
     raw_tags = flask.request.form["tags"].strip()
-    now = datetime.utcnow().replace(tzinfo=timezone.utc)
-    if raw_tags != "":
-        triples: Set[TagTriple] = set()
-        present_tag_names = set(raw_tags.split(","))
-        for present_tag_name in present_tag_names:
-            triples.add((present_tag_name, now, False))
-
-        missing_tag_names = expected.difference(present_tag_names)
-        for missing_tag_name in missing_tag_names:
-            triples.add((missing_tag_name, now, True))
-
-        tag_triples = frozenset(triples)
+    form_tags: Set[str]
+    if raw_tags == "":
+        form_tags = set()
+        log.debug("no tags present in form")
     else:
-        tag_triples = frozenset()
+        form_tags = set(raw_tags.split(","))
+
+    now = datetime.utcnow().replace(tzinfo=timezone.utc)
+
+    return_value = set()
+    all_tags = set(current_as_map.keys()).union(set(form_tags))
+    for tag_name in all_tags:
+        if tag_name in current_as_map and tag_name in form_tags:
+            _, dt, deleted = current_as_map[tag_name]
+            if not deleted:
+                # no change
+                return_value.add((tag_name, dt, False))
+            else:
+                # has been undeleted
+                return_value.add((tag_name, now, False))
+        elif tag_name in current_as_map and tag_name not in form_tags:
+            # has been deleted
+            return_value.add((tag_name, now, True))
+        else:  # tag_name not in current_map and tag_name in form_tags:
+            # has been created
+            return_value.add((tag_name, now, False))
+
     log.debug(
-        "got tag_triples: %s from raw_tags: %s (expected: %s)",
-        tag_triples,
+        "calculated tag_triples: %s from raw_tags: %s (current: %s)",
+        return_value,
         raw_tags,
-        expected,
+        current,
     )
-    return tag_triples
+    return frozenset(return_value)
 
 
 @blueprint.route("/bookmark", methods=["POST"])
@@ -987,7 +1002,7 @@ def tag_triples_from_form(
 def create_bookmark() -> flask.Response:
     form = flask.request.form
     creation_time = datetime.utcnow().replace(tzinfo=timezone.utc)
-    tag_triples = tag_triples_from_form(form, expected=frozenset())
+    tag_triples = tag_triples_from_form(form)
     bookmark = Bookmark(
         url=form["url"],
         title=form["title"],
@@ -1027,7 +1042,7 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
         unread="unread" in form,
         deleted="deleted" in form,
         updated=datetime.utcnow().replace(tzinfo=timezone.utc),
-        tag_triples=tag_triples_from_form(form, expected=existing_bookmark.tags()),
+        tag_triples=tag_triples_from_form(form, current=existing_bookmark.tag_triples),
     )
 
     merged_bookmark = updated_bookmark.merge(existing_bookmark)

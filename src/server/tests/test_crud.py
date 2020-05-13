@@ -159,7 +159,6 @@ tag_params = [
         frozenset([("a", jan_1, False), ("b", jan_1, False)]),
         "a",
         frozenset([("a", jan_1, False), ("b", mifid2_start_date, True)]),
-        marks=pytest.mark.xfail,
         id="removing a tag",
     ),
 ]
