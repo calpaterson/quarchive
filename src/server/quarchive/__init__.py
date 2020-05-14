@@ -1271,9 +1271,9 @@ def init_app() -> flask.Flask:
     def urlsplit_cp():
         return {"urlunsplit": urlunsplit}
 
-    @app.context_processor
-    def tag_colour_cp():
-        return {"tag_colour": tag_colour}
+    @app.template_global(name="tag_colour")
+    def tag_colour_template_function(tag: str) -> int:
+        return tag_colour(tag)
 
     @app.template_global(name="modify_query")
     def modify_query(**new_args):

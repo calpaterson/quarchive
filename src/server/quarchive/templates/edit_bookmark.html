@@ -1,5 +1,8 @@
 {# -*- mode: jinja2 -*- #}
 {% extends "base.html" %}
+
+{% import 'macros.j2' as macros %}
+
 {% block main %}
   <form
     id="edit-bookmark-form"
@@ -56,11 +59,8 @@
           (no tags set)
         {% else %}
           Tags:
-          {% for tag in tags %}
-            {# FIXME: Convert to common macro #}
-            <a class="tag-link tag-colour-{{tag_colour(tag)}}"
-               href="{{ url_for("quarchive.user_tags", username=g.user.username, tag=tag) }}"
-               >{{ tag }}</a>{% if not loop.last %},{% endif %}
+          {% for tag in tags|sort %}
+            {{ macros.render_tag(g.user, tag) }}{% if not loop.last %},{% endif %}
           {% endfor %}
         {% endif %}
       </p>

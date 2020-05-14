@@ -1,5 +1,8 @@
 {# -*- mode: jinja2 -*- #}
 {% extends "base.html" %}
+
+{% import 'macros.j2' as macros %}ag
+
 {% block main %}
   <form
     id="create-bookmark-form"
@@ -50,8 +53,7 @@
       {% else %}
         Tags:
         {% for tag in tags %}
-          <a href="{{ url_for("quarchive.user_tags", username=g.user.username, tag=tag) }}"
-             >{{ tag }}</a>{% if not loop.last %},{% endif %}
+          {{ macros.render_tag(g.user, tag) }}{% if not loop.last %},{% endif %}
         {% endfor %}
       {% endif %}
     </p>

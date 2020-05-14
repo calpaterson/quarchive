@@ -1,5 +1,8 @@
 {# -*- mode: jinja2 -*- #}
 {% extends "base.html" %}
+
+{% import 'macros.j2' as macros %}
+
 {% block main %}
   <h1>Bookmarks</h1>
 
@@ -81,10 +84,7 @@
       <em>at <span title="{{bookmark.created}}">{{bookmark.created|timeformat('h:mm a')}}</span></em> {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
       <a class="bookmark-meta" href="{{ url_for('quarchive.edit_bookmark', url_uuid=url.url_uuid) }}">edit</a>
       <a class="bookmark-meta" href="{{ url_for('quarchive.view_url', url_uuid=url.url_uuid) }}">url metadata</a>
-      {% for tag in bookmark.tags()|sort %}
-        <a class="tag-link tag-colour-{{ tag_colour(tag) }}"
-           href="{{ url_for('quarchive.user_tags', username=g.user.username, tag=tag) }}"
-           >{{ tag }}</a>{% if not loop.last %},{% endif %}
+      {% for tag in bookmark.tags()|sort %}{{ macros.render_tag(g.user, tag) }}{% if not loop.last %},{% endif %}
       {% endfor %}
     </p>
   </div>
