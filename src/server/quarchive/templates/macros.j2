@@ -1,5 +1,5 @@
 {# -*- mode: jinja2 -*- #}
 {% macro render_tag(user, tag) %}
 <a class="tag-link tag-colour-{{ tag_colour(tag) }}"
-   href="{{ url_for('quarchive.user_tags', username=g.user.username, tag=tag) }}"
+   href="{{ url_for('quarchive.user_tags', username=user.username, tag=tag) }}"
    >{{ tag }}</a>{% endmacro %}
