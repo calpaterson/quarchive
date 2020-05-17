@@ -19,11 +19,7 @@
              ><img id="nav-logo" src="{{ url_for('static', filename='icons/quarchive-192px.png') }}"
              ></a>
              <span class="nav-links">
-               {% if request.endpoint == 'quarchive.index' %}
-                 <a href="{{ url_for('quarchive.index') }}">QuArchive</a>
-               {% else %}
-                 <a href="{{ url_for('quarchive.index') }}">Home</a>
-               {% endif %}
+               <a href="{{ url_for('quarchive.index') }}">My bookmarks</a>
                <a href="{{ url_for('quarchive.create_bookmark_form') }}">Create</a>
                <a href="{{ url_for('quarchive.about') }}">About</a>
              </span>
