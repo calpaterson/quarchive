@@ -204,7 +204,9 @@ def test_logging_for_bug_6(client, caplog, session, test_user):
         assert expected_message in messages
 
 
-def test_syncing_with_an_extension_that_doesnt_know_about_tags(client, session, test_user):
+def test_syncing_with_an_extension_that_doesnt_know_about_tags(
+    client, session, test_user
+):
     """This test checks that syncs from extensions that don't know about tags
     don't clober existing tags."""
     url = "http://example/com/1"
