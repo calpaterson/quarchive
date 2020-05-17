@@ -7,7 +7,14 @@
         <label>Username</label>
       </p>
       <p>
-        <input type="text" name="username" required autocomplete="username">
+        <input
+          type="text"
+          name="username"
+          required
+          autocomplete="username"
+          pattern="^[0-9A-z\-]+$"
+          title="Numbers, letters and hyphens"
+          >
       </p>
       <p>
         <label>Password</label>
