@@ -1,3 +1,4 @@
+from dataclasses import asdict as dataclass_as_dict
 from datetime import datetime, timedelta, timezone
 from typing import Sequence
 import json
@@ -201,3 +202,22 @@ def test_logging_for_bug_6(client, caplog, session, test_user):
         )
 
         assert expected_message in messages
+
+
+def test_syncing_with_an_extension_that_doesnt_know_about_tags(client, session, test_user):
+    """This test checks that syncs from extensions that don't know about tags
+    don't clober existing tags."""
+    url = "http://example/com/1"
+    bm_1 = make_bookmark(url=url, title="Example 1")
+
+    initial_sync = post_bookmarks(client, test_user, [bm_1])
+    assert initial_sync.status_code == 200
+
+    bm_1_no_tags_kwargs = dataclass_as_dict(bm_1)
+    bm_1_no_tags_kwargs["tag_triples"] = []
+    bm_1_no_tags = sut.Bookmark(**bm_1_no_tags_kwargs)
+    second_sync = post_bookmarks(client, test_user, [bm_1_no_tags])
+    assert second_sync.status_code == 200
+
+    end_state = sut.get_bookmark_by_url(session, test_user.user_uuid, url)
+    assert end_state == bm_1
