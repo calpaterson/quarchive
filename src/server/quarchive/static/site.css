@@ -21,10 +21,6 @@ body {
     margin-right: auto;
 }
 
-h2 {
-    text-decoration: underline;
-}
-
 a:link {
     color: var(--fresh);
 }
@@ -66,32 +62,41 @@ nav > a {
     color: inherit;
 }
 
+#search-form {
+    width: 80%;
+}
+
 #search-box {
-    width: 30em;
     height: 2em;
 }
 
 .pagination {
     margin-top: 1em;
     margin-bottom: 1em;
-    font-size: x-large;
+    font-size: larger;
 }
 
 .pagination a:visited {
     color: var(--fresh);
 }
 
+p.bookmark-date {
+    margin-bottom: 0.5em;
+    font-size: larger;
+}
+
 .bookmark {
-    margin-top: 1.5em;
-    margin-bottom: 1.5em;
+    margin-bottom: 1em;
 }
 
 .bookmark-url {
+    margin-top: 0;
     margin-bottom: 0;
 }
 
 .bookmark-details {
     margin-top: 0;
+    margin-bottom: 0;
 }
 
 .bookmark blockquote {

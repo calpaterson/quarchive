@@ -23,10 +23,10 @@
 
   <div class="bookmarks">
     {% for url, bookmark in bookmarks %}
-      {% if loop.first %}
-        <h2>{{bookmark.created.date()|dateformat('full')}}</h2>
-      {% elif loop.previtem[1].created.date() != bookmark.created.date() %}
-        <h2>{{bookmark.created.date()|dateformat('full')}}</h2>
+      {% if loop.first or loop.previtem[1].created.date() != bookmark.created.date()  %}
+        <p class="bookmark-date">
+          <span>{{bookmark.created.date()|dateformat('full')}}</span>
+        </p>
       {% endif %}
       {{ render_bookmark(url, bookmark) }}
     {% endfor %}
