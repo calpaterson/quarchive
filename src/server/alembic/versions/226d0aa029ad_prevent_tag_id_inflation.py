@@ -1,10 +1,28 @@
+"""Prevent tag_id inflation
+
+Revision ID: 226d0aa029ad
+Revises: d377220a4f4d
+Create Date: 2020-05-18 16:10:16.328175
+
+"""
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision = "226d0aa029ad"
+down_revision = "d377220a4f4d"
+branch_labels = None
+depends_on = None
+
+FUNCTION_SQL = """
 -- Insert a single bookmark
 --
 -- This is done as a "SQL" language query instead of via ORM-generated
 -- statements or driver-level ah doc statements because it's idiomatic to do it
 -- in SQL and avoids sending a bunch of data back and forth in several round
 -- trips.
-CREATE FUNCTION insert_bookmark_v1 (
+CREATE OR REPLACE FUNCTION insert_bookmark_v1 (
        url_uuid UUID,
        url_scheme TEXT,
        url_netloc TEXT,
@@ -74,3 +92,13 @@ updated = excluded.updated
 ;
 
 $$ LANGUAGE SQL;
+
+"""
+
+
+def upgrade():
+    op.execute(FUNCTION_SQL)
+
+
+def downgrade():
+    raise NotImplementedError()
