@@ -1,0 +1,52 @@
+---
+
+- question: Is this website open source?
+  answer: Yes, you can get the source code <a href="https://github.com/calpaterson/quarchive">on github</a>.
+  section: General
+  slug: open-source
+
+- question: I have an idea!  Or, alternatively I have found a bug.
+  answer: Great!  Please send me <a href="mailto:cal@calpaterson.com">an email</a>!
+  section: General
+  slug: bugs
+
+- question: When I add tags to my bookmarks in Firefox they aren't synced with Quarchive - why not?
+  answer: |
+    Sadly Firefox currently does not expose this data to extensions.  This
+    problem is tracked as <a
+    href="https://bugzilla.mozilla.org/show_bug.cgi?id=1225916">Firefox bug
+    1225916</a>.
+  section: Tags
+  slug: bookmark-local-tags
+
+- question: Can other users see my bookmarks?
+  answer: |
+    No, your data is completely private.  Other users cannot see your
+    bookmarks, your tags, your username, or anything else.
+  section: User data
+  slug: share-my-data
+
+- question: Can I export my data?
+  answer: |
+    Not yet, but this is definitely planned.  Of course, all bookmark data
+    except for tags also resides in your local browser.  (Tags are also present
+    internally in the extension but are not user accessible.)
+  section: User data
+  slug: data-export
+
+- question: How can I reset my password?
+  answer: This is currently a manual process - please email cal@calpaterson.com
+  section: Account
+  slug: password-reset
+
+- question: Can I change my username?
+  answer: This is a manual process too - again, please email cal@calpaterson.com
+  section: Account
+  slug: change-username
+
+- question: Do I have to enter an email address when I register?
+  answer: |
+    No this is completely optional.  In the future it will be used to make
+    password reset a self-serve process.
+  section: Account
+  slug: is-email-required

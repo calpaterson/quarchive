@@ -9,6 +9,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
+        "PyYaml~=5.3.1",
         "flask-sqlalchemy~=2.4.1",
         "flask~=1.1.1",
         "flask-cors~=3.0.8",

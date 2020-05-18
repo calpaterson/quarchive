@@ -1,0 +1,32 @@
+{# -*- mode: jinja2 -*- #}
+{% extends "base.html" %}
+{% block main %}
+    <h1>Frequently asked questions</h1>
+
+    <h2>Table of contents</h2>
+    <ul>
+      {% for entry in faq %}
+        {% if loop.first or loop.previtem.section != entry.section %}
+          <li>{{ entry.section }}
+            <ul>
+        {% endif %}
+
+        <li><a href="#faq-{{entry.slug}}">{{entry.question}}</a></li>
+
+        {% if loop.last or loop.nextitem.section != entry.section %}
+            </ul>
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+
+
+    {% for entry in faq %}
+      {% if loop.first or loop.previtem.section != entry.section %}
+        <h2 id="faq-section-{{ entry.section }}">{{ entry.section }}</h2>
+      {% endif %}
+      <h3 id="faq-{{entry.slug}}">{{ entry.question }}</h3>
+      <p>{{ entry.answer|safe }}</p>
+    {% endfor %}
+
+{% endblock %}

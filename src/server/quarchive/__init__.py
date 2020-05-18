@@ -37,6 +37,7 @@ from abc import ABCMeta, abstractmethod
 import cgi
 import secrets
 
+import yaml
 import pyhash
 from passlib.context import CryptContext
 import lxml
@@ -1188,6 +1189,15 @@ def user_page(username: str) -> flask.Response:
 @blueprint.route("/user/<username>/tag/<tag>")
 def user_tags(username: str, tag: str) -> flask.Response:
     raise NotImplementedError()
+
+
+@blueprint.route("/faq")
+def faq() -> flask.Response:
+    here = path.dirname(path.realpath(__file__))
+    with open(path.join(here, "faq.yaml")) as faq_f:
+        faq = yaml.safe_load(faq_f)
+
+    return flask.make_response(flask.render_template("faq.html", faq=faq))
 
 
 @blueprint.route("/ok")
