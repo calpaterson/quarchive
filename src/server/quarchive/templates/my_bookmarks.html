@@ -28,7 +28,7 @@
           <span>{{bookmark.created.date()|dateformat('full')}}</span>
         </p>
       {% endif %}
-      {{ macros.render_bookmark(g.user, url, bookmark) }}
+      {{ macros.render_bookmark(g.user, bookmark) }}
     {% endfor %}
   </div>
 

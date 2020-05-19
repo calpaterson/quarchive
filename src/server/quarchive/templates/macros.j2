@@ -4,10 +4,11 @@
    href="{{ url_for('quarchive.user_tags', username=user.username, tag=tag) }}"
    >{{ tag }}</a>{% endmacro %}
 
-{% macro render_bookmark(user, url, bookmark) -%}
+{% macro render_bookmark(user, bookmark) -%}
+  {% set url = bookmark.get_url() %}
   <div class="bookmark">
     <p class="bookmark-url">
-      <a href="{{url.to_url()}}">{{bookmark.title}}</a>
+      <a href="{{bookmark.url}}">{{bookmark.title}}</a>
       <a
         class="netloc"
         href="{{ url_for('quarchive.view_netloc', netloc=url.netloc) }}"

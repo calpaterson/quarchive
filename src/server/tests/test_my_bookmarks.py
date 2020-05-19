@@ -18,7 +18,7 @@ import quarchive as sut
 pytestmark = pytest.mark.web
 
 
-def get_bookmark_urls(response) -> List[str]:
+def get_bookmark_titles(response) -> List[str]:
     html_parser = etree.HTMLParser()
     root = etree.fromstring(response.get_data(), html_parser)
     # Perhaps there should be a class used in the html for this
@@ -73,7 +73,7 @@ def test_my_bookmarks_excludes_bookmarks_from_others(client, session):
     response = client.get("/")
     assert response.status_code == 200
 
-    assert get_bookmark_urls(response) == ["Example 2"]
+    assert get_bookmark_titles(response) == ["Example 2"]
 
 
 def test_my_bookmarks_paging(app, signed_in_client, session, test_user):
@@ -124,12 +124,12 @@ def test_my_bookmarks_search(
     sync_bookmarks(signed_in_client, test_user, [bm1, bm2])
 
     normal_response = signed_in_client.get(flask.url_for("quarchive.my_bookmarks"))
-    assert len(get_bookmark_urls(normal_response)) == 2
+    assert len(get_bookmark_titles(normal_response)) == 2
 
     search_response = signed_in_client.get(
         flask.url_for("quarchive.my_bookmarks", q=search_str)
     )
-    assert len(get_bookmark_urls(search_response)) == result_count
+    assert len(get_bookmark_titles(search_response)) == result_count
 
 
 def make_fulltext_indexed_bookmark(
@@ -177,7 +177,7 @@ def test_full_text_search(app, signed_in_client, session, test_user):
     search_response = signed_in_client.get(
         flask.url_for("quarchive.my_bookmarks", q="wookies")
     )
-    returned_bookmarks = get_bookmark_urls(search_response)
+    returned_bookmarks = get_bookmark_titles(search_response)
     assert returned_bookmarks == ["star wars"]
 
 

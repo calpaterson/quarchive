@@ -151,6 +151,12 @@ class URL:
         )
 
     @classmethod
+    def from_string(self, url_str: str) -> "URL":
+        s, n, p, q, f = urlsplit(url_str)
+        url_uuid = create_url_uuid(url_str)
+        return URL(url_uuid, s, n, p, q, f)
+
+    @classmethod
     def from_sqla_url(cls, sql_url: "SQLAUrl") -> "URL":
         # sqlalchemy-stubs can't figure this out
         url_uuid = cast(UUID, sql_url.url_uuid)
@@ -182,6 +188,9 @@ class Bookmark:
     deleted: bool
 
     tag_triples: TagTriples
+
+    def get_url(self) -> URL:
+        return URL.from_string(self.url)
 
     def tags(self) -> FrozenSet[str]:
         return frozenset(tt[0] for tt in self.tag_triples)
@@ -327,6 +336,11 @@ class SQLAUrl(Base):
     path = Column(satypes.String, nullable=False, index=True, primary_key=True)
     query = Column(satypes.String, nullable=False, index=True, primary_key=True)
     fragment = Column(satypes.String, nullable=False, index=True, primary_key=True)
+
+    def to_url_string(self) -> str:
+        return urlunsplit(
+            [self.scheme, self.netloc, self.path, self.query, self.fragment]
+        )
 
 
 class SQLABookmark(Base):
@@ -712,6 +726,21 @@ def all_bookmarks(session, user_uuid: UUID) -> Iterable[Bookmark]:
             ]
         )
         yield bookmark_from_sqla(url, sqla_bookmark)
+
+
+def bookmarks_with_tag(session, user: User, tag: str) -> Iterable[Bookmark]:
+    query = (
+        session.query(SQLAUrl, SQLABookmark)
+        .join(SQLABookmark)
+        .join(BookmarkTag)
+        .join(Tag)
+        .filter(SQLABookmark.user_uuid == user.user_uuid)
+        .filter(~SQLABookmark.deleted)
+        .filter(Tag.tag_name == tag)
+        .order_by(SQLABookmark.created.desc())
+    )
+    for sqla_url, sqla_bookmark in query:
+        yield bookmark_from_sqla(sqla_url.to_url_string(), sqla_bookmark)
 
 
 # fmt: off
@@ -1187,8 +1216,18 @@ def user_page(username: str) -> flask.Response:
 
 
 @blueprint.route("/user/<username>/tag/<tag>")
+@sign_in_required
 def user_tags(username: str, tag: str) -> flask.Response:
-    raise NotImplementedError()
+    user = get_current_user()
+    bookmarks = bookmarks_with_tag(db.session, user, tag)
+    return flask.make_response(
+        flask.render_template(
+            "user_tags.html",
+            bookmarks=bookmarks,
+            tag=tag,
+            page_title="Tagged as '%s'" % tag,
+        )
+    )
 
 
 @blueprint.route("/faq")
