@@ -743,6 +743,25 @@ def bookmarks_with_tag(session, user: User, tag: str) -> Iterable[Bookmark]:
         yield bookmark_from_sqla(sqla_url.to_url_string(), sqla_bookmark)
 
 
+def tags_with_count(session, user: User) -> Iterable[Tuple[str, int]]:
+    query = (
+        session.query(Tag.tag_name, func.count(Tag.tag_name))
+        .join(BookmarkTag)
+        .join(
+            SQLABookmark,
+            and_(
+                SQLABookmark.user_uuid == BookmarkTag.user_uuid,
+                SQLABookmark.url_uuid == BookmarkTag.url_uuid,
+            ),
+        )
+        .filter(BookmarkTag.user_uuid == user.user_uuid)
+        .filter(~SQLABookmark.deleted)
+        .group_by(Tag.tag_name)
+        .order_by(func.count(Tag.tag_name).desc())
+    )
+    yield from query
+
+
 # fmt: off
 # # Web layer
 ...
@@ -941,10 +960,9 @@ def form_fields_from_querystring(
 @blueprint.route("/create-bookmark")
 @sign_in_required
 def create_bookmark_form() -> flask.Response:
-    template_kwargs: Dict[str, Union[str, List[str]]] = {
-        "page_title": "Create bookmark"
-    }
+    template_kwargs: Dict[str, Any] = {"page_title": "Create bookmark"}
     template_kwargs.update(form_fields_from_querystring(flask.request.args))
+    template_kwargs["tags_with_count"] = tags_with_count(db.session, get_current_user())
 
     return flask.make_response(
         flask.render_template("create_bookmark.html", **template_kwargs)
@@ -963,9 +981,7 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
         flask.abort(404, description="bookmark not found")
 
     # Step one, load the template kwargs from the bookmark
-    template_kwargs: Dict[
-        str, Union[str, bool, UUID, List[str], FrozenSet[str]]
-    ] = dict(
+    template_kwargs: Dict[str, Any] = dict(
         url=bookmark.url,
         title=bookmark.title,
         description=bookmark.description,
@@ -979,6 +995,7 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
     # Then update it from the querystring
     template_kwargs.update(form_fields_from_querystring(flask.request.args))
 
+    template_kwargs["tags_with_count"] = tags_with_count(db.session, get_current_user())
     template_kwargs["deleted"] = bookmark.deleted
 
     return flask.make_response(
@@ -1215,18 +1232,30 @@ def user_page(username: str) -> flask.Response:
     )
 
 
-@blueprint.route("/user/<username>/tag/<tag>")
+@blueprint.route("/user/<username>/tags/<tag>")
 @sign_in_required
-def user_tags(username: str, tag: str) -> flask.Response:
+def user_tag(username: str, tag: str) -> flask.Response:
     user = get_current_user()
     bookmarks = bookmarks_with_tag(db.session, user, tag)
     return flask.make_response(
         flask.render_template(
-            "user_tags.html",
+            "user_tag.html",
             bookmarks=bookmarks,
             tag=tag,
             page_title="Tagged as '%s'" % tag,
         )
+    )
+
+
+@blueprint.route("/user/<username>/tags")
+@sign_in_required
+def user_tags(username: str) -> flask.Response:
+    user = get_current_user()
+    tag_counts = tags_with_count(db.session, user)
+    tt1 = list(tag_counts)
+    print(tt1)
+    return flask.make_response(
+        flask.render_template("user_tags.html", tag_counts=tt1, page_title="My tags")
     )
 
 

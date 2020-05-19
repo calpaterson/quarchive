@@ -70,17 +70,16 @@
           id="add-tag"
           name="add-tag"
           type="text"
-          {# list="user-tags" #}
+          list="user-tags"
           pattern="^[a-z\-]+$"
           title="Lowercase letters and hypens"
           >
 
-          {# TODO: Use this datalist #}
-          {# <datalist id="user-tags"> #}
-          {#   {% for tag in user_tags %} #}
-          {#     <option value="{{ tag }}"> #}
-          {#   {% endfor %} #}
-          {# </datalist> #}
+          <datalist id="user-tags">
+            {% for tag, _ in tags_with_count %}
+              <option value="{{ tag }}">
+            {% endfor %}
+          </datalist>
 
           <button
             form="edit-bookmark-form"

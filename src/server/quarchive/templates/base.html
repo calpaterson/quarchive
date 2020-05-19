@@ -19,10 +19,15 @@
              ><img id="nav-logo" src="{{ url_for('static', filename='icons/quarchive-192px.png') }}"
              ></a>
              <span class="nav-links">
-               <a href="{{ url_for('quarchive.my_bookmarks') }}">My bookmarks</a>
-               <a href="{{ url_for('quarchive.create_bookmark_form') }}">Create</a>
-               <a href="{{ url_for('quarchive.faq') }}">FAQ</a>
-               <a href="{{ url_for('quarchive.about') }}">About</a>
+               {% if g.user %}
+                 <a href="{{ url_for('quarchive.my_bookmarks') }}">My bookmarks</a>
+                 <a href="{{ url_for('quarchive.user_tags', username=g.user.username) }}">My tags</a>
+                 <a href="{{ url_for('quarchive.create_bookmark_form') }}">Create</a>
+                 <a href="{{ url_for('quarchive.faq') }}">FAQ</a>
+                 <a href="{{ url_for('quarchive.about') }}">About</a>
+               {% else %}
+                 <a href="{{ url_for('quarchive.about') }}">About Quarchive</a>
+               {% endif %}
              </span>
 
              <span class="nav-links nav-links-right">

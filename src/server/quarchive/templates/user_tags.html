@@ -4,17 +4,11 @@
 {% import 'macros.j2' as macros %}
 
 {% block main %}
-  <h1>Tagged as '{{ tag }}'</h1>
-
-  <div class="bookmarks">
-    {% for bookmark in bookmarks %}
-      {% if loop.first or loop.previtem.created.date() != bookmark.created.date()  %}
-        <p class="bookmark-date">
-          <span>{{bookmark.created.date()|dateformat('full')}}</span>
-        </p>
-      {% endif %}
-      {{ macros.render_bookmark(g.user, bookmark) }}
-    {% endfor %}
-  </div>
+  <h1>My tags</h1>
+  <ul>
+    {% for tag, count in tag_counts %}
+    <li>{{macros.render_tag(g.user, tag)}} ({{count}})</li>
+  {% endfor %}
+  </ul>
 
 {% endblock %}
