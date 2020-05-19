@@ -15,11 +15,11 @@
     </head>
     <body>
         <nav>
-          <a href="{{ url_for('quarchive.index') }}"
+          <a href="{{ url_for('quarchive.my_bookmarks') }}"
              ><img id="nav-logo" src="{{ url_for('static', filename='icons/quarchive-192px.png') }}"
              ></a>
              <span class="nav-links">
-               <a href="{{ url_for('quarchive.index') }}">My bookmarks</a>
+               <a href="{{ url_for('quarchive.my_bookmarks') }}">My bookmarks</a>
                <a href="{{ url_for('quarchive.create_bookmark_form') }}">Create</a>
                <a href="{{ url_for('quarchive.faq') }}">FAQ</a>
                <a href="{{ url_for('quarchive.about') }}">About</a>

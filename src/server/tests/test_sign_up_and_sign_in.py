@@ -17,7 +17,7 @@ def test_registration_no_email(client, session):
     )
     assert response.status_code == 303
     assert response.headers["Location"] == flask.url_for(
-        "quarchive.index", _external=True
+        "quarchive.my_bookmarks", _external=True
     )
 
     user = session.query(sut.SQLUser).filter(sut.SQLUser.username == username).one()
@@ -38,7 +38,7 @@ def test_registration_with_email(client, session):
     )
     assert response.status_code == 303
     assert response.headers["Location"] == flask.url_for(
-        "quarchive.index", _external=True
+        "quarchive.my_bookmarks", _external=True
     )
     user = session.query(sut.SQLUser).filter(sut.SQLUser.username == username).one()
     assert user.username == username

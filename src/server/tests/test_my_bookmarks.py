@@ -123,11 +123,11 @@ def test_index_search(
 
     sync_bookmarks(signed_in_client, test_user, [bm1, bm2])
 
-    normal_response = signed_in_client.get(flask.url_for("quarchive.index"))
+    normal_response = signed_in_client.get(flask.url_for("quarchive.my_bookmarks"))
     assert len(get_bookmark_urls(normal_response)) == 2
 
     search_response = signed_in_client.get(
-        flask.url_for("quarchive.index", q=search_str)
+        flask.url_for("quarchive.my_bookmarks", q=search_str)
     )
     assert len(get_bookmark_urls(search_response)) == result_count
 
@@ -175,7 +175,7 @@ def test_full_text_search(app, signed_in_client, session, test_user):
     session.commit()
 
     search_response = signed_in_client.get(
-        flask.url_for("quarchive.index", q="wookies")
+        flask.url_for("quarchive.my_bookmarks", q="wookies")
     )
     returned_bookmarks = get_bookmark_urls(search_response)
     assert returned_bookmarks == ["star wars"]
@@ -185,7 +185,7 @@ def test_full_text_search_with_quotes(app, signed_in_client, test_user):
     search_term = '"roger kimball"'
 
     search_response = signed_in_client.get(
-        flask.url_for("quarchive.index", q=search_term)
+        flask.url_for("quarchive.my_bookmarks", q=search_term)
     )
 
     html_parser = etree.HTMLParser()

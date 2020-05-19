@@ -808,7 +808,7 @@ def about() -> flask.Response:
 
 @blueprint.route("/")
 @sign_in_required
-def index() -> Tuple[flask.Response, int]:
+def my_bookmarks() -> Tuple[flask.Response, int]:
     # FIXME: This viewfunc really needs to get split up and work via the data
     # layer to get what it wants.
     page_size = flask.current_app.config["PAGE_SIZE"]
@@ -862,7 +862,7 @@ def index() -> Tuple[flask.Response, int]:
         bookmarks.append((url, bookmark_from_sqla(url.to_url(), sqla_obj)))
     return flask.make_response(
         flask.render_template(
-            "index.html",
+            "my_bookmarks.html",
             page_title=page_title,
             bookmarks=bookmarks,
             page=page,
@@ -1122,7 +1122,7 @@ def register() -> flask.Response:
 
         db.session.commit()
         response = flask.make_response("Redirecting...", 303)
-        response.headers["Location"] = flask.url_for("quarchive.index")
+        response.headers["Location"] = flask.url_for("quarchive.my_bookmarks")
         log.info("created user: %s", username)
         flask.session["user_uuid"] = user_uuid
         return response
