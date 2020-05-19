@@ -7,12 +7,15 @@
 {% macro render_bookmark(user, bookmark) -%}
   {% set url = bookmark.get_url() %}
   <div class="bookmark">
-    <p class="bookmark-url">
+    <p class="bookmark-link">
       <a href="{{bookmark.url}}">{{bookmark.title}}</a>
       <a
         class="netloc"
         href="{{ url_for('quarchive.view_netloc', netloc=url.netloc) }}"
         >{{ url.netloc }}</a>
+    </p>
+    <p class="bookmark-url">
+      <a href="{{bookmark.url}}">{{bookmark.url}}</a>
     </p>
     {% if bookmark.description|length > 0 %}
       <blockquote class="bookmark-description">
@@ -22,7 +25,8 @@
     <p class="bookmark-details">
       <em>at <span title="{{bookmark.created}}">{{bookmark.created|timeformat('h:mm a')}}</span></em> {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
       <a class="bookmark-meta" href="{{ url_for('quarchive.edit_bookmark', url_uuid=url.url_uuid) }}">edit</a>
-      <a class="bookmark-meta" href="{{ url_for('quarchive.view_url', url_uuid=url.url_uuid) }}">url metadata</a>
+      {# FIXME: Removed for now as it is useless #}
+      {# <a class="bookmark-meta" href="{{ url_for('quarchive.view_url', url_uuid=url.url_uuid) }}">url metadata</a> #}
       {% for tag in bookmark.tags()|sort %}{{ render_tag(user, tag) }}{% if not loop.last %},{% endif %}
       {% endfor %}
     </p>

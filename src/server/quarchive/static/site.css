@@ -89,10 +89,28 @@ p.bookmark-date {
     margin-bottom: 1em;
 }
 
-.bookmark-url {
+.bookmark-link {
     margin-top: 0;
     margin-bottom: 0;
 }
+
+.bookmark-url {
+    margin-top: 0;
+    margin-bottom: 0;
+    font-size: small;
+}
+
+.bookmark-url > a {
+    margin-top: 0;
+    margin-bottom: 0;
+    color: green;
+    text-decoration: none;
+}
+
+.bookmark-url > a:visited {
+    color: green;
+}
+
 
 .bookmark-details {
     margin-top: 0;
