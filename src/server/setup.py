@@ -31,6 +31,7 @@ setup(
     ],
     extras_require={
         "tests": [
+            "pytest-xdist~=1.32.0",
             "pytest-env~=0.6.2",
             "pytest~=5.3.1",
             "pytest-flask~=0.15.0",
