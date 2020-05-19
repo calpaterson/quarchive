@@ -26,13 +26,13 @@ def get_bookmark_urls(response) -> List[str]:
     return [b.text for b in bookmarks]
 
 
-def test_unsigned_in_index(client):
+def test_not_signed_in_my_bookmarks(client):
     response = client.get("/")
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/sign-in")
 
 
-def test_index(signed_in_client, test_user):
+def test_my_bookmarks(signed_in_client, test_user):
     bm = make_bookmark()
 
     sync_bookmarks(signed_in_client, test_user, [bm])
@@ -46,7 +46,7 @@ def test_index(signed_in_client, test_user):
     assert bookmark is not None
 
 
-def test_index_excludes_deleted_bookmarks(signed_in_client, session, test_user):
+def test_my_bookmarks_excludes_deleted_bookmarks(signed_in_client, session, test_user):
     bm = make_bookmark(deleted=True)
 
     sync_bookmarks(signed_in_client, test_user, [bm])
@@ -60,7 +60,7 @@ def test_index_excludes_deleted_bookmarks(signed_in_client, session, test_user):
     assert len(bookmarks) == 0
 
 
-def test_index_excludes_bookmarks_from_others(client, session):
+def test_my_bookmarks_excludes_bookmarks_from_others(client, session):
     bm1 = make_bookmark(title="Example 1")
     user1 = register_user(session, client, "test_user1" + random_string())
     sync_bookmarks(client, user1, [bm1])
@@ -76,7 +76,7 @@ def test_index_excludes_bookmarks_from_others(client, session):
     assert get_bookmark_urls(response) == ["Example 2"]
 
 
-def test_index_paging(app, signed_in_client, session, test_user):
+def test_my_bookmarks_paging(app, signed_in_client, session, test_user):
     page_size = app.config["PAGE_SIZE"]
 
     bms = (
@@ -115,7 +115,7 @@ def test_index_paging(app, signed_in_client, session, test_user):
     "title,search_str,result_count",
     [("Test", "test", 1), ("Star wars", "star", 1), ("Star wars", "star trek", 0),],
 )
-def test_index_search(
+def test_my_bookmarks_search(
     app, signed_in_client, session, test_user, title, search_str, result_count
 ):
     bm1 = make_bookmark()
