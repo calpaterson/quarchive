@@ -192,8 +192,9 @@ class Bookmark:
     def get_url(self) -> URL:
         return URL.from_string(self.url)
 
-    def tags(self) -> FrozenSet[str]:
-        return frozenset(tt[0] for tt in self.tag_triples)
+    def current_tags(self) -> FrozenSet[str]:
+        """Returns all current tags of the bookmark"""
+        return frozenset(tt[0] for tt in self.tag_triples if not tt[2])
 
     def merge(self, other: "Bookmark") -> "Bookmark":
         more_recent: "Bookmark" = sorted(
@@ -940,16 +941,20 @@ def form_fields_from_querystring(
 
     raw_tags: str = querystring.get("tags", "").strip()
     add_tag: Optional[str] = querystring.get("add-tag", "").strip() or None
+    remove_tag: Optional[str] = querystring.get("remove-tag", "").strip() or None
     if raw_tags != "" or add_tag is not None:
-        tags: List[str]
+        tags: Set[str]
         if raw_tags == "":
-            tags = []
+            tags = set()
         else:
-            tags = raw_tags.split(",")
+            tags = set(raw_tags.split(","))
 
         if add_tag is not None:
-            tags.append(add_tag)
-        form_fields["tags"] = tags
+            tags.add(add_tag)
+
+        if remove_tag is not None:
+            tags.remove(remove_tag)
+        form_fields["tags"] = sorted(tags)
 
     log.debug(
         "calculated form fields: %s from querystring %s", form_fields, querystring
@@ -987,7 +992,7 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
         description=bookmark.description,
         page_title="Edit %s" % bookmark.title,
         url_uuid=url_uuid,
-        tags=bookmark.tags(),
+        tags=bookmark.current_tags(),
     )
     if bookmark.unread:
         template_kwargs["unread"] = "on"
@@ -1040,7 +1045,7 @@ def tag_triples_from_form(
             return_value.add((tag_name, now, False))
 
     log.debug(
-        "calculated tag_triples: %s from raw_tags: %s (current: %s)",
+        "calculated tag_triples: %s from raw_tags: '%s' (current: %s)",
         return_value,
         raw_tags,
         current,

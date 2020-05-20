@@ -60,7 +60,7 @@
         {% else %}
           Tags:
           {% for tag in tags|sort %}
-            {{ macros.render_tag(g.user, tag) }}{% if not loop.last %},{% endif %}
+            {{ macros.render_tag(g.user, tag) }}{{ render_remove_tag_button(tag) }}{% if not loop.last %},{% endif %}
           {% endfor %}
         {% endif %}
       </p>
@@ -84,7 +84,6 @@
           <button
             form="edit-bookmark-form"
             formmethod="GET"
-            formaction="{{ url_for('quarchive.edit_bookmark_form', url_uuid=url_uuid) }}"
             >Add to list</button>
       </p>
       <p>
@@ -108,3 +107,12 @@
 
   </form>
 {% endblock %}
+
+{% macro render_remove_tag_button(tag) %}
+  <button
+    class="remove-tag-button"
+    name="remove-tag"
+    form="edit-bookmark-form"
+    formmethod="GET"
+    value="{{tag}}"
+    >(x)</button>{% endmacro %}

@@ -163,6 +163,18 @@ textarea, input, button, select {
     height: 10em;
 }
 
+button.remove-tag-button {
+    display: inline;
+    background: none;
+    text-align: left;
+    color: var(--light);
+    background: none;
+    margin: 0;
+    padding: 0;
+    border: none;
+    cursor: pointer;
+}
+
 #register-link {
     font-weight: bold;
 }

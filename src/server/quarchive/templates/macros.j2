@@ -27,7 +27,7 @@
       <a class="bookmark-meta" href="{{ url_for('quarchive.edit_bookmark', url_uuid=url.url_uuid) }}">edit</a>
       {# FIXME: Removed for now as it is useless #}
       {# <a class="bookmark-meta" href="{{ url_for('quarchive.view_url', url_uuid=url.url_uuid) }}">url metadata</a> #}
-      {% for tag in bookmark.tags()|sort %}{{ render_tag(user, tag) }}{% if not loop.last %},{% endif %}
+      {% for tag in bookmark.current_tags()|sort %}{{ render_tag(user, tag) }}{% if not loop.last %},{% endif %}
       {% endfor %}
     </p>
   </div>

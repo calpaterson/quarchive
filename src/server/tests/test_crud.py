@@ -38,11 +38,13 @@ def test_create_bookmark_form_simple_get(signed_in_client):
     "viewfunc", ["quarchive.create_bookmark_form", "quarchive.edit_bookmark_form"]
 )
 @pytest.mark.parametrize(
-    "tags_for_param, add_tag, expected_tags",
+    "tags_for_param, add_tag, remove_tag, expected_tags",
     [
-        (["a", "b"], "c", ["a", "b", "c"]),
-        (["a", "b"], "", ["a", "b"]),
-        (["a"], "b", ["a", "b"]),
+        pytest.param(["a", "b"], "c", "", ["a", "b", "c"], id="add a tag (2 existing)"),
+        pytest.param(["a", "b"], "", "", ["a", "b"], id="no change to tags"),
+        pytest.param(["a"], "b", "", ["a", "b"], id="add a tag (1 existing)"),
+        pytest.param(["a"], "", "a", [], id="remove a tag (1 existing)"),
+        pytest.param(["a", "b"], "", "a", ["b"], id="remove a tag (2 existing)"),
     ],
 )
 def test_create_bookmark_form_add_tag(
@@ -50,6 +52,7 @@ def test_create_bookmark_form_add_tag(
     viewfunc,
     tags_for_param,
     add_tag,
+    remove_tag,
     expected_tags,
     session,
     test_user,
@@ -72,6 +75,7 @@ def test_create_bookmark_form_add_tag(
         "unread": unread,
         "tags": tags,
         "add-tag": add_tag,
+        "remove-tag": remove_tag,
     }
     if viewfunc == "quarchive.edit_bookmark_form":
         params["url_uuid"] = sut.create_url_uuid(bookmark.url)
@@ -138,7 +142,7 @@ def test_creating_a_bookmark(test_user, signed_in_client, session, unread, tags)
         == bookmark.updated
         == datetime(2018, 1, 3, tzinfo=timezone.utc)
     )
-    assert bookmark.tags() == tags
+    assert bookmark.current_tags() == tags
 
 
 jan_1 = datetime(2018, 1, 1, tzinfo=timezone.utc)
