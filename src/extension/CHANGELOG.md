@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Sync via jsonlines instead of json objects.  Eventually this may help speed up big syncs.
 
+### Added
+
+- Report extension version to the server when syncing.  This will aid debugging of extension issues.
+
 ## [0.9.2] - 2020-05-27
 
 - First (public) version

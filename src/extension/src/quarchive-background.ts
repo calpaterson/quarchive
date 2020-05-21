@@ -361,10 +361,15 @@ async function callSyncAPI(bookmark: Bookmark) {
     }
     // FIXME: failure should be logged
     const url = new URL("/sync", APIURL).toString();
+    const extensionVersion = browser.runtime.getManifest().version;
     const response = await fetch(url, {
         method: "POST",
         headers: {
             "Content-Type": "application/x-ndjson",
+            "Quarchive-Extension-Version": extensionVersion,
+            "Quarchive-Username": username,
+            "Quarchive-API-Key": APIKey,
+            // FIXME: the below headers are depreciated
             "X-QM-API-Username": username,
             "X-QM-API-Key": APIKey,
         },
@@ -405,10 +410,15 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>){
     }
     const url = new URL("/sync?full=true", APIURL).toString();
 
+    const extensionVersion = browser.runtime.getManifest().version;
     const response = await fetch(url, {
         method: "POST",
         headers: {
             "Content-Type": "application/x-ndjson",
+            "Quarchive-Extension-Version": extensionVersion,
+            "Quarchive-Username": username,
+            "Quarchive-API-Key": APIKey,
+            // FIXME: the below headers are depreciated
             "X-QM-API-Username": username,
             "X-QM-API-Key": APIKey,
         },
