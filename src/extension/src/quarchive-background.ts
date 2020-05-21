@@ -346,8 +346,7 @@ async function syncBrowserBookmarksToLocalDb() {
 
 // Syncs a bookmark with the API
 async function callSyncAPI(bookmark: Bookmark) {
-    const sync_body = {
-        "bookmarks": [bookmark.to_json()]};
+    const sync_body = JSON.stringify(bookmark.to_json());
     console.log("syncing %o", sync_body);
     let [APIURL, username, APIKey] = [undefined, undefined, undefined];
     try {
@@ -365,17 +364,23 @@ async function callSyncAPI(bookmark: Bookmark) {
     const response = await fetch(url, {
         method: "POST",
         headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/x-ndjson",
             "X-QM-API-Username": username,
             "X-QM-API-Key": APIKey,
         },
-        body: JSON.stringify(sync_body),
+        body: sync_body,
     });
-    const json = await response.json();
-    console.log("got %o", json);
+
+    const jsonlines = await response.text()
+    console.log("got: '%s'", jsonlines);
     var returnValue = [];
-    for (var responseBookmark of json["bookmarks"]){
-        returnValue.push(Bookmark.from_json(responseBookmark));
+    for (var jsonBookmark of jsonlines.split("\n")){
+        // Handle trailing newline
+        if (jsonBookmark.length > 0){
+            const jsonData = JSON.parse(jsonBookmark);
+            const bookmark = Bookmark.from_json(jsonData);
+            returnValue.push(bookmark);
+        }
     }
     return returnValue;
 }
@@ -383,8 +388,9 @@ async function callSyncAPI(bookmark: Bookmark) {
 async function callFullSyncAPI(bookmarks: Array<Bookmark>){
     var body = [];
     for (var bookmark of bookmarks) {
-        body.push(bookmark.to_json())
+        body.push(JSON.stringify(bookmark.to_json()));
     }
+
     console.log("calling /sync?full=true");
     let [APIURL, username, APIKey] = [undefined, undefined, undefined];
     try {
@@ -398,19 +404,25 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>){
         }
     }
     const url = new URL("/sync?full=true", APIURL).toString();
+
     const response = await fetch(url, {
         method: "POST",
         headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/x-ndjson",
             "X-QM-API-Username": username,
             "X-QM-API-Key": APIKey,
         },
-        body: JSON.stringify({"bookmarks": body}),
+        body: body.join("\n"),
     });
-    const json = await response.json();
+    const jsonlines = await response.text()
     var returnValue = [];
-    for (var responseBookmark of json["bookmarks"]){
-        returnValue.push(Bookmark.from_json(responseBookmark));
+    for (var jsonBookmark of jsonlines.split("\n")){
+        // Handle trailing newline
+        if (jsonBookmark.length > 0){
+            const jsonData = JSON.parse(jsonBookmark);
+            const bookmark = Bookmark.from_json(jsonData);
+            returnValue.push(bookmark);
+        }
     }
     return returnValue;
 }
