@@ -1281,6 +1281,10 @@ def ok() -> flask.Response:
 @blueprint.route("/sync", methods=["POST"])
 @api_key_required
 def sync() -> flask.Response:
+    log.debug(
+        "extension version: %s",
+        flask.request.headers.get("Quarchive-Extension-Version", "unknown"),
+    )
     use_jsonlines = flask.request.headers["Content-Type"] != "application/json"
 
     if not use_jsonlines:
