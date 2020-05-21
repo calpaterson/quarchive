@@ -1308,13 +1308,12 @@ def sync() -> flask.Response:
             {"bookmarks": [b.to_json() for b in response_bookmarks]}
         )
     else:
-
         def generator():
             for b in response_bookmarks:
                 yield json.dumps(b.to_json())
                 yield "\n"
 
-        return flask.Response(generator(), mimetype="application/x-ndjson",)
+        return flask.Response(flask.stream_with_context(generator()), mimetype="application/x-ndjson",)
 
 
 @lru_cache(1)
