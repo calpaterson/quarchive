@@ -92,6 +92,7 @@ log = logging.getLogger(__name__)
 
 cors = CORS()
 
+
 @lru_cache(1)
 def get_hasher():
     return pyhash.fnv1_32()

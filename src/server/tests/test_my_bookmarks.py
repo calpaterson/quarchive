@@ -3,6 +3,7 @@ from typing import List
 from uuid import uuid4
 from datetime import datetime, timezone
 
+from sqlalchemy.orm import Session
 import flask
 from lxml import etree
 from lxml.cssselect import CSSSelector
@@ -133,7 +134,7 @@ def test_my_bookmarks_search(
 
 
 def make_fulltext_indexed_bookmark(
-    session: sut.Session, user: User, bookmark: sut.Bookmark, full_text: str
+    session: Session, user: User, bookmark: sut.Bookmark, full_text: str
 ):
     # FIXME: this really shows the need for a library of common db functions
     url_uuid = sut.set_bookmark(session, user.user_uuid, bookmark)
