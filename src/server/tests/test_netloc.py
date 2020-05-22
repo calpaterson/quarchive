@@ -1,8 +1,6 @@
 from datetime import datetime, timezone
 
 import flask
-from lxml import etree
-from lxml.cssselect import CSSSelector
 
 from .conftest import make_bookmark
 from .utils import sync_bookmarks, get_bookmarks_from_response

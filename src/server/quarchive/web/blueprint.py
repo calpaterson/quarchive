@@ -124,6 +124,11 @@ def api_key_required(handler: V) -> V:
     return cast(V, wrapper)
 
 
+@blueprint.route("/favicon.ico")
+def favicon() -> flask.Response:
+    return flask.current_app.send_static_file("icons/favicon.ico")
+
+
 @blueprint.route("/about")
 def about() -> flask.Response:
     return flask.make_response(
