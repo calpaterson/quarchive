@@ -1,123 +1,15 @@
-import re
-import configparser
-import contextlib
-from datetime import datetime, timezone
-import gzip
-from functools import wraps, lru_cache
 import itertools
-import logging
-import mimetypes
-from uuid import UUID, uuid4
-from typing import (
-    Dict,
-    Mapping,
-    Sequence,
-    Set,
-    FrozenSet,
-    Any,
-    Optional,
-    Callable,
-    Iterable,
-    MutableSequence,
-    cast,
-    TypeVar,
-    Tuple,
-    BinaryIO,
-    List,
-    Union,
-    TYPE_CHECKING,
-)
-from os import environ, path
-from urllib.parse import urlsplit, urlunsplit
 import json
-import tempfile
-import shutil
-from abc import ABCMeta, abstractmethod
-import cgi
-import secrets
+import logging
+from datetime import datetime, timezone
+from typing import Mapping
+from uuid import UUID
 
-import yaml
-import pyhash
-from passlib.context import CryptContext
-import lxml
-import lxml.html
 import click
-import boto3
-from botocore.utils import fix_s3_host
-import requests
-from celery import Celery
-from werkzeug import exceptions as exc
-from werkzeug.urls import url_encode
 from dateutil.parser import isoparse
-from sqlalchemy import (
-    Column,
-    ForeignKey,
-    types as satypes,
-    func,
-    create_engine,
-    and_,
-    cast as sa_cast,
-)
-from sqlalchemy.orm import (
-    foreign,
-    remote,
-    relationship,
-    RelationshipProperty,
-    Session,
-    sessionmaker,
-    scoped_session,
-)
-from sqlalchemy.dialects.postgresql import (
-    UUID as _PGUUID,
-    insert as pg_insert,
-    BYTEA,
-    JSONB,
-    TSVECTOR,
-    array as pg_array,
-    ARRAY as PGARRAY,
-)
-from flask_sqlalchemy import SQLAlchemy
-import flask
-from flask_cors import CORS
-import missive
-from missive.adapters.rabbitmq import RabbitMQAdapter
-from flask_babel import Babel
-import magic
 
-from .value_objects import (
-    Bookmark,
-    URL,
-    User,
-    TagTriples,
-    bookmark_from_sqla,
-    create_url_uuid,
-)
-from .data.models import (
-    SQLAUrl,
-    SQLABookmark,
-    SQLUser,
-    FullText,
-    CrawlRequest,
-    CrawlResponse,
-)
-from .data.functions import (
-    is_correct_api_key,
-    get_api_key,
-    username_exists,
-    user_from_username,
-    user_from_user_uuid,
-    create_user,
-    get_bookmark_by_url,
-    get_bookmark_by_url_uuid,
-    upsert_url,
-    set_bookmark,
-    merge_bookmarks,
-    all_bookmarks,
-    bookmarks_with_tag,
-    tags_with_count,
-)
-from .search import parse_search_str
-from .config import load_config
+from .data.functions import merge_bookmarks
+from .value_objects import Bookmark, TagTriples
 from .web.app import init_app
 from .web.blueprint import db
 

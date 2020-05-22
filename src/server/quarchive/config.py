@@ -1,6 +1,6 @@
+import configparser
 from logging import getLogger
 from os import environ, path
-import configparser
 from typing import Optional
 
 log = getLogger(__name__)

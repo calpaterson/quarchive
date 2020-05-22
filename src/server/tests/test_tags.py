@@ -2,7 +2,6 @@ from typing import List, Tuple
 from datetime import datetime, timezone
 
 import flask
-import pytest
 from lxml import etree
 from lxml.cssselect import CSSSelector
 

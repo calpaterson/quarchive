@@ -1,76 +1,26 @@
-from logging import getLogger
-from uuid import UUID, uuid4
-from typing import (
-    Dict,
-    Mapping,
-    Sequence,
-    Set,
-    FrozenSet,
-    Any,
-    Optional,
-    Callable,
-    Iterable,
-    MutableSequence,
-    cast,
-    TypeVar,
-    Tuple,
-    BinaryIO,
-    List,
-    Union,
-    TYPE_CHECKING,
-)
-from urllib.parse import urlsplit, urlunsplit
 import secrets
+from logging import getLogger
+from typing import Any, Iterable, Optional, Set, Tuple
+from urllib.parse import urlsplit, urlunsplit
+from uuid import UUID, uuid4
 
-from sqlalchemy import (
-    Column,
-    ForeignKey,
-    types as satypes,
-    func,
-    create_engine,
-    and_,
-    cast as sa_cast,
-)
-from sqlalchemy.orm import (
-    foreign,
-    remote,
-    relationship,
-    RelationshipProperty,
-    Session,
-    sessionmaker,
-    scoped_session,
-)
+from sqlalchemy import and_, cast as sa_cast, func, types as satypes
 from sqlalchemy.dialects.postgresql import (
-    UUID as _PGUUID,
-    insert as pg_insert,
-    BYTEA,
-    JSONB,
-    TSVECTOR,
-    array as pg_array,
     ARRAY as PGARRAY,
+    array as pg_array,
+    insert as pg_insert,
 )
+from sqlalchemy.orm import Session
 
 from quarchive.value_objects import (
-    Bookmark,
     URL,
+    Bookmark,
     User,
-    TagTriples,
     bookmark_from_sqla,
     create_url_uuid,
 )
-from .models import (
-    SQLAUrl,
-    SQLABookmark,
-    APIKey,
-    SQLUser,
-    UserEmail,
-    BookmarkTag,
-    Tag,
-    FullText,
-    CrawlRequest,
-    CrawlResponse,
-)
 
+from .models import APIKey, BookmarkTag, SQLABookmark, SQLAUrl, SQLUser, Tag, UserEmail
 
 log = getLogger(__name__)
 

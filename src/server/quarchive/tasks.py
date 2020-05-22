@@ -1,126 +1,33 @@
-import re
-import configparser
+import cgi
 import contextlib
-from datetime import datetime, timezone
 import gzip
-from functools import wraps, lru_cache
-import itertools
 import logging
 import mimetypes
-from uuid import UUID, uuid4
-from typing import (
-    Dict,
-    Mapping,
-    Sequence,
-    Set,
-    FrozenSet,
-    Any,
-    Optional,
-    Callable,
-    Iterable,
-    MutableSequence,
-    cast,
-    TypeVar,
-    Tuple,
-    BinaryIO,
-    List,
-    Union,
-    TYPE_CHECKING,
-)
-from os import environ, path
-from urllib.parse import urlsplit, urlunsplit
-import json
-import tempfile
 import shutil
-from abc import ABCMeta, abstractmethod
-import cgi
-import secrets
+import tempfile
+from datetime import datetime, timezone
+from functools import lru_cache
+from os import environ
+from typing import BinaryIO, FrozenSet, List, Optional, Union, cast
+from urllib.parse import urlsplit, urlunsplit
+from uuid import UUID, uuid4
 
-import yaml
-import pyhash
-from passlib.context import CryptContext
+import boto3
 import lxml
 import lxml.html
-import click
-import boto3
-from botocore.utils import fix_s3_host
+import magic
 import requests
+from botocore.utils import fix_s3_host
 from celery import Celery
-from werkzeug import exceptions as exc
-from werkzeug.urls import url_encode
-from dateutil.parser import isoparse
-from sqlalchemy import (
-    Column,
-    ForeignKey,
-    types as satypes,
-    func,
-    create_engine,
-    and_,
-    cast as sa_cast,
-)
-from sqlalchemy.orm import (
-    foreign,
-    remote,
-    relationship,
-    RelationshipProperty,
-    Session,
-    sessionmaker,
-    scoped_session,
-)
-from sqlalchemy.dialects.postgresql import (
-    UUID as _PGUUID,
-    insert as pg_insert,
-    BYTEA,
-    JSONB,
-    TSVECTOR,
-    array as pg_array,
-    ARRAY as PGARRAY,
-)
-from flask_sqlalchemy import SQLAlchemy
-import flask
-from flask_cors import CORS
+from sqlalchemy import create_engine, func
+from sqlalchemy.orm import Session, scoped_session, sessionmaker
+
 import missive
 from missive.adapters.rabbitmq import RabbitMQAdapter
-from flask_babel import Babel
-import magic
 
-from .value_objects import (
-    Bookmark,
-    URL,
-    User,
-    TagTriples,
-    bookmark_from_sqla,
-    create_url_uuid,
-)
-from .data.models import (
-    SQLAUrl,
-    SQLABookmark,
-    SQLUser,
-    FullText,
-    CrawlRequest,
-    CrawlResponse,
-)
-from .data.functions import (
-    is_correct_api_key,
-    get_api_key,
-    username_exists,
-    user_from_username,
-    user_from_user_uuid,
-    create_user,
-    get_bookmark_by_url,
-    get_bookmark_by_url_uuid,
-    upsert_url,
-    set_bookmark,
-    merge_bookmarks,
-    all_bookmarks,
-    bookmarks_with_tag,
-    tags_with_count,
-)
-from .search import parse_search_str
-from .config import load_config
-from .web.app import init_app
-from .web.blueprint import db
-
+from .data.functions import upsert_url
+from .data.models import CrawlRequest, CrawlResponse, FullText, SQLABookmark, SQLAUrl
+from .value_objects import URL
 
 log = logging.getLogger(__name__)
 

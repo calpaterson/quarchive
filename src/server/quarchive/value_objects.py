@@ -1,59 +1,12 @@
-from logging import getLogger
-from uuid import NAMESPACE_URL as UUID_URL_NAMESPACE, UUID, uuid5
-
+import itertools
 from dataclasses import dataclass
 from datetime import datetime
-import itertools
-from uuid import UUID
-from typing import (
-    Dict,
-    Mapping,
-    Sequence,
-    Set,
-    FrozenSet,
-    Any,
-    Optional,
-    Callable,
-    Iterable,
-    MutableSequence,
-    cast,
-    TypeVar,
-    Tuple,
-    BinaryIO,
-    List,
-    Union,
-    TYPE_CHECKING,
-)
+from logging import getLogger
+from typing import Any, FrozenSet, Mapping, Optional, Set, Tuple, cast
 from urllib.parse import urlsplit, urlunsplit
+from uuid import NAMESPACE_URL as UUID_URL_NAMESPACE, UUID, uuid5
 
 from dateutil.parser import isoparse
-from sqlalchemy import (
-    Column,
-    ForeignKey,
-    types as satypes,
-    func,
-    create_engine,
-    and_,
-    cast as sa_cast,
-)
-from sqlalchemy.orm import (
-    foreign,
-    remote,
-    relationship,
-    RelationshipProperty,
-    Session,
-    sessionmaker,
-    scoped_session,
-)
-from sqlalchemy.dialects.postgresql import (
-    UUID as _PGUUID,
-    insert as pg_insert,
-    BYTEA,
-    JSONB,
-    TSVECTOR,
-    array as pg_array,
-    ARRAY as PGARRAY,
-)
 
 # FIXME: to be removed!
 from .data.models import SQLABookmark, SQLAUrl

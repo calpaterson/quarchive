@@ -1,6 +1,6 @@
-from logging import getLogger
 import re
-from abc import abstractmethod, ABCMeta
+from abc import ABCMeta, abstractmethod
+from logging import getLogger
 from typing import MutableSequence
 
 LEXER_REGEX = re.compile(r"[0-9A-z]+|['\"]")
