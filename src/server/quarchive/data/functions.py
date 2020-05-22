@@ -89,24 +89,8 @@ def create_user(
 def get_bookmark_by_url(
     session: Session, user_uuid: UUID, url: str
 ) -> Optional[Bookmark]:
-    scheme, netloc, path, query, fragment = urlsplit(url)
-    sqla_bookmark = (
-        session.query(SQLABookmark)
-        .join(SQLAUrl)
-        .filter(
-            SQLAUrl.scheme == scheme,
-            SQLAUrl.netloc == netloc,
-            SQLAUrl.path == path,
-            SQLAUrl.query == query,
-            SQLAUrl.fragment == fragment,
-            SQLABookmark.user_uuid == user_uuid,
-        )
-        .first()
-    )
-    if sqla_bookmark is None:
-        return None
-    else:
-        return bookmark_from_sqla(url, sqla_bookmark)
+    url_uuid = create_url_uuid(url)
+    return get_bookmark_by_url_uuid(session, user_uuid, url_uuid)
 
 
 def get_bookmark_by_url_uuid(

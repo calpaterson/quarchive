@@ -585,10 +585,10 @@ def sync() -> flask.Response:
     if not use_jsonlines:
         log.warning("sync request using deprecated single json object")
         body = flask.request.json
-        recieved_bookmarks = set(Bookmark.from_json(item) for item in body["bookmarks"])
+        recieved_bookmarks = (Bookmark.from_json(item) for item in body["bookmarks"])
     else:
         log.info("sync request using jsonlines")
-        recieved_bookmarks = set(
+        recieved_bookmarks = (
             Bookmark.from_json(json.loads(l)) for l in flask.request.stream.readlines()
         )
 
