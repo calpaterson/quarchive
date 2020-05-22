@@ -1,4 +1,3 @@
-from dataclasses import dataclass, asdict as dataclass_as_dict
 import re
 import configparser
 import contextlib
@@ -8,7 +7,7 @@ from functools import wraps, lru_cache
 import itertools
 import logging
 import mimetypes
-from uuid import uuid4, UUID, uuid5, NAMESPACE_URL as UUID_URL_NAMESPACE
+from uuid import UUID, uuid4
 from typing import (
     Dict,
     Mapping,
@@ -49,7 +48,6 @@ import requests
 from celery import Celery
 from werkzeug import exceptions as exc
 from werkzeug.urls import url_encode
-from werkzeug.datastructures import ImmutableMultiDict
 from dateutil.parser import isoparse
 from sqlalchemy import (
     Column,
@@ -78,8 +76,6 @@ from sqlalchemy.dialects.postgresql import (
     array as pg_array,
     ARRAY as PGARRAY,
 )
-from sqlalchemy.schema import CheckConstraint
-from sqlalchemy.ext.declarative import declarative_base
 from flask_sqlalchemy import SQLAlchemy
 import flask
 from flask_cors import CORS
@@ -87,6 +83,27 @@ import missive
 from missive.adapters.rabbitmq import RabbitMQAdapter
 from flask_babel import Babel
 import magic
+
+from .value_objects import (
+    Bookmark,
+    URL,
+    User,
+    TagTriples,
+    bookmark_from_sqla,
+    create_url_uuid,
+)
+from .data.models import (
+    SQLAUrl,
+    SQLABookmark,
+    APIKey,
+    SQLUser,
+    UserEmail,
+    BookmarkTag,
+    Tag,
+    FullText,
+    CrawlRequest,
+    CrawlResponse,
+)
 
 # https://github.com/dropbox/sqlalchemy-stubs/issues/94
 if TYPE_CHECKING:
@@ -135,373 +152,12 @@ def load_config(env_ini: Optional[str] = None) -> None:
 # fmt: on
 
 
-@dataclass(frozen=True)
-class URL:
-    url_uuid: UUID
-
-    scheme: str
-    netloc: str
-    path: str
-    query: str
-    fragment: str
-
-    def to_url(self) -> str:
-        return urlunsplit(
-            (self.scheme, self.netloc, self.path, self.query, self.fragment)
-        )
-
-    @classmethod
-    def from_string(self, url_str: str) -> "URL":
-        s, n, p, q, f = urlsplit(url_str)
-        url_uuid = create_url_uuid(url_str)
-        return URL(url_uuid, s, n, p, q, f)
-
-    @classmethod
-    def from_sqla_url(cls, sql_url: "SQLAUrl") -> "URL":
-        # sqlalchemy-stubs can't figure this out
-        url_uuid = cast(UUID, sql_url.url_uuid)
-        return cls(
-            url_uuid=url_uuid,
-            scheme=sql_url.scheme,
-            netloc=sql_url.netloc,
-            path=sql_url.path,
-            query=sql_url.query,
-            fragment=sql_url.fragment,
-        )
-
-
-TagTriple = Tuple[str, datetime, bool]
-TagTriples = FrozenSet[TagTriple]
-
-
-@dataclass(frozen=True)
-class Bookmark:
-    url: str
-
-    title: str
-    description: str
-
-    created: datetime
-    updated: datetime
-
-    unread: bool
-    deleted: bool
-
-    tag_triples: TagTriples
-
-    def get_url(self) -> URL:
-        return URL.from_string(self.url)
-
-    def current_tags(self) -> FrozenSet[str]:
-        """Returns all current tags of the bookmark"""
-        return frozenset(tt[0] for tt in self.tag_triples if not tt[2])
-
-    def merge(self, other: "Bookmark") -> "Bookmark":
-        more_recent: "Bookmark" = sorted(
-            (self, other),
-            # 1. Take the most recently updated.
-            # 2. If they're equally recent, take the longer title
-            # 3. If that's not enough add the longest description
-            # 4. If that's not enough compare the titles
-            # 5. If that's not enough compare the description
-            # 6. Then compare everything else
-            key=lambda b: (
-                b.updated,
-                len(b.title),
-                len(b.description),
-                b.title,
-                b.description,
-                b.unread,
-                not b.deleted,
-            ),
-            reverse=True,
-        )[0]
-        # The strategy in short:
-        # Take the fields from the most recently updated bookmark, EXCEPT:
-        # created - for which take the oldest value
-        # updated - for which take the latest value
-        return Bookmark(
-            url=self.url,
-            created=min((self.created, other.created)),
-            updated=max((self.updated, other.updated)),
-            title=more_recent.title,
-            description=more_recent.description,
-            unread=more_recent.unread,
-            deleted=more_recent.deleted,
-            tag_triples=Bookmark.merge_tag_triples(self.tag_triples, other.tag_triples),
-        )
-
-    @staticmethod
-    def tag_from_triple(triple: TagTriple) -> str:
-        return triple[0]
-
-    @staticmethod
-    def merge_tag_triples(triples_1: TagTriples, triples_2: TagTriples) -> TagTriples:
-        grouped_by_tag = itertools.groupby(
-            sorted(itertools.chain(triples_1, triples_2), key=Bookmark.tag_from_triple),
-            key=Bookmark.tag_from_triple,
-        )
-        merged: Set[TagTriple] = set()
-        for _, group in grouped_by_tag:
-            list_group = list(group)
-            if len(list_group) == 1:
-                merged.add(list_group[0])
-            else:
-                newer, older = sorted(
-                    list_group, key=lambda tt: (tt[1], not tt[2]), reverse=True
-                )
-                merged.add(newer)
-
-        return frozenset(merged)
-
-    def to_json(self) -> Mapping:
-        return {
-            "url": self.url,
-            "title": self.title,
-            "description": self.description,
-            "created": self.created.isoformat(),
-            "updated": self.updated.isoformat(),
-            "unread": self.unread,
-            "deleted": self.deleted,
-            "tag_triples": [[n, dt.isoformat(), d] for n, dt, d in self.tag_triples],
-        }
-
-    @classmethod
-    def from_json(cls, mapping: Mapping[str, Any]) -> "Bookmark":
-        try:
-            updated = isoparse(mapping["updated"])
-            created = isoparse(mapping["created"])
-        except ValueError:
-            log.error(
-                "Got invalid datetime: [%s, %s] for %s",
-                mapping["updated"],
-                mapping["created"],
-                mapping["url"],
-            )
-            raise
-        tag_triples = frozenset(
-            (n, isoparse(dt), d) for n, dt, d in mapping.get("tag_triples", [])
-        )
-        return cls(
-            url=mapping["url"],
-            title=mapping["title"],
-            description=mapping["description"],
-            updated=updated,
-            created=created,
-            unread=mapping["unread"],
-            deleted=mapping["deleted"],
-            tag_triples=tag_triples,
-        )
-
-
-def bookmark_from_sqla(url: str, sqla_obj: "SQLABookmark") -> Bookmark:
-    return Bookmark(
-        url=url,
-        created=sqla_obj.created,
-        description=sqla_obj.description,
-        updated=sqla_obj.updated,
-        unread=sqla_obj.unread,
-        deleted=sqla_obj.deleted,
-        title=sqla_obj.title,
-        tag_triples=frozenset(
-            (btag.tag_obj.tag_name, btag.updated, btag.deleted)
-            for btag in sqla_obj.bookmark_tag_objs
-        ),
-    )
-
-
-@dataclass
-class User:
-    user_uuid: UUID
-    username: str
-    email: Optional[str]
 
 
 # fmt: off
 # DB layer
 ...
 # fmt: on
-
-Base: Any = declarative_base()
-
-
-class SQLAUrl(Base):
-    __tablename__ = "urls"
-
-    # Synthetic key for foreign references
-    url_uuid = Column(PGUUID, nullable=False, index=True, unique=True)
-
-    # The actual url
-    scheme = Column(satypes.String, nullable=False, index=True, primary_key=True)
-    netloc = Column(satypes.String, nullable=False, index=True, primary_key=True)
-    path = Column(satypes.String, nullable=False, index=True, primary_key=True)
-    query = Column(satypes.String, nullable=False, index=True, primary_key=True)
-    fragment = Column(satypes.String, nullable=False, index=True, primary_key=True)
-
-    def to_url_string(self) -> str:
-        return urlunsplit(
-            [self.scheme, self.netloc, self.path, self.query, self.fragment]
-        )
-
-
-class SQLABookmark(Base):
-    __tablename__ = "bookmarks"
-
-    url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), primary_key=True)
-    user_uuid = Column(PGUUID, ForeignKey("users.user_uuid"), primary_key=True)
-
-    title = Column(satypes.String, nullable=False, index=True)
-    description = Column(satypes.String, nullable=False, index=True)
-
-    created = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
-    updated = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
-
-    unread = Column(satypes.Boolean, nullable=False, index=True)
-    deleted = Column(satypes.Boolean, nullable=False, index=True)
-
-    url_obj: "RelationshipProperty[SQLAUrl]" = relationship(
-        SQLAUrl, uselist=False, backref="bookmark_objs"
-    )
-
-    user_obj: "RelationshipProperty[SQLUser]" = relationship(
-        "SQLUser", uselist=False, backref="bookmarks"
-    )
-    bookmark_tag_objs: "RelationshipProperty[List[BookmarkTag]]"
-
-
-class CrawlRequest(Base):
-    __tablename__ = "crawl_requests"
-
-    crawl_uuid = Column(PGUUID, primary_key=True)
-    # FIXME: url_uuid should be NOT NULL
-    url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), index=True)
-    requested = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
-    got_response = Column(satypes.Boolean, index=True)
-
-    url_obj: "RelationshipProperty[SQLAUrl]" = relationship(
-        SQLAUrl, uselist=False, backref="crawl_reqs"
-    )
-
-
-class CrawlResponse(Base):
-    __tablename__ = "crawl_responses"
-
-    crawl_uuid = Column(
-        PGUUID, ForeignKey("crawl_requests.crawl_uuid"), primary_key=True
-    )
-    body_uuid = Column(PGUUID, unique=True, nullable=False)
-    headers = Column(JSONB(), nullable=False, index=False)
-    status_code = Column(satypes.SmallInteger, nullable=False, index=True)
-
-    request_obj: "RelationshipProperty[CrawlRequest]" = relationship(
-        CrawlRequest, uselist=False, backref="response_obj"
-    )
-
-
-class FullText(Base):
-    __tablename__ = "full_text"
-
-    url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), primary_key=True)
-    crawl_uuid = Column(
-        PGUUID, ForeignKey("crawl_requests.crawl_uuid"), nullable=False, index=True,
-    )
-    inserted = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
-    full_text = Column(satypes.String(), nullable=False)
-    tsvector = Column(TSVECTOR, nullable=False)
-
-    # __table_args__ = (Index("abc", "tsvector", postgresql_using="gin"),)
-
-    crawl_req: "RelationshipProperty[CrawlRequest]" = relationship(
-        CrawlRequest, uselist=False, backref="full_text_obj"
-    )
-
-    url_obj: "RelationshipProperty[SQLAUrl]" = relationship(
-        SQLAUrl, uselist=False, backref="full_text_obj"
-    )
-
-
-class SQLUser(Base):
-    __tablename__ = "users"
-    __tableargs__ = (CheckConstraint("username ~ '^[-A-z0-9]+$'"),)
-
-    user_uuid = Column(PGUUID, primary_key=True)
-    username = Column(
-        satypes.String(length=200), nullable=False, unique=True, index=True
-    )
-    password = Column(satypes.String, nullable=False)
-
-    email_obj: "RelationshipProperty[UserEmail]" = relationship(
-        "UserEmail", uselist=False, backref="user"
-    )
-
-    api_key_obj: "RelationshipProperty[APIKey]" = relationship(
-        "APIKey", uselist=False, backref="user"
-    )
-
-
-class UserEmail(Base):
-    __tablename__ = "user_emails"
-
-    user_uuid = Column(PGUUID, ForeignKey("users.user_uuid"), primary_key=True)
-    email_address = Column(satypes.String(length=200), nullable=False, index=True)
-
-
-class APIKey(Base):
-    __tablename__ = "api_keys"
-
-    user_uuid = Column(PGUUID, ForeignKey("users.user_uuid"), primary_key=True)
-    api_key = Column(BYTEA(length=16), nullable=False, unique=True, index=True)
-
-
-class BookmarkTag(Base):
-    __tablename__ = "bookmark_tags"
-
-    url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), primary_key=True, index=True)
-    user_uuid = Column(
-        PGUUID, ForeignKey("users.user_uuid"), primary_key=True, index=True
-    )
-    tag_id = Column(
-        satypes.Integer, ForeignKey("tags.tag_id"), primary_key=True, index=True
-    )
-    updated = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
-    deleted = Column(satypes.Boolean, nullable=False, index=True)
-
-    tag_obj: "RelationshipProperty[Tag]" = relationship(
-        "Tag", uselist=False, backref="bookmark_tag_objs"
-    )
-
-    bookmark_obj: "RelationshipProperty[SQLABookmark]" = relationship(
-        SQLABookmark,
-        primaryjoin=and_(
-            foreign(url_uuid) == remote(SQLABookmark.url_uuid),
-            foreign(user_uuid) == remote(SQLABookmark.user_uuid),
-        ),
-        backref="bookmark_tag_objs",
-        uselist=False,
-    )
-
-
-class Tag(Base):
-    __tablename__ = "tags"
-    __tableargs__ = (CheckConstraint("tag_name ~ '^[-a-z0-9]+$'"),)
-
-    # Presumably 4bn tags is enough
-    tag_id = Column(satypes.Integer, primary_key=True, autoincrement=True)
-    tag_name = Column(
-        satypes.String(length=40), nullable=False, index=True, unique=True
-    )
-
-    bookmarks_objs: "RelationshipProperty[SQLABookmark]" = relationship(
-        SQLABookmark,
-        backref="tag_objs",
-        secondary=BookmarkTag.__table__,
-        primaryjoin=tag_id == BookmarkTag.tag_id,
-        secondaryjoin=and_(
-            foreign(BookmarkTag.__table__.c.url_uuid) == remote(SQLABookmark.url_uuid),
-            foreign(BookmarkTag.__table__.c.user_uuid)
-            == remote(SQLABookmark.user_uuid),
-        ),
-    )
 
 
 def is_correct_api_key(session: Session, username: str, api_key: bytes) -> bool:
@@ -600,11 +256,6 @@ def get_bookmark_by_url_uuid(
         return None
     url = URL.from_sqla_url(sqla_bookmark.url_obj).to_url()
     return bookmark_from_sqla(url, sqla_bookmark)
-
-
-def create_url_uuid(url: str) -> UUID:
-    # Use uuid5's namespace system to make url uuid deterministic
-    return uuid5(UUID_URL_NAMESPACE, url)
 
 
 def upsert_url(session: Session, url: str) -> UUID:
