@@ -14,6 +14,7 @@ import moto
 from passlib.context import CryptContext
 
 import quarchive as sut
+from quarchive.data import models as sut_models
 
 import pytest
 
@@ -157,7 +158,7 @@ def register_user(session, client, username, password="password", email=None) ->
         flask_sesh.clear()
 
     api_key, user_uuid = (
-        session.query(sut.APIKey.api_key, sut.SQLUser.user_uuid)
+        session.query(sut_models.APIKey.api_key, sut_models.SQLUser.user_uuid)
         .join(sut.SQLUser)
         .filter(sut.SQLUser.username == username)
         .first()
