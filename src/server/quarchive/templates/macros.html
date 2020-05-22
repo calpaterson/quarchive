@@ -8,7 +8,7 @@
   {% set url = bookmark.get_url() %}
   <div class="bookmark">
     <p class="bookmark-link">
-      <a href="{{bookmark.url}}">{{bookmark.title}}</a>
+      <a class="bookmark-title" href="{{bookmark.url}}">{{bookmark.title}}</a>
       <a
         class="netloc"
         href="{{ url_for('quarchive.view_netloc', netloc=url.netloc) }}"

@@ -193,3 +193,27 @@ def test_full_text_search_with_quotes(app, signed_in_client, test_user):
     selector = CSSSelector("#search-box")
     (element,) = selector(root)
     assert element.attrib["value"] == search_term
+
+
+def test_html_injection(app, signed_in_client, test_user):
+    """Test to check that html put into bookmarks doesn't get put onto the
+    pages unescaped.  Specific test for this because it is easy to regress.
+
+    """
+    html_string = "<blockquote>hi!</blockquote>"
+    bm = make_bookmark(
+        url="http://example.com/" + html_string,
+        title=html_string,
+        description=html_string,
+    )
+
+    sync_bookmarks(signed_in_client, test_user, [bm])
+
+    response = signed_in_client.get(flask.url_for("quarchive.my_bookmarks"))
+    html_parser = etree.HTMLParser()
+    root = etree.fromstring(response.get_data(), html_parser)
+
+    selectors = [".bookmark-title", ".bookmark-url > a", ".bookmark-description"]
+    for selector in selectors:
+        element = CSSSelector(selector)(root)[0]
+        assert element.getchildren() == []
