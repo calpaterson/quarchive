@@ -54,9 +54,9 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "quarchive=quarchive:main",
-            "qm-pinboard-import=quarchive:pinboard_import",
-            "quarchive-message-processor=quarchive:message_processor",
+            "quarchive=quarchive.local:main",
+            "qm-pinboard-import=quarchive.pinboard:pinboard_import",
+            "quarchive-message-processor=quarchive.tasks:message_processor",
         ]
     },
 )
