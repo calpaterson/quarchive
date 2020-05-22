@@ -8,6 +8,7 @@ import pytest
 from freezegun import freeze_time
 
 import quarchive as sut
+from quarchive.web.blueprint import form_fields_from_querystring
 
 from .conftest import make_bookmark, random_string
 from .utils import sync_bookmarks
@@ -26,7 +27,7 @@ pytestmark = pytest.mark.web
     ],
 )
 def test_form_fields_from_querystring(inp, exp):
-    assert sut.form_fields_from_querystring(inp) == exp
+    assert form_fields_from_querystring(inp) == exp
 
 
 def test_create_bookmark_form_simple_get(signed_in_client):
