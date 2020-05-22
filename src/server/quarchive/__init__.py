@@ -1258,7 +1258,6 @@ def user_tags(username: str) -> flask.Response:
     user = get_current_user()
     tag_counts = tags_with_count(db.session, user)
     tt1 = list(tag_counts)
-    print(tt1)
     return flask.make_response(
         flask.render_template("user_tags.html", tag_counts=tt1, page_title="My tags")
     )
