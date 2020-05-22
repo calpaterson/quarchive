@@ -1,0 +1,20 @@
+{# -*- mode: jinja2 -*- #}
+{% extends "base.html" %}
+
+{% import 'macros.html' as macros %}
+
+{% block main %}
+  <h1>Bookmarks from '{{ netloc }}'</h1>
+
+  <div class="bookmarks">
+    {% for bookmark in bookmarks %}
+      {% if loop.first or loop.previtem.created.date() != bookmark.created.date()  %}
+        <p class="bookmark-date">
+          <span>{{bookmark.created.date()|dateformat('full')}}</span>
+        </p>
+      {% endif %}
+      {{ macros.render_bookmark(g.user, bookmark) }}
+    {% endfor %}
+  </div>
+
+{% endblock %}

@@ -1,4 +1,3 @@
-from typing import List, Tuple
 from datetime import datetime, timezone
 
 import flask
@@ -6,19 +5,10 @@ from lxml import etree
 from lxml.cssselect import CSSSelector
 
 from .conftest import make_bookmark
-from .utils import sync_bookmarks
-
-
-def get_bookmarks_from_response(response) -> List[Tuple[str, str]]:
-    html_parser = etree.HTMLParser()
-    root = etree.fromstring(response.get_data(), html_parser)
-    # Perhaps there should be a class used in the html for this
-    bookmarks = CSSSelector("div.bookmark>p:nth-child(1)>a:nth-child(1)")(root)
-    return [(e.attrib["href"], e.text) for e in bookmarks]
+from .utils import sync_bookmarks, get_bookmarks_from_response
 
 
 def test_user_tags_page(signed_in_client, test_user):
-    # FIXME: include deleted, etc
     epoch_start = datetime(1970, 1, 1, tzinfo=timezone.utc)
     bm1 = make_bookmark(
         url="http://example.com/pokemon",

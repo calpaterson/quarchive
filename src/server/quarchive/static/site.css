@@ -3,7 +3,6 @@
     --border: #e6e6e6;
     --fresh: #0645ad;
     --light: #666;
-    --lighter: #f3f3f3;
     --main: #333;
     --visited: #AE00AE;
 }
@@ -103,12 +102,12 @@ p.bookmark-date {
 .bookmark-url > a {
     margin-top: 0;
     margin-bottom: 0;
-    color: green;
+    color: var(--lighter);
     text-decoration: none;
 }
 
 .bookmark-url > a:visited {
-    color: green;
+    color: var(--light);
 }
 
 

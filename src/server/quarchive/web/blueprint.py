@@ -27,6 +27,7 @@ from werkzeug import exceptions as exc
 from quarchive.data.functions import (
     all_bookmarks,
     bookmarks_with_tag,
+    bookmarks_with_netloc,
     create_user,
     get_api_key,
     get_bookmark_by_url_uuid,
@@ -523,6 +524,21 @@ def user_tag(username: str, tag: str) -> flask.Response:
             bookmarks=bookmarks,
             tag=tag,
             page_title="Tagged as '%s'" % tag,
+        )
+    )
+
+
+@blueprint.route("/user/<username>/netlocs/<netloc>")
+@sign_in_required
+def user_netloc(username: str, netloc: str) -> flask.Response:
+    user = get_current_user()
+    bookmarks = bookmarks_with_netloc(db.session, user, netloc)
+    return flask.make_response(
+        flask.render_template(
+            "user_netloc.html",
+            bookmarks=bookmarks,
+            netloc=netloc,
+            page_title="Bookmarks from '%s'" % netloc,
         )
     )
 

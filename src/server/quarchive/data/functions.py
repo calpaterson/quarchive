@@ -260,6 +260,19 @@ def bookmarks_with_tag(session, user: User, tag: str) -> Iterable[Bookmark]:
         yield bookmark_from_sqla(sqla_url.to_url_string(), sqla_bookmark)
 
 
+def bookmarks_with_netloc(session, user: User, netloc: str) -> Iterable[Bookmark]:
+    query = (
+        session.query(SQLAUrl, SQLABookmark)
+        .join(SQLABookmark)
+        .filter(SQLABookmark.user_uuid == user.user_uuid)
+        .filter(~SQLABookmark.deleted)
+        .filter(SQLAUrl.netloc == netloc)
+        .order_by(SQLABookmark.created.desc())
+    )
+    for sqla_url, sqla_bookmark in query:
+        yield bookmark_from_sqla(sqla_url.to_url_string(), sqla_bookmark)
+
+
 def tags_with_count(session, user: User) -> Iterable[Tuple[str, int]]:
     query = (
         session.query(Tag.tag_name, func.count(Tag.tag_name))

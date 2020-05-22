@@ -11,7 +11,7 @@
       <a class="bookmark-title" href="{{bookmark.url}}">{{bookmark.title}}</a>
       <a
         class="netloc"
-        href="{{ url_for('quarchive.view_netloc', netloc=url.netloc) }}"
+        href="{{ url_for('quarchive.user_netloc', username=user.username, netloc=url.netloc) }}"
         >{{ url.netloc }}</a>
     </p>
     <p class="bookmark-url">
