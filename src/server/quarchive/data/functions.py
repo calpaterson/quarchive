@@ -90,7 +90,14 @@ def get_bookmark_by_url(
     session: Session, user_uuid: UUID, url: str
 ) -> Optional[Bookmark]:
     url_uuid = create_url_uuid(url)
-    return get_bookmark_by_url_uuid(session, user_uuid, url_uuid)
+    sqla_bookmark = (
+        session.query(SQLABookmark)
+        .filter(SQLABookmark.user_uuid == user_uuid, SQLABookmark.url_uuid == url_uuid)
+        .first()
+    )
+    if sqla_bookmark is None:
+        return None
+    return bookmark_from_sqla(url, sqla_bookmark)
 
 
 def get_bookmark_by_url_uuid(
