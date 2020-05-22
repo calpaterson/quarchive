@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-import quarchive as sut
+import quarchive.config as sut
 
 from .conftest import test_data_path
 

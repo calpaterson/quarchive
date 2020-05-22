@@ -117,6 +117,7 @@ from .data.functions import (
     tags_with_count,
 )
 from .search import parse_search_str
+from .config import load_config
 
 
 # https://github.com/dropbox/sqlalchemy-stubs/issues/94
@@ -126,39 +127,6 @@ else:
     PGUUID = _PGUUID(as_uuid=True)
 
 log = logging.getLogger("quarchive")
-
-# fmt: off
-# Config loading
-...
-# fmt: on
-
-REQUIRED_CONFIG_KEYS = {
-    "QM_SQL_URL",
-    "QM_SECRET_KEY",
-    "QM_RESPONSE_BODY_BUCKET_NAME",
-    "QM_AWS_ACCESS_KEY",
-    "QM_AWS_REGION_NAME",
-    "QM_AWS_SECRET_ACCESS_KEY",
-    "QM_AWS_S3_ENDPOINT_URL",
-}
-
-
-def load_config(env_ini: Optional[str] = None) -> None:
-    if env_ini is not None:
-        log.info("loading from %s", path.abspath(env_ini))
-        parser = configparser.ConfigParser()
-        # mypy confused by this unusual pattern
-        # https://github.com/python/mypy/issues/708
-        parser.optionxform = str  # type: ignore
-        parser.read(env_ini)
-        environ.update(parser["env"].items())
-    else:
-        log.warning("not loading env from any config file")
-
-    if not REQUIRED_CONFIG_KEYS.issubset(set(environ.keys())):
-        missing_keys = REQUIRED_CONFIG_KEYS.difference(set(environ.keys()))
-        raise RuntimeError("incomplete configuration! missing keys: %s" % missing_keys)
-
 
 # fmt: off
 # # Web layer
@@ -1084,14 +1052,6 @@ def crawl_url(session: Session, crawl_uuid: UUID, url: str) -> None:
         upload_file(bucket, response.raw, str(body_uuid))
 
         session.commit()
-
-
-# fmt: off
-# Search
-...
-# fmt: on
-
-
 
 
 # fmt: off

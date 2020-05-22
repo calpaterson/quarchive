@@ -6,7 +6,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from quarchive import Base
+from quarchive.data.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
