@@ -5,5 +5,23 @@
     {% if user == g.user %}
       <h2>API key</h2>
       <pre>{{ api_key.hex() }}</pre>
+
+      <h2>Settings</h2>
+      <form method="POST">
+        <p>
+          <label>Timezone</label>
+        </p>
+        <p>
+          <select name="timezone">
+            {% for timezone in timezones %}
+              <option
+                value="{{timezone}}"
+                {% if timezone == current_timezone %}selected{% endif %}
+                >{{timezone}}</option>
+            {% endfor %}
+          </select>
+        </p>
+        <button>Save changes</button>
+      </form>
     {% endif %}
 {% endblock %}

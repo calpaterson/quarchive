@@ -6,6 +6,7 @@ from typing import Any, FrozenSet, Mapping, Optional, Set, Tuple, cast
 from urllib.parse import urlsplit, urlunsplit
 from uuid import NAMESPACE_URL as UUID_URL_NAMESPACE, UUID, uuid5
 
+import pytz
 from dateutil.parser import isoparse
 
 # FIXME: to be removed!
@@ -194,6 +195,7 @@ class User:
     user_uuid: UUID
     username: str
     email: Optional[str]
+    timezone: pytz.BaseTzInfo
 
 
 def create_url_uuid(url: str) -> UUID:

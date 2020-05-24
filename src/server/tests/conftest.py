@@ -1,6 +1,5 @@
-from uuid import UUID
 from os import environ, path
-from typing import Mapping, Any, Optional
+from typing import Mapping, Any
 from datetime import datetime, timezone
 import logging
 from dataclasses import dataclass
@@ -10,10 +9,12 @@ import random
 import contextlib
 import string
 
+import flask
 import moto
 from passlib.context import CryptContext
 
 import quarchive as sut
+from quarchive import value_objects
 from quarchive.data import models as sut_models
 
 import pytest
@@ -112,14 +113,11 @@ test_data_path = path.join(path.dirname(__file__), "test-data")
 
 
 @dataclass
-class User:
-    """Dataclass for holding user data - for tests only"""
+class User(value_objects.User):
+    """Expanded test subclass that holds some extra data"""
 
-    username: str
     password: str
     api_key: bytes
-    user_uuid: UUID
-    email: Optional[str] = None
 
 
 def make_bookmark(**kwargs):
@@ -147,7 +145,9 @@ def sign_out(client):
         sess.clear()
 
 
-def register_user(session, client, username, password="password", email=None) -> User:
+def register_user(
+    session, client, username, password="password", email=None, timezone=None
+) -> User:
     response = client.post(
         "/register",
         data={"username": username, "password": password, "email": email or ""},
@@ -157,18 +157,31 @@ def register_user(session, client, username, password="password", email=None) ->
     with client.session_transaction() as flask_sesh:
         flask_sesh.clear()
 
-    api_key, user_uuid = (
-        session.query(sut_models.APIKey.api_key, sut_models.SQLUser.user_uuid)
+    if timezone is not None:
+        # A specific timezone is desired, set it
+        client.post(
+            flask.url_for("quarchive.user_page", username=username),
+            data={"timezone": timezone},
+        )
+
+    api_key, user_uuid, user_timezone = (
+        session.query(
+            sut_models.APIKey.api_key,
+            sut_models.SQLUser.user_uuid,
+            sut_models.SQLUser.timezone,
+        )
         .join(sut.SQLUser)
         .filter(sut.SQLUser.username == username)
         .first()
     )
+
     return User(
         username=username,
         password=password,
         api_key=api_key,
         user_uuid=user_uuid,
         email=email,
+        timezone=user_timezone,
     )
 
 

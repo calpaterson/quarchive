@@ -218,3 +218,19 @@ def test_html_injection(app, signed_in_client, test_user):
     for selector in selectors:
         element = CSSSelector(selector)(root)[0]
         assert element.getchildren() == []
+
+
+def test_user_timezones_are_observed(session, app, client):
+    bm1 = make_bookmark(title="Example 1")
+    user1 = register_user(
+        session, client, "test_user1" + random_string(), timezone="America/Los_Angeles"
+    )
+    sign_in_as(client, user1)
+    sync_bookmarks(client, user1, [bm1])
+
+    response = client.get(flask.url_for("quarchive.my_bookmarks"))
+    html_parser = etree.HTMLParser()
+    root = etree.fromstring(response.get_data(), html_parser)
+    selector = CSSSelector(".bookmark-created")
+    element = selector(root)[0]
+    assert element.text == "4:00 pm"

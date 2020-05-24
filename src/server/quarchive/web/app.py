@@ -50,8 +50,15 @@ def init_app() -> flask.Flask:
         log.info("using engine: %s", db.session.bind)
 
     cors.init_app(app)
-    Babel(app, default_locale="en_GB", default_timezone="Europe/London")
+    babel = Babel(app, default_locale="en_GB", default_timezone="Europe/London")
     app.register_blueprint(blueprint)
+
+    @babel.timezoneselector
+    def use_user_timezone():
+        if "user" in flask.g:
+            tzinfo = flask.g.user.timezone
+            log.debug("using user timezone: %s", tzinfo)
+            return tzinfo.zone
 
     @app.context_processor
     def urlsplit_cp():

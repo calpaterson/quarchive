@@ -4,6 +4,7 @@ from typing import Any, Iterable, Optional, Set, Tuple
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID, uuid4
 
+import pytz
 from sqlalchemy import and_, cast as sa_cast, func, types as satypes
 from sqlalchemy.dialects.postgresql import (
     ARRAY as PGARRAY,
@@ -46,23 +47,41 @@ def username_exists(session: Session, username: str) -> bool:
 
 
 def user_from_username(session, username: str) -> User:
-    user_uuid, email = (
-        session.query(SQLUser.user_uuid, UserEmail.email_address)
+    user_uuid, email, timezone = (
+        session.query(SQLUser.user_uuid, UserEmail.email_address, SQLUser.timezone)
         .outerjoin(UserEmail)
         .filter(SQLUser.username == username)
         .one()
     )
-    return User(user_uuid=user_uuid, username=username, email=email,)
+    return User(
+        user_uuid=user_uuid,
+        username=username,
+        email=email,
+        timezone=pytz.timezone(timezone),
+    )
+
+
+def set_user_timezone(session, username: str, timezone: str):
+    sql_user = session.query(SQLUser).filter(SQLUser.username == username).one()
+    # Pass it through pytz to make sure the timezone does in fact exist
+    timezone_name = pytz.timezone(timezone).zone
+    sql_user.timezone = timezone_name
+    log.debug("setting '%s' timezone to '%s'", username, timezone)
 
 
 def user_from_user_uuid(session, user_uuid: UUID) -> User:
-    username, email = (
-        session.query(SQLUser.username, UserEmail.email_address)
+    username, email, timezone = (
+        session.query(SQLUser.username, UserEmail.email_address, SQLUser.timezone)
         .outerjoin(UserEmail)
         .filter(SQLUser.user_uuid == user_uuid)
         .one()
     )
-    return User(user_uuid=user_uuid, username=username, email=email,)
+    return User(
+        user_uuid=user_uuid,
+        username=username,
+        email=email,
+        timezone=pytz.timezone(timezone),
+    )
 
 
 def create_user(
@@ -71,10 +90,18 @@ def create_user(
     username: str,
     password_plain: str,
     email: Optional[str] = None,
+    timezone="Europe/London",
 ) -> UUID:
     user_uuid = uuid4()
     password_hashed = crypt_context.hash(password_plain)
-    sql_user = SQLUser(user_uuid=user_uuid, username=username, password=password_hashed)
+    # FIXME: accept timezone as an argument (infer it somehow, from IP
+    # address?)
+    sql_user = SQLUser(
+        user_uuid=user_uuid,
+        username=username,
+        password=password_hashed,
+        timezone=timezone,
+    )
 
     if email is not None:
         log.info("got an email for %s", username)

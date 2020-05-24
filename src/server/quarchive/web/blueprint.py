@@ -19,6 +19,7 @@ from typing import (
 )
 from uuid import UUID
 
+import pytz
 import flask
 import yaml
 from sqlalchemy import func
@@ -37,6 +38,7 @@ from quarchive.data.functions import (
     tags_with_count,
     user_from_user_uuid,
     user_from_username,
+    set_user_timezone,
     username_exists,
 )
 from quarchive.data.models import FullText, SQLABookmark, SQLAUrl, SQLUser
@@ -505,7 +507,7 @@ def sign_out() -> flask.Response:
     return flask.make_response(flask.render_template("base.html"))
 
 
-@blueprint.route("/user/<username>")
+@blueprint.route("/user/<username>", methods=["GET"])
 def user_page(username: str) -> flask.Response:
     user = user_from_username(db.session, username)
     api_key: Optional[bytes]
@@ -514,8 +516,27 @@ def user_page(username: str) -> flask.Response:
     else:
         api_key = None
     return flask.make_response(
-        flask.render_template("user.html", user=user, api_key=api_key,)
+        flask.render_template(
+            "user.html",
+            user=user,
+            api_key=api_key,
+            timezones=pytz.common_timezones,
+            current_timezone=user.timezone.zone,
+        )
     )
+
+
+@blueprint.route("/user/<username>", methods=["POST"])
+def user_page_post(username: str) -> Tuple[flask.Response, int]:
+    set_user_timezone(db.session, username, flask.request.form["timezone"])
+    db.session.commit()
+    put_user_in_g()
+    flask.flash("User updated successfully")
+    response = flask.make_response("Redirecting...")
+    response.headers["Location"] = flask.url_for(
+        "quarchive.user_page", username=username
+    )
+    return response, 303
 
 
 @blueprint.route("/user/<username>/tags/<tag>")

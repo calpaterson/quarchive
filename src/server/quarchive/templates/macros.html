@@ -23,7 +23,7 @@
       </blockquote>
     {% endif %}
     <p class="bookmark-details">
-      <em>at <span title="{{bookmark.created}}">{{bookmark.created|timeformat('h:mm a')}}</span></em> {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
+      <em>at <span class="bookmark-created" title="{{bookmark.created}}">{{bookmark.created|timeformat('h:mm a')}}</span></em> {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
       <a class="bookmark-meta" href="{{ url_for('quarchive.edit_bookmark', url_uuid=url.url_uuid) }}">edit</a>
       {# FIXME: Removed for now as it is useless #}
       {# <a class="bookmark-meta" href="{{ url_for('quarchive.view_url', url_uuid=url.url_uuid) }}">url metadata</a> #}
