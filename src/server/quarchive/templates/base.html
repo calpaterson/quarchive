@@ -24,8 +24,10 @@
                  <a href="{{ url_for('quarchive.user_tags', username=g.user.username) }}">My tags</a>
                  <a href="{{ url_for('quarchive.create_bookmark_form') }}">Create</a>
                  <a href="{{ url_for('quarchive.faq') }}">FAQ</a>
+                 <a href="{{ url_for('quarchive.getting_started') }}">Getting started</a>
                  <a href="{{ url_for('quarchive.about') }}">About</a>
                {% else %}
+                 <a href="{{ url_for('quarchive.getting_started') }}">Getting started</a>
                  <a href="{{ url_for('quarchive.about') }}">About Quarchive</a>
                {% endif %}
              </span>

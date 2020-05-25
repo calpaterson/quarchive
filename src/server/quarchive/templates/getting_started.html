@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block main %}
+  <h1>Getting started</h1>
+  <p>
+    <ol>
+    <li>Register an account! {% if g.user %}(You've already done that!){% else %}<a href="{{url_for('quarchive.register')}}">Click here to do that</a>{% endif %}</li>
+    <li>Download the relevant extension for your browser
+      <ul>
+        <li>If you're a Chrome user, download the extension <a href="https://chrome.google.com/webstore/detail/quarchive/jamkonoipijchpkbkimibchodleeigde">Chrome Web Store</a></li>
+        <li>If you're a Firefox user, download the extension from <a href="https://addons.mozilla.org/en-US/firefox/addon/quarchive/">from Firefox's Add-ons site</a></li>
+      </ul>
+    </li>
+    <li>
+      Copy the API key from your {% if g.user %}<a href={{
+      url_for('quarchive.user_page', username=g.user.username) }}>user
+      page</a>{% else %}user page{% endif%} into the extension's settings
+      (you'll also need to enter your username)
+      <ul>
+        <li><strong>Be sure to click "save"!</strong></li>
+        <li>Unfortunately the save button might not appear to do anything -
+        this is
+        an <a href="https://github.com/calpaterson/quarchive/issues/22">open
+        bug and will be fixed soon</a></li>
+      </ul>
+    </li>
+    <li>Start bookmarking things!
+      <ul>
+        <li>Your existing bookmarks will start to sync in the background</li>
+        <li>Please allow time (30 minutes or so) for existing bookmarks to be added to Quarchive's search index</li>
+      </ul>
+    </li>
+  </p>
+{% endblock %}
