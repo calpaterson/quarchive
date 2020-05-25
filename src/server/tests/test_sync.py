@@ -223,3 +223,18 @@ def test_syncing_with_an_extension_that_doesnt_know_about_tags(
 
     end_state = sut.get_bookmark_by_url(session, test_user.user_uuid, url)
     assert end_state == bm_1
+
+
+@pytest.mark.xfail(reason="not implemented")
+@pytest.mark.parametrize(
+    "problem_url", [pytest.param("http://example.com#", id="empty fragment")]
+)
+def test_syncing_with_urls_without_minimum_canonicalisation(
+    client, session, test_user, problem_url
+):
+    """The urls without minimum canonicalisation (basically: where urlunsplit
+    is not a clean undo of urlsplit) are not accepted"""
+    bm = make_bookmark(url=problem_url)
+
+    sync = post_bookmarks(client, test_user, [bm])
+    assert sync.status_code == 400
