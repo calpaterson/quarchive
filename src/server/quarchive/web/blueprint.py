@@ -141,7 +141,9 @@ def about() -> flask.Response:
 @blueprint.route("/getting-started")
 def getting_started():
     return flask.make_response(
-        flask.render_template("getting_started.html", page_title="Getting Started"))
+        flask.render_template("getting_started.html", page_title="Getting Started")
+    )
+
 
 @blueprint.route("/")
 @sign_in_required
