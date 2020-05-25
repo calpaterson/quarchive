@@ -1,4 +1,4 @@
 graft quarchive/templates
 graft quarchive/static
-include quarchive/faq.yaml
+include quarchive/web/faq.yaml
 global-exclude *.pyc
