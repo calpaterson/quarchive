@@ -1,5 +1,3 @@
-from urllib.parse import urlsplit, urlunsplit
-
 import quarchive as sut
 from datetime import datetime
 
@@ -9,14 +7,6 @@ from hypothesis import strategies as st
 from hypothesis.provisional import urls
 
 from .conftest import make_bookmark
-
-
-@given(url=urls())
-def test_url_uuid_stability(url):
-    # This is not a piece of code as such but an important property - need to
-    # be sure that urlsplit, urlunsplit and create_url_uuid work together and
-    # are stable.
-    sut.create_url_uuid(urlunsplit(urlsplit(url))) == sut.create_url_uuid(url)
 
 
 UrlStrategy = st.shared(urls())

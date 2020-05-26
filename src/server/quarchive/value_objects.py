@@ -15,8 +15,24 @@ from .data.models import SQLABookmark, SQLAUrl
 log = getLogger(__name__)
 
 
+class BadCanonicalisationException(Exception):
+    """This exception is raised when the a string url can't be split and
+    unsplit without changing the string.  Many examples are due to trailing
+    (but legal) characters.
+
+    Eg: http://example.com#, http://example.com?
+    """
+
+    def __init__(self, url_string: str):
+        self.url_string = url_string
+
+
 @dataclass(frozen=True)
 class URL:
+    """Core URL class.  Internally URLS are represented by a 5-tuple of
+    (scheme, netloc, path, query, fragment).  URL UUID's are calculated from
+    within the URL UUID namespace."""
+
     url_uuid: UUID
 
     scheme: str
@@ -26,18 +42,33 @@ class URL:
     fragment: str
 
     def to_url(self) -> str:
+        # FIXME: Deprecated!
+        return self.to_string()
+
+    def to_string(self) -> str:
         return urlunsplit(
             (self.scheme, self.netloc, self.path, self.query, self.fragment)
         )
 
     @classmethod
     def from_string(self, url_str: str) -> "URL":
+        """Construct from a url string.
+
+        If the URL string doesn't have "minimum canonicalisation" (ie, if it
+        can't be split and unsplit without returning a different url string),
+        an exception is raised.  Such URLs can't be represented unambiguously
+        by this class.
+
+        """
         s, n, p, q, f = urlsplit(url_str)
+        if url_str != urlunsplit([s, n, p, q, f]):
+            raise BadCanonicalisationException(url_str)
         url_uuid = create_url_uuid(url_str)
         return URL(url_uuid, s, n, p, q, f)
 
     @classmethod
     def from_sqla_url(cls, sql_url: "SQLAUrl") -> "URL":
+        # FIXME: Deprecated
         # sqlalchemy-stubs can't figure this out
         url_uuid = cast(UUID, sql_url.url_uuid)
         return cls(
