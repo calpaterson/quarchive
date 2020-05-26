@@ -37,7 +37,7 @@ def pinboard_import(user_uuid: UUID, json_file, as_of: datetime):
                 (tag, creation_dt, False) for tag in mapping["tags"].split(" ")
             )
         return Bookmark(
-            url=URL.from_string(mapping["href"]).to_string(),
+            url=URL.from_string(mapping["href"]),
             title=mapping["description"],
             description=mapping["extended"],
             updated=as_of_dt,

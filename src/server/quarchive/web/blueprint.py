@@ -351,7 +351,7 @@ def create_bookmark() -> flask.Response:
     creation_time = datetime.utcnow().replace(tzinfo=timezone.utc)
     tag_triples = tag_triples_from_form(form)
     bookmark = Bookmark(
-        url=form["url"],
+        url=URL.from_string(form["url"]),
         title=form["title"],
         description=form["description"],
         unread="unread" in form,

@@ -61,7 +61,7 @@ def test_create_bookmark_form_add_tag(
     if viewfunc == "quarchive.edit_bookmark_form":
         bookmark = make_bookmark()
         sut.set_bookmark(session, test_user.user_uuid, bookmark)
-        url = bookmark.url
+        url = bookmark.url.to_string()
     else:
         url = "http://example.com"
     title = "Example"
@@ -79,7 +79,7 @@ def test_create_bookmark_form_add_tag(
         "remove-tag": remove_tag,
     }
     if viewfunc == "quarchive.edit_bookmark_form":
-        params["url_uuid"] = sut.create_url_uuid(bookmark.url)
+        params["url_uuid"] = bookmark.url.url_uuid
     response = signed_in_client.get(flask.url_for(viewfunc, **params),)
 
     assert response.status_code == 200
@@ -102,7 +102,7 @@ def test_edit_bookmark_form_simple_get(signed_in_client, session, test_user):
     bm = make_bookmark()
     sync_bookmarks(signed_in_client, test_user, [bm])
 
-    url_uuid = sut.create_url_uuid(bm.url)
+    url_uuid = bm.url.url_uuid
 
     response = signed_in_client.get(
         flask.url_for("quarchive.edit_bookmark_form", url_uuid=url_uuid)
@@ -114,9 +114,12 @@ def test_edit_bookmark_form_simple_get(signed_in_client, session, test_user):
 @pytest.mark.parametrize("unread", [True, False])
 @pytest.mark.parametrize("tags", (frozenset([]), frozenset(["a"])))
 def test_creating_a_bookmark(test_user, signed_in_client, session, unread, tags):
-    url = "http://example.com/" + random_string()
+    url = sut.URL.from_string("http://example.com/" + random_string())
     form_data = dict(
-        url=url, title="Example", description="Example description", tags=",".join(tags)
+        url=url.to_string(),
+        title="Example",
+        description="Example description",
+        tags=",".join(tags),
     )
     if unread:
         form_data["unread"] = "on"
@@ -126,13 +129,12 @@ def test_creating_a_bookmark(test_user, signed_in_client, session, unread, tags)
     )
     assert response.status_code == 303
 
-    bookmark = sut.get_bookmark_by_url(session, test_user.user_uuid, url)
+    bookmark = sut.get_bookmark_by_url(session, test_user.user_uuid, url.to_string())
     assert bookmark is not None
 
     assert response.headers["Location"].endswith(
         flask.url_for(
-            "quarchive.edit_bookmark_form",
-            url_uuid=str(sut.create_url_uuid(bookmark.url)),
+            "quarchive.edit_bookmark_form", url_uuid=str(bookmark.url.url_uuid),
         )
     )
     assert bookmark.title == form_data["title"]
@@ -198,7 +200,7 @@ def test_editing_a_bookmark(
 
     sync_bookmarks(signed_in_client, test_user, [bm])
 
-    url_uuid = sut.create_url_uuid(bm.url)
+    url_uuid = bm.url.url_uuid
     form_data = {
         "title": bm.title,
         "description": bm.description,
@@ -217,7 +219,9 @@ def test_editing_a_bookmark(
     assert response.status_code == 303
     assert response.headers["Location"] == "http://localhost/test_location"
 
-    bookmark_obj = sut.get_bookmark_by_url(session, test_user.user_uuid, bm.url)
+    bookmark_obj = sut.get_bookmark_by_url(
+        session, test_user.user_uuid, bm.url.to_string()
+    )
     assert getattr(bookmark_obj, obj_attr) == obj_end
 
 

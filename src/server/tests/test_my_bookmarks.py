@@ -81,7 +81,7 @@ def test_my_bookmarks_paging(app, signed_in_client, session, test_user):
     page_size = app.config["PAGE_SIZE"]
 
     bms = (
-        make_bookmark(url="http://example.com/%s" % i)
+        make_bookmark(url=sut.URL.from_string("http://example.com/%s" % i))
         for i in range(math.floor(page_size * 2.5))
     )
 
@@ -120,7 +120,7 @@ def test_my_bookmarks_search(
     app, signed_in_client, session, test_user, title, search_str, result_count
 ):
     bm1 = make_bookmark()
-    bm2 = make_bookmark(url="http://test.com", title=title)
+    bm2 = make_bookmark(url=sut.URL.from_string("http://test.com"), title=title)
 
     sync_bookmarks(signed_in_client, test_user, [bm1, bm2])
 
@@ -203,7 +203,7 @@ def test_html_injection(app, signed_in_client, test_user):
     """
     html_string = "<blockquote>hi!</blockquote>"
     bm = make_bookmark(
-        url="http://example.com/" + html_string,
+        url=sut.URL.from_string("http://example.com/" + html_string),
         title=html_string,
         description=html_string,
     )

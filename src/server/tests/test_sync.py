@@ -146,8 +146,12 @@ def test_syncing_bookmark_that_already_exists_but_is_old(
 
 @pytest.mark.full_sync
 def test_multiple_bookmarks(client, session, use_jl, test_user):
-    bm_1 = make_bookmark(url="http://example/com/1", title="Example 1")
-    bm_2 = make_bookmark(url="http://example/com/2", title="Example 2")
+    bm_1 = make_bookmark(
+        url=sut.URL.from_string("http://example/com/1"), title="Example 1"
+    )
+    bm_2 = make_bookmark(
+        url=sut.URL.from_string("http://example/com/2"), title="Example 2"
+    )
 
     response = post_bookmarks(
         client, test_user, [bm_1, bm_2], use_jsonlines=use_jl, full=True
@@ -180,7 +184,7 @@ def test_full_sync_gets_all(client, session, use_jl, test_user):
 @pytest.mark.full_sync
 def test_logging_for_bug_6(client, caplog, session, test_user):
     bm = make_bookmark()
-    bm_json = bm.to_json()
+    bm_json = dict(bm.to_json())
     bm_json["updated"] = "+051979-10-24T11:59:23.000Z"
 
     with caplog.at_level(logging.ERROR) as e:
@@ -198,7 +202,7 @@ def test_logging_for_bug_6(client, caplog, session, test_user):
 
         expected_message = (
             "Got invalid datetime: [+051979-10-24T11:59:23.000Z,"
-            " 1970-01-01T00:00:00+00:00] for %s" % bm.url
+            " 1970-01-01T00:00:00+00:00] for %s" % bm.url.to_string()
         )
 
         assert expected_message in messages
@@ -209,19 +213,26 @@ def test_syncing_with_an_extension_that_doesnt_know_about_tags(
 ):
     """This test checks that syncs from extensions that don't know about tags
     don't clober existing tags."""
-    url = "http://example/com/1"
+    url = sut.URL.from_string("http://example/com/1")
     bm_1 = make_bookmark(url=url, title="Example 1")
 
     initial_sync = post_bookmarks(client, test_user, [bm_1])
     assert initial_sync.status_code == 200
 
-    bm_1_no_tags_kwargs = dataclass_as_dict(bm_1)
-    bm_1_no_tags_kwargs["tag_triples"] = []
-    bm_1_no_tags = sut.Bookmark(**bm_1_no_tags_kwargs)
+    bm_1_no_tags = sut.Bookmark(
+        url=url,
+        title=bm_1.title,
+        description=bm_1.description,
+        created=bm_1.created,
+        updated=bm_1.updated,
+        unread=bm_1.unread,
+        deleted=bm_1.deleted,
+        tag_triples=frozenset(),
+    )
     second_sync = post_bookmarks(client, test_user, [bm_1_no_tags])
     assert second_sync.status_code == 200
 
-    end_state = sut.get_bookmark_by_url(session, test_user.user_uuid, url)
+    end_state = sut.get_bookmark_by_url(session, test_user.user_uuid, url.to_string())
     assert end_state == bm_1
 
 

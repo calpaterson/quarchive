@@ -34,11 +34,11 @@ def test_pinboard_bookmark(session, test_user):
     )
     assert result.exit_code == 0
 
-    expected_url = (
+    expected_url = sut.URL.from_string(
         "https://mitpress.mit.edu/books/" "building-successful-online-communities"
     )
     bookmark = sut.get_bookmark_by_url(
-        sut.db.session, test_user.user_uuid, expected_url
+        sut.db.session, test_user.user_uuid, expected_url.to_string()
     )
     creation_dt = datetime(2019, 12, 18, 16, 51, 31, tzinfo=timezone.utc)
     assert bookmark == sut.Bookmark(
@@ -67,9 +67,9 @@ def test_pinboard_with_note(session, test_user):
     )
     assert result.exit_code == 0
 
-    expected_url = "http://notes.pinboard.in/u:calpaterson/abc123"
+    expected_url = sut.URL.from_string("http://notes.pinboard.in/u:calpaterson/abc123")
     bookmark = sut.get_bookmark_by_url(
-        sut.db.session, test_user.user_uuid, expected_url
+        sut.db.session, test_user.user_uuid, expected_url.to_string()
     )
     creation_dt = datetime(2011, 12, 13, 11, 38, 4, tzinfo=timezone.utc)
     assert bookmark == sut.Bookmark(
@@ -98,7 +98,7 @@ def test_pinboard_uses_merge(session, tmpdir, test_user):
 
     pinboard_bookmarks = [
         dict(
-            href=existing_bookmark.url,
+            href=existing_bookmark.url.to_string(),
             extended="",
             description="as of 2018-01-01",
             time=datetime(2018, 1, 12, tzinfo=timezone.utc).isoformat(),
@@ -116,7 +116,7 @@ def test_pinboard_uses_merge(session, tmpdir, test_user):
         catch_exceptions=False,
     )
 
-    url_uuid = sut.create_url_uuid(existing_bookmark.url)
+    url_uuid = existing_bookmark.url.url_uuid
     assert (
         session.query(sut.SQLABookmark)
         .filter(sut.SQLABookmark.url_uuid == url_uuid)
@@ -124,7 +124,7 @@ def test_pinboard_uses_merge(session, tmpdir, test_user):
         == 1
     )
     final_bookmark = sut.get_bookmark_by_url(
-        session, test_user.user_uuid, existing_bookmark.url
+        session, test_user.user_uuid, existing_bookmark.url.to_string()
     )
     assert final_bookmark is not None
     assert final_bookmark.created == datetime(2018, 1, 12, tzinfo=timezone.utc)

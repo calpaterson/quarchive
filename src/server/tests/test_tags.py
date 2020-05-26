@@ -4,6 +4,8 @@ import flask
 from lxml import etree
 from lxml.cssselect import CSSSelector
 
+from quarchive.value_objects import URL
+
 from .conftest import make_bookmark
 from .utils import sync_bookmarks, get_bookmarks_from_response
 
@@ -11,12 +13,12 @@ from .utils import sync_bookmarks, get_bookmarks_from_response
 def test_user_tags_page(signed_in_client, test_user):
     epoch_start = datetime(1970, 1, 1, tzinfo=timezone.utc)
     bm1 = make_bookmark(
-        url="http://example.com/pokemon",
+        url=URL.from_string("http://example.com/pokemon"),
         title="Pokemon",
         tag_triples=frozenset([("pokemon", epoch_start, False)]),
     )
     bm2 = make_bookmark(
-        url="http://example.com/digimon",
+        url=URL.from_string("http://example.com/digimon"),
         title="Digimon",
         tag_triples=frozenset([("digimon", epoch_start, False)]),
     )
@@ -36,12 +38,12 @@ def test_tags_page(signed_in_client, test_user):
     # FIXME: include deleted, etc
     epoch_start = datetime(1970, 1, 1, tzinfo=timezone.utc)
     bm1 = make_bookmark(
-        url="http://example.com/pokemon",
+        url=URL.from_string("http://example.com/pokemon"),
         title="Pokemon",
         tag_triples=frozenset([("pokemon", epoch_start, False)]),
     )
     bm2 = make_bookmark(
-        url="http://example.com/digimon",
+        url=URL.from_string("http://example.com/digimon"),
         title="Digimon",
         tag_triples=frozenset([("digimon", epoch_start, False)]),
     )

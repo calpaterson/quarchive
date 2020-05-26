@@ -66,7 +66,7 @@ TagTriples = FrozenSet[TagTriple]
 
 @dataclass(frozen=True)
 class Bookmark:
-    url: str
+    url: URL
 
     title: str
     description: str
@@ -78,9 +78,6 @@ class Bookmark:
     deleted: bool
 
     tag_triples: TagTriples
-
-    def get_url(self) -> URL:
-        return URL.from_string(self.url)
 
     def current_tags(self) -> FrozenSet[str]:
         """Returns all current tags of the bookmark"""
@@ -146,7 +143,7 @@ class Bookmark:
 
     def to_json(self) -> Mapping:
         return {
-            "url": self.url,
+            "url": self.url.to_string(),
             "title": self.title,
             "description": self.description,
             "created": self.created.isoformat(),
@@ -173,7 +170,7 @@ class Bookmark:
             (n, isoparse(dt), d) for n, dt, d in mapping.get("tag_triples", [])
         )
         return cls(
-            url=mapping["url"],
+            url=URL.from_string(mapping["url"]),
             title=mapping["title"],
             description=mapping["description"],
             updated=updated,

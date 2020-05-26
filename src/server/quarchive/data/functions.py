@@ -182,7 +182,7 @@ def upsert_url(session: Session, url: str) -> UUID:
 
 
 def set_bookmark(session: Session, user_uuid: UUID, bookmark: Bookmark) -> UUID:
-    url = URL.from_string(bookmark.url)
+    url = bookmark.url
     if len(bookmark.tag_triples) > 0:
         tag_names, tag_updates, tag_deleted = zip(*bookmark.tag_triples)
     else:
@@ -219,7 +219,7 @@ def merge_bookmarks(
 ) -> Set[Bookmark]:
     changed_bookmarks: Set[Bookmark] = set()
     for recieved in recieved_bookmarks:
-        existing = get_bookmark_by_url(session, user_uuid, url=recieved.url)
+        existing = get_bookmark_by_url(session, user_uuid, url=recieved.url.to_string())
         if existing is None:
             # If it doesn't exist in our db, we create it - but client already
             # knows
@@ -310,7 +310,7 @@ def tags_with_count(session, user: User) -> Iterable[Tuple[str, int]]:
 
 def bookmark_from_sqla(url: str, sqla_obj: SQLABookmark) -> Bookmark:
     return Bookmark(
-        url=URL.from_string(url).to_string(),
+        url=URL.from_string(url),
         created=sqla_obj.created,
         description=sqla_obj.description,
         updated=sqla_obj.updated,

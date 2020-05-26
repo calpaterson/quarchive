@@ -102,7 +102,6 @@ def test_enqueue_crawls_for_uncrawled_urls(session, eager_celery, mock_s3, test_
     sut.set_bookmark(session, test_user.user_uuid, bookmark)
     session.commit()
     url = bookmark.url
-    s, n, p, q, f = urlsplit(url)
 
     responses.add(
         responses.GET, re.compile(r"http://example.com/.*"), body=b"hello", stream=True
@@ -114,11 +113,11 @@ def test_enqueue_crawls_for_uncrawled_urls(session, eager_celery, mock_s3, test_
         .join(sut.CrawlRequest)
         .join(sut.SQLAUrl)
         .filter(
-            sut.SQLAUrl.scheme == s,
-            sut.SQLAUrl.netloc == n,
-            sut.SQLAUrl.path == p,
-            sut.SQLAUrl.query == q,
-            sut.SQLAUrl.fragment == f,
+            sut.SQLAUrl.scheme == url.scheme,
+            sut.SQLAUrl.netloc == url.netloc,
+            sut.SQLAUrl.path == url.path,
+            sut.SQLAUrl.query == url.query,
+            sut.SQLAUrl.fragment == url.fragment,
         )
     )
     assert resp_query.count() == 1

@@ -120,10 +120,10 @@ class User(value_objects.User):
     api_key: bytes
 
 
-def make_bookmark(**kwargs):
+def make_bookmark(**kwargs) -> sut.Bookmark:
     epoch_start = datetime(1970, 1, 1, tzinfo=timezone.utc)
     bookmark_defaults: Mapping[str, Any] = {
-        "url": "http://example.com/" + random_string(),
+        "url": sut.URL.from_string("http://example.com/" + random_string()),
         "title": "Example",
         "created": epoch_start,
         "updated": epoch_start,

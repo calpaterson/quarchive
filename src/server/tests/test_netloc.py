@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 import flask
 
+from quarchive.value_objects import URL
 from .conftest import make_bookmark
 from .utils import sync_bookmarks, get_bookmarks_from_response
 
@@ -9,12 +10,12 @@ from .utils import sync_bookmarks, get_bookmarks_from_response
 def test_user_netloc_page(signed_in_client, test_user):
     epoch_start = datetime(1970, 1, 1, tzinfo=timezone.utc)
     bm1 = make_bookmark(
-        url="http://pokemon.com/",
+        url=URL.from_string("http://pokemon.com/"),
         title="Pokemon",
         tag_triples=frozenset([("pokemon", epoch_start, False)]),
     )
     bm2 = make_bookmark(
-        url="http://digimon.com/",
+        url=URL.from_string("http://digimon.com/"),
         title="Digimon",
         tag_triples=frozenset([("digimon", epoch_start, False)]),
     )
