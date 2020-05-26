@@ -41,10 +41,6 @@ class URL:
     query: str
     fragment: str
 
-    def to_url(self) -> str:
-        # FIXME: Deprecated!
-        return self.to_string()
-
     def to_string(self) -> str:
         return urlunsplit(
             (self.scheme, self.netloc, self.path, self.query, self.fragment)
@@ -207,7 +203,7 @@ class Bookmark:
 
 def bookmark_from_sqla(url: str, sqla_obj: "SQLABookmark") -> Bookmark:
     return Bookmark(
-        url=url,
+        url=URL.from_string(url).to_string(),
         created=sqla_obj.created,
         description=sqla_obj.description,
         updated=sqla_obj.updated,

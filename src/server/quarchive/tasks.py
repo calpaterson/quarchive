@@ -232,7 +232,7 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
 
         if inserted is not None:
             log.info(
-                "%s (%s) already indexed - not indexing again", url.to_url(), crawl_uuid
+                "%s (%s) already indexed - not indexing again", url.to_string(), crawl_uuid
             )
             return
 
@@ -254,19 +254,19 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
                 log.info(
                     "inferred %s for %s (instead of %s)",
                     content_type,
-                    url.to_url(),
+                    url.to_string(),
                     old_content_type,
                 )
         else:
             # No Content-Type, so infer it
             fileobj = download_file(bucket, str(body_uuid))
             content_type = infer_content_type(fileobj)
-            log.info("inferred %s for %s (none provided)", content_type, url.to_url())
+            log.info("inferred %s for %s (none provided)", content_type, url.to_string())
 
         if content_type != "text/html":
             log.info(
                 "%s (%s) has wrong content type: %s - skipping",
-                url.to_url(),
+                url.to_string(),
                 crawl_uuid,
                 content_type,
             )
@@ -288,7 +288,7 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
         )
         sesh.add(fulltext_obj)
         sesh.commit()
-        log.info("indexed %s (%s)", url.to_url(), crawl_uuid)
+        log.info("indexed %s (%s)", url.to_string(), crawl_uuid)
 
 
 def crawl_url(session: Session, crawl_uuid: UUID, url: str) -> None:

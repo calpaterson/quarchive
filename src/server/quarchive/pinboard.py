@@ -9,7 +9,7 @@ import click
 from dateutil.parser import isoparse
 
 from .data.functions import merge_bookmarks
-from .value_objects import Bookmark, TagTriples
+from .value_objects import Bookmark, TagTriples, URL
 from .web.app import init_app
 from .web.blueprint import db
 
@@ -37,7 +37,7 @@ def pinboard_import(user_uuid: UUID, json_file, as_of: datetime):
                 (tag, creation_dt, False) for tag in mapping["tags"].split(" ")
             )
         return Bookmark(
-            url=mapping["href"],
+            url=URL.from_string(mapping["href"]).to_string(),
             title=mapping["description"],
             description=mapping["extended"],
             updated=as_of_dt,

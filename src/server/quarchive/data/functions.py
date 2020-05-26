@@ -137,7 +137,7 @@ def get_bookmark_by_url_uuid(
     )
     if sqla_bookmark is None:
         return None
-    url = URL.from_sqla_url(sqla_bookmark.url_obj).to_url()
+    url = URL.from_sqla_url(sqla_bookmark.url_obj).to_string()
     return bookmark_from_sqla(url, sqla_bookmark)
 
 
@@ -183,20 +183,19 @@ def upsert_url(session: Session, url: str) -> UUID:
 
 
 def set_bookmark(session: Session, user_uuid: UUID, bookmark: Bookmark) -> UUID:
-    url_uuid = create_url_uuid(bookmark.url)
-    scheme, netloc, path, query, fragment = urlsplit(bookmark.url)
+    url = URL.from_string(bookmark.url)
     if len(bookmark.tag_triples) > 0:
         tag_names, tag_updates, tag_deleted = zip(*bookmark.tag_triples)
     else:
         tag_names, tag_updates, tag_deleted = [()] * 3
     session.execute(
         func.insert_bookmark_v1(
-            url_uuid,
-            scheme,
-            netloc,
-            path,
-            query,
-            fragment,
+            url.url_uuid,
+            url.scheme,
+            url.netloc,
+            url.path,
+            url.query,
+            url.fragment,
             user_uuid,
             bookmark.title,
             bookmark.description,
@@ -213,7 +212,7 @@ def set_bookmark(session: Session, user_uuid: UUID, bookmark: Bookmark) -> UUID:
         )
     )
 
-    return url_uuid
+    return url.url_uuid
 
 
 def merge_bookmarks(
