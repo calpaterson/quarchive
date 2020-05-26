@@ -137,7 +137,7 @@ def get_bookmark_by_url_uuid(
     )
     if sqla_bookmark is None:
         return None
-    url = URL.from_sqla_url(sqla_bookmark.url_obj).to_string()
+    url = sqla_bookmark.url_obj.to_url_string()
     return bookmark_from_sqla(url, sqla_bookmark)
 
 

@@ -8,6 +8,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import RelationshipProperty, foreign, relationship, remote
 from sqlalchemy.schema import CheckConstraint
 
+from quarchive.value_objects import URL
+
 # https://github.com/dropbox/sqlalchemy-stubs/issues/94
 if TYPE_CHECKING:
     PGUUID = satypes.TypeEngine[UUID]
@@ -30,10 +32,29 @@ class SQLAUrl(Base):
     query = Column(satypes.String, nullable=False, index=True, primary_key=True)
     fragment = Column(satypes.String, nullable=False, index=True, primary_key=True)
 
-    def to_url_string(self) -> str:
-        return urlunsplit(
-            [self.scheme, self.netloc, self.path, self.query, self.fragment]
+    def to_url(self) -> URL:
+        return URL(
+            self.url_uuid,
+            self.scheme,
+            self.netloc,
+            self.path,
+            self.query,
+            self.fragment,
         )
+
+    @classmethod
+    def from_url(self, url) -> "SQLAUrl":
+        return SQLAUrl(
+            url_uuid=url.url_uuid,
+            scheme=url.scheme,
+            netloc=url.netloc,
+            path=url.path,
+            query=url.path,
+            fragment=url.fragment,
+        )
+
+    def to_url_string(self) -> str:
+        return self.to_url().to_string()
 
 
 class SQLABookmark(Base):

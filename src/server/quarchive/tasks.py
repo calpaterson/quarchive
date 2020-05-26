@@ -228,11 +228,13 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
             .one()
         )
 
-        url = URL.from_sqla_url(sqla_url_obj)
+        url = sqla_url_obj.to_url()
 
         if inserted is not None:
             log.info(
-                "%s (%s) already indexed - not indexing again", url.to_string(), crawl_uuid
+                "%s (%s) already indexed - not indexing again",
+                url.to_string(),
+                crawl_uuid,
             )
             return
 
@@ -261,7 +263,9 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
             # No Content-Type, so infer it
             fileobj = download_file(bucket, str(body_uuid))
             content_type = infer_content_type(fileobj)
-            log.info("inferred %s for %s (none provided)", content_type, url.to_string())
+            log.info(
+                "inferred %s for %s (none provided)", content_type, url.to_string()
+            )
 
         if content_type != "text/html":
             log.info(

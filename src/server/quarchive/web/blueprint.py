@@ -197,7 +197,7 @@ def my_bookmarks() -> Tuple[flask.Response, int]:
 
     bookmarks = []
     for sqla_obj in sqla_objs:
-        url = URL.from_sqla_url(sqla_obj.url_obj)
+        url = sqla_obj.url_obj.to_url()
         bookmarks.append((url, bookmark_from_sqla(url.to_string(), sqla_obj)))
     return flask.make_response(
         flask.render_template(
@@ -406,7 +406,7 @@ def view_url(url_uuid: UUID) -> Tuple[flask.Response, int]:
     if sqla_obj is None:
         raise exc.NotFound()
     else:
-        url_obj = URL.from_sqla_url(sqla_obj)
+        url_obj = sqla_obj.to_url()
         return flask.make_response(
             flask.render_template(
                 "url.html", url=url_obj, page_title="View: %s" % url_obj.to_string()

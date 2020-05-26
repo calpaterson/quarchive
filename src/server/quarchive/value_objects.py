@@ -9,9 +9,6 @@ from uuid import NAMESPACE_URL as UUID_URL_NAMESPACE, UUID, uuid5
 import pytz
 from dateutil.parser import isoparse
 
-# FIXME: to be removed!
-from .data.models import SQLABookmark, SQLAUrl
-
 log = getLogger(__name__)
 
 
@@ -61,20 +58,6 @@ class URL:
             raise BadCanonicalisationException(url_str)
         url_uuid = create_url_uuid(url_str)
         return URL(url_uuid, s, n, p, q, f)
-
-    @classmethod
-    def from_sqla_url(cls, sql_url: "SQLAUrl") -> "URL":
-        # FIXME: Deprecated
-        # sqlalchemy-stubs can't figure this out
-        url_uuid = cast(UUID, sql_url.url_uuid)
-        return cls(
-            url_uuid=url_uuid,
-            scheme=sql_url.scheme,
-            netloc=sql_url.netloc,
-            path=sql_url.path,
-            query=sql_url.query,
-            fragment=sql_url.fragment,
-        )
 
 
 TagTriple = Tuple[str, datetime, bool]
@@ -201,7 +184,8 @@ class Bookmark:
         )
 
 
-def bookmark_from_sqla(url: str, sqla_obj: "SQLABookmark") -> Bookmark:
+# sqla_obj is SQLABookmark
+def bookmark_from_sqla(url: str, sqla_obj: "Any") -> Bookmark:
     return Bookmark(
         url=URL.from_string(url).to_string(),
         created=sqla_obj.created,
