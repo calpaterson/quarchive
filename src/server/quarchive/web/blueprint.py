@@ -42,8 +42,9 @@ from quarchive.data.functions import (
     username_exists,
 )
 from quarchive.data.models import FullText, SQLABookmark, SQLAUrl, SQLUser
+from quarchive.data.functions import bookmark_from_sqla
 from quarchive.search import parse_search_str
-from quarchive.value_objects import URL, Bookmark, TagTriples, User, bookmark_from_sqla
+from quarchive.value_objects import URL, Bookmark, TagTriples, User
 
 from .db_obj import db
 

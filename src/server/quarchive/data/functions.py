@@ -17,7 +17,6 @@ from quarchive.value_objects import (
     URL,
     Bookmark,
     User,
-    bookmark_from_sqla,
     create_url_uuid,
 )
 
@@ -307,3 +306,19 @@ def tags_with_count(session, user: User) -> Iterable[Tuple[str, int]]:
         .order_by(func.count(Tag.tag_name).desc())
     )
     yield from query
+
+
+def bookmark_from_sqla(url: str, sqla_obj: SQLABookmark) -> Bookmark:
+    return Bookmark(
+        url=URL.from_string(url).to_string(),
+        created=sqla_obj.created,
+        description=sqla_obj.description,
+        updated=sqla_obj.updated,
+        unread=sqla_obj.unread,
+        deleted=sqla_obj.deleted,
+        title=sqla_obj.title,
+        tag_triples=frozenset(
+            (btag.tag_obj.tag_name, btag.updated, btag.deleted)
+            for btag in sqla_obj.bookmark_tag_objs
+        ),
+    )

@@ -3,7 +3,6 @@ from .value_objects import (
     URL,
     User,
     TagTriples,
-    bookmark_from_sqla,
     create_url_uuid,
 )
 from .data.models import (
@@ -29,6 +28,7 @@ from .data.functions import (
     all_bookmarks,
     bookmarks_with_tag,
     tags_with_count,
+    bookmark_from_sqla,
 )
 from .search import parse_search_str
 from .config import load_config

@@ -184,23 +184,6 @@ class Bookmark:
         )
 
 
-# sqla_obj is SQLABookmark
-def bookmark_from_sqla(url: str, sqla_obj: "Any") -> Bookmark:
-    return Bookmark(
-        url=URL.from_string(url).to_string(),
-        created=sqla_obj.created,
-        description=sqla_obj.description,
-        updated=sqla_obj.updated,
-        unread=sqla_obj.unread,
-        deleted=sqla_obj.deleted,
-        title=sqla_obj.title,
-        tag_triples=frozenset(
-            (btag.tag_obj.tag_name, btag.updated, btag.deleted)
-            for btag in sqla_obj.bookmark_tag_objs
-        ),
-    )
-
-
 @dataclass
 class User:
     user_uuid: UUID
