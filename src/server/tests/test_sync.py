@@ -1,4 +1,4 @@
-from dataclasses import asdict as dataclass_as_dict
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Sequence
 import json
@@ -236,16 +236,27 @@ def test_syncing_with_an_extension_that_doesnt_know_about_tags(
     assert end_state == bm_1
 
 
-@pytest.mark.xfail(reason="not implemented")
 @pytest.mark.parametrize(
     "problem_url", [pytest.param("http://example.com#", id="empty fragment")]
 )
 def test_syncing_with_urls_without_minimum_canonicalisation(
-    client, session, test_user, problem_url
+    client, session, test_user, caplog, problem_url
 ):
     """The urls without minimum canonicalisation (basically: where urlunsplit
     is not a clean undo of urlsplit) are not accepted"""
-    bm = make_bookmark(url=problem_url)
+    caplog.set_level(logging.ERROR)
+    bm_json = dict(make_bookmark().to_json())
+    bm_json["url"] = problem_url
 
-    sync = post_bookmarks(client, test_user, [bm])
-    assert sync.status_code == 400
+    response = client.post(
+        "/sync",
+        data=json.dumps(bm_json),
+        headers={
+            "Content-Type": "application/ndjson",
+            "X-QM-API-Username": test_user.username,
+            "X-QM-API-Key": test_user.api_key.hex(),
+        },
+    )
+
+    assert response.status_code == 400
+    assert "bad canonicalised url" in caplog.records[0].message

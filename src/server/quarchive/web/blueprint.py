@@ -44,7 +44,13 @@ from quarchive.data.functions import (
 from quarchive.data.models import FullText, SQLABookmark, SQLAUrl, SQLUser
 from quarchive.data.functions import bookmark_from_sqla
 from quarchive.search import parse_search_str
-from quarchive.value_objects import URL, Bookmark, TagTriples, User
+from quarchive.value_objects import (
+    URL,
+    Bookmark,
+    TagTriples,
+    User,
+    BadCanonicalisationException,
+)
 
 from .db_obj import db
 
@@ -605,12 +611,12 @@ def ok() -> flask.Response:
 @blueprint.route("/sync", methods=["POST"])
 @api_key_required
 def sync() -> flask.Response:
-    log.debug(
-        "extension version: %s",
-        flask.request.headers.get("Quarchive-Extension-Version", "unknown"),
+    extension_version = flask.request.headers.get(
+        "Quarchive-Extension-Version", "unknown"
     )
+    log.debug("extension version: %s", extension_version)
+    user = get_current_user()
     use_jsonlines = flask.request.headers["Content-Type"] != "application/json"
-
     if not use_jsonlines:
         log.warning("sync request using deprecated single json object")
         body = flask.request.json
@@ -621,9 +627,19 @@ def sync() -> flask.Response:
             Bookmark.from_json(json.loads(l)) for l in flask.request.stream.readlines()
         )
 
-    changed_bookmarks = merge_bookmarks(
-        db.session, get_current_user().user_uuid, recieved_bookmarks
-    )
+    try:
+        changed_bookmarks = merge_bookmarks(
+            db.session, user.user_uuid, recieved_bookmarks
+        )
+    except BadCanonicalisationException as e:
+        log.error(
+            "bad canonicalised url ('%s') from version %s, user %s",
+            e.url_string,
+            extension_version,
+            user,
+        )
+        db.session.rollback()
+        flask.abort(400, "bad canonicalisation on url: %s" % e.url_string)
     db.session.commit()
     if "full" in flask.request.args:
         response_bookmarks = all_bookmarks(db.session, get_current_user().user_uuid)
