@@ -17,7 +17,6 @@ from quarchive.value_objects import (
     URL,
     Bookmark,
     User,
-    create_url_uuid,
 )
 
 from .models import APIKey, BookmarkTag, SQLABookmark, SQLAUrl, SQLUser, Tag, UserEmail
@@ -113,17 +112,17 @@ def create_user(
 
 
 def get_bookmark_by_url(
-    session: Session, user_uuid: UUID, url: str
+    session: Session, user_uuid: UUID, url_string: str
 ) -> Optional[Bookmark]:
-    url_uuid = create_url_uuid(url)
+    url = URL.from_string(url_string)
     sqla_bookmark = (
         session.query(SQLABookmark)
-        .filter(SQLABookmark.user_uuid == user_uuid, SQLABookmark.url_uuid == url_uuid)
+        .filter(SQLABookmark.user_uuid == user_uuid, SQLABookmark.url_uuid == url.url_uuid)
         .first()
     )
     if sqla_bookmark is None:
         return None
-    return bookmark_from_sqla(url, sqla_bookmark)
+    return bookmark_from_sqla(url_string, sqla_bookmark)
 
 
 def get_bookmark_by_url_uuid(
@@ -140,45 +139,25 @@ def get_bookmark_by_url_uuid(
     return bookmark_from_sqla(url, sqla_bookmark)
 
 
-def upsert_url(session: Session, url: str) -> UUID:
-    scheme, netloc, path, query, fragment = urlsplit(url)
-    proposed_uuid = create_url_uuid(url)
+def upsert_url(session: Session, url_string: str) -> UUID:
+    url = URL.from_string(url_string)
     url_stmt = (
         pg_insert(SQLAUrl.__table__)
         .values(
-            url_uuid=proposed_uuid,
-            scheme=scheme,
-            netloc=netloc,
-            path=path,
-            query=query,
-            fragment=fragment,
+            url_uuid=url.url_uuid,
+            scheme=url.scheme,
+            netloc=url.netloc,
+            path=url.path,
+            query=url.query,
+            fragment=url.fragment,
         )
         .on_conflict_do_nothing(
             index_elements=["scheme", "netloc", "path", "query", "fragment"]
         )
-        .returning(SQLAUrl.__table__.c.url_uuid)
     )
-    upsert_result_set = session.execute(url_stmt).fetchone()
+    session.execute(url_stmt)
 
-    url_uuid: UUID
-    if upsert_result_set is None:
-        # The update didn't happen, but we still need to know what the url uuid
-        # is...
-        (url_uuid,) = (
-            session.query(SQLAUrl.url_uuid)
-            .filter(
-                SQLAUrl.scheme == scheme,
-                SQLAUrl.netloc == netloc,
-                SQLAUrl.path == path,
-                SQLAUrl.query == query,
-                SQLAUrl.fragment == fragment,
-            )
-            .one()
-        )
-    else:
-        # If the update did happen, we know our proposed uuid was used
-        url_uuid = proposed_uuid
-    return url_uuid
+    return url.url_uuid
 
 
 def set_bookmark(session: Session, user_uuid: UUID, bookmark: Bookmark) -> UUID:
@@ -219,7 +198,7 @@ def merge_bookmarks(
 ) -> Set[Bookmark]:
     changed_bookmarks: Set[Bookmark] = set()
     for recieved in recieved_bookmarks:
-        existing = get_bookmark_by_url(session, user_uuid, url=recieved.url.to_string())
+        existing = get_bookmark_by_url(session, user_uuid, url_string=recieved.url.to_string())
         if existing is None:
             # If it doesn't exist in our db, we create it - but client already
             # knows

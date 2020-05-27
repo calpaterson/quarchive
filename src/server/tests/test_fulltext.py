@@ -38,7 +38,7 @@ def test_indexing_for_fresh(session, mock_s3):
     url_str = "http://example.com/" + random_string()
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
     crawl_uuid = uuid4()
-    url_uuid = sut.create_url_uuid(url_str)
+    url_uuid = sut.URL.from_string(url_str).url_uuid
     body_uuid = uuid4()
 
     url_obj = sut.SQLAUrl(
@@ -83,7 +83,7 @@ def test_indexing_idempotent(session, mock_s3):
     url_str = "http://example.com/" + random_string()
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
     crawl_uuid = uuid4()
-    url_uuid = sut.create_url_uuid(url_str)
+    url_uuid = sut.URL.from_string(url_str).url_uuid
     body_uuid = uuid4()
 
     url_obj = sut.SQLAUrl(
@@ -129,7 +129,7 @@ def test_indexing_non_html(session):
     url_str = "http://example.com/" + random_string()
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
     crawl_uuid = uuid4()
-    url_uuid = sut.create_url_uuid(url_str)
+    url_uuid = sut.URL.from_string(url_str).url_uuid
     body_uuid = uuid4()
 
     url_obj = sut.SQLAUrl(
@@ -171,7 +171,7 @@ def test_indexing_nonsense_content_type(session, mock_s3):
     url_str = "http://example.com/" + random_string()
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
     crawl_uuid = uuid4()
-    url_uuid = sut.create_url_uuid(url_str)
+    url_uuid = sut.URL.from_string(url_str).url_uuid
     body_uuid = uuid4()
 
     url_obj = sut.SQLAUrl(
@@ -217,7 +217,7 @@ def test_indexing_junk_content_type(session, mock_s3):
     url_str = "http://example.com/" + random_string()
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
     crawl_uuid = uuid4()
-    url_uuid = sut.create_url_uuid(url_str)
+    url_uuid = sut.URL.from_string(url_str).url_uuid
     body_uuid = uuid4()
 
     url_obj = sut.SQLAUrl(
@@ -260,7 +260,7 @@ def test_enqueue_fulltext_indexing(session, eager_celery, mock_s3):
     url_str = "http://example.com/" + random_string()
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
     crawl_uuid = uuid4()
-    url_uuid = sut.create_url_uuid(url_str)
+    url_uuid = sut.URL.from_string(url_str).url_uuid
     body_uuid = uuid4()
 
     url_obj = sut.SQLAUrl(

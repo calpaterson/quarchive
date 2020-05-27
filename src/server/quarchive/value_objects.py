@@ -56,7 +56,7 @@ class URL:
         s, n, p, q, f = urlsplit(url_str)
         if url_str != urlunsplit([s, n, p, q, f]):
             raise BadCanonicalisationException(url_str)
-        url_uuid = create_url_uuid(url_str)
+        url_uuid = uuid5(UUID_URL_NAMESPACE, url_str)
         return URL(url_uuid, s, n, p, q, f)
 
 
@@ -187,8 +187,3 @@ class User:
     username: str
     email: Optional[str]
     timezone: pytz.BaseTzInfo
-
-
-def create_url_uuid(url: str) -> UUID:
-    # Use uuid5's namespace system to make url uuid deterministic
-    return uuid5(UUID_URL_NAMESPACE, url)

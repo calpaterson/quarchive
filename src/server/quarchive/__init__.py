@@ -3,7 +3,6 @@ from .value_objects import (
     URL,
     User,
     TagTriples,
-    create_url_uuid,
 )
 from .data.models import (
     SQLAUrl,
