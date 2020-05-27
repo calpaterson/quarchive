@@ -117,7 +117,9 @@ def get_bookmark_by_url(
     url = URL.from_string(url_string)
     sqla_bookmark = (
         session.query(SQLABookmark)
-        .filter(SQLABookmark.user_uuid == user_uuid, SQLABookmark.url_uuid == url.url_uuid)
+        .filter(
+            SQLABookmark.user_uuid == user_uuid, SQLABookmark.url_uuid == url.url_uuid
+        )
         .first()
     )
     if sqla_bookmark is None:
@@ -198,7 +200,9 @@ def merge_bookmarks(
 ) -> Set[Bookmark]:
     changed_bookmarks: Set[Bookmark] = set()
     for recieved in recieved_bookmarks:
-        existing = get_bookmark_by_url(session, user_uuid, url_string=recieved.url.to_string())
+        existing = get_bookmark_by_url(
+            session, user_uuid, url_string=recieved.url.to_string()
+        )
         if existing is None:
             # If it doesn't exist in our db, we create it - but client already
             # knows
