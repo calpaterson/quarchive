@@ -41,7 +41,7 @@ describe("url class", function(){
 });
 
 describe("bookmark class", function() {
-    const mifid_start_date = new Date(2018, 0, 3);
+    const mifid2_start_date = new Date(2018, 0, 3);
     const mifid_plus_one = new Date(2018, 0, 4);
 
     test("equality", function(){
@@ -49,7 +49,7 @@ describe("bookmark class", function() {
             "http://example.com",
             "Example",
             "",
-            mifid_start_date,
+            mifid2_start_date,
             mifid_plus_one,
             false,
             false,
@@ -59,7 +59,7 @@ describe("bookmark class", function() {
             "http://example.com",
             "Example",
             "",
-            mifid_start_date,
+            mifid2_start_date,
             mifid_plus_one,
             false,
             false,
@@ -73,8 +73,8 @@ describe("bookmark class", function() {
             "http://example.com",
             "Example",
             "",
-            mifid_start_date,
-            mifid_start_date,
+            mifid2_start_date,
+            mifid2_start_date,
             false,
             false,
             null
@@ -83,7 +83,7 @@ describe("bookmark class", function() {
             "http://example.com",
             "Example",
             "",
-            mifid_start_date,
+            mifid2_start_date,
             mifid_plus_one,
             false,
             false,
@@ -91,4 +91,51 @@ describe("bookmark class", function() {
         );
         expect(bm1.equals(bm2)).toBe(false);
     });
+
+    test("to json", function() {
+        let bm1 = new Bookmark(
+            "http://example.com",
+            "Example",
+            "",
+            mifid2_start_date,
+            mifid2_start_date,
+            false,
+            false,
+            null
+        );
+        let expected = {
+            "created": mifid2_start_date.toISOString(),
+            "deleted": false,
+            "description": "",
+            "title": "Example",
+            "unread": false,
+            "updated": mifid2_start_date.toISOString(),
+            "url": "http://example.com",
+        }
+        expect(bm1.to_json()).toEqual(expected);
+    })
+
+    test("from json", function() {
+        let json = {
+            "url": "http://example.com",
+            "title": "Example",
+            "description": "An example",
+            "created": "2020-05-17T16:29:41.161000+00:00",
+            "updated": "2020-05-17T16:34:56.709124+00:00",
+            "unread": false,
+            "deleted": true,
+            // TODO:
+            // "tag_triples": [["test_tag", "2020-05-18T15:15:15.371887+00:00", false]]
+        }
+
+        let bm = Bookmark.from_json(json);
+
+        expect(bm.url).toEqual("http://example.com");
+        expect(bm.title).toEqual("Example");
+        expect(bm.description).toEqual("An example");
+        expect(bm.created).toEqual(new Date(Date.UTC(2020, 4, 17, 16, 29, 41, 161)));
+        expect(bm.updated).toEqual(new Date(Date.UTC(2020, 4, 17, 16, 34, 56, 709)));
+        expect(bm.unread).toEqual(false);
+        expect(bm.deleted).toEqual(true);
+    })
 });
