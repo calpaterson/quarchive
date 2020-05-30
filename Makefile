@@ -73,7 +73,7 @@ $(jest_sentinel): $(ext_path)/jest.config.js $(ts_files) $(jest)
 # 	touch $@
 
 $(web_ext) $(tsc) $(eslint) $(jest) $(webextension_polyfill):
-	cd $(ext_path); npm install
+	cd $(ext_path); npm install --save-dev
 
 dist $(ext_firefox_build_dir) $(ext_chrome_build_dir):
 	mkdir -p $@
