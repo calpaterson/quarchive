@@ -1,4 +1,4 @@
-import { QuarchiveURL } from "./value_objects";
+import { QuarchiveURL, Bookmark } from "./value_objects";
 
 describe("url class", function(){
     test("url with username and password", function(){
@@ -37,5 +37,58 @@ describe("url class", function(){
         const quURL = new QuarchiveURL(urlString);
 
         expect(quURL.toString()).toEqual(expected);
+    });
+});
+
+describe("bookmark class", function() {
+    const mifid_start_date = new Date(2018, 0, 3);
+    const mifid_plus_one = new Date(2018, 0, 4);
+
+    test("equality", function(){
+        let bm1 = new Bookmark(
+            "http://example.com",
+            "Example",
+            "",
+            mifid_start_date,
+            mifid_plus_one,
+            false,
+            false,
+            null
+        );
+        let bm2 = new Bookmark(
+            "http://example.com",
+            "Example",
+            "",
+            mifid_start_date,
+            mifid_plus_one,
+            false,
+            false,
+            null
+        );
+        expect(bm1.equals(bm2)).toBe(true);
+    });
+
+    test("different dates", function(){
+        let bm1 = new Bookmark(
+            "http://example.com",
+            "Example",
+            "",
+            mifid_start_date,
+            mifid_start_date,
+            false,
+            false,
+            null
+        );
+        let bm2 = new Bookmark(
+            "http://example.com",
+            "Example",
+            "",
+            mifid_start_date,
+            mifid_plus_one,
+            false,
+            false,
+            null
+        );
+        expect(bm1.equals(bm2)).toBe(false);
     });
 });

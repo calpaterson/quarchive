@@ -1,5 +1,7 @@
 "use strict";
 
+import { Bookmark } from "./value_objects"
+
 const SCHEMA_VERSION = 2;
 
 // An hour
@@ -8,122 +10,6 @@ const PERIODIC_FULL_SYNC_INTERVAL_IN_MINUTES = 60;
 var db: IDBDatabase;
 
 let listenersEnabled = false;
-
-export class Bookmark {
-    url: string;
-    title: string;
-    description: string;
-    created: Date;
-    updated: Date;
-    deleted: boolean;
-    unread: boolean;
-    browserId: string;
-    constructor(
-        url: string,
-        title: string,
-        description: string,
-        created: Date,
-        updated: Date,
-        deleted: boolean,
-        unread:boolean,
-        browserId: string
-    ){
-        this.url = url;
-        this.title = title;
-        this.description = description,
-
-        this.created = created;
-        this.updated = updated;
-
-        this.deleted = deleted;
-        this.unread = unread;
-
-        this.browserId = browserId;
-        // this.tags = tags;
-    }
-
-    merge(other: Bookmark): Bookmark {
-        let moreRecent;
-        let minCreated;
-        let maxUpdated;
-        if (this.updated > other.updated) {
-            moreRecent = this;
-        } else if (other.updated > this.updated) {
-            moreRecent = other;
-        } else {
-            const thisLengths = this.title.length + this.description.length;
-            const otherLengths = other.title.length + other.description.length;
-            if (otherLengths > thisLengths) {
-                moreRecent = other;
-            } else {
-                moreRecent = this;
-            }
-        }
-        if (this.created < other.created){
-            minCreated = this.created;
-        } else {
-            minCreated = other.created;
-        }
-        if (this.updated > other.updated) {
-            maxUpdated = this.updated;
-        } else {
-            maxUpdated = other.updated;
-        }
-        return new Bookmark(
-            this.url,
-            moreRecent.title,
-            moreRecent.description,
-            minCreated,
-            maxUpdated,
-            moreRecent.deleted,
-            moreRecent.unread,
-            moreRecent.browserId
-        )
-    }
-
-    equals(other: Bookmark) {
-        // this is utterly absurd but seems to be the way people do things in
-        // js
-        return JSON.stringify(this) == JSON.stringify(other);
-    }
-
-    to_json() {
-        return {
-            "created": this.created.toISOString(),
-            "deleted": this.deleted,
-            "description": this.description,
-            "title": this.title,
-            "unread": this.unread,
-            "updated": this.updated.toISOString(),
-            "url": this.url,
-        }
-    }
-
-    to_db_json() {
-        let json = this.to_json();
-        json["browserId"] = this.browserId;
-        return json
-    }
-
-    static from_json(json) {
-        let browserId;
-        if (Object.prototype.hasOwnProperty.call(json, 'browserId')){
-            browserId = json.browserId;
-        } else {
-            browserId = null;
-        }
-        return new this(
-            json.url,
-            json.title,
-            json.description,
-            new Date(json.created),
-            new Date(json.updated),
-            json.deleted,
-            json.unread,
-            browserId,
-        )
-    }
-}
 
 async function getHTTPConfig() {
     var gettingKey = await browser.storage.sync.get("APIKey");
