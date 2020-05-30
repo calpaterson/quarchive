@@ -13,8 +13,8 @@ def sync_bookmarks(client, user: User, bookmarks: Iterable[Bookmark]):
         "/sync",
         json={"bookmarks": [bookmark.to_json() for bookmark in bookmarks]},
         headers={
-            "X-QM-API-Username": user.username,
-            "X-QM-API-Key": user.api_key.hex(),
+            "Quarchive-Username": user.username,
+            "Quarchive-API-Key": user.api_key.hex(),
         },
     )
     assert response.status_code == 200

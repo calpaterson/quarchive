@@ -87,15 +87,6 @@ def test_my_bookmarks_paging(app, signed_in_client, session, test_user):
 
     sync_bookmarks(signed_in_client, test_user, bms)
 
-    signed_in_client.post(
-        "/sync",
-        json={"bookmarks": [bm.to_json() for bm in bms]},
-        headers={
-            "X-QM-API-Username": test_user.username,
-            "X-QM-API-Key": test_user.api_key.hex(),
-        },
-    )
-
     response_pg1 = signed_in_client.get("/")
     assert response_pg1.status_code == 200
 

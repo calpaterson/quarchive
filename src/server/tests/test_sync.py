@@ -20,7 +20,10 @@ def test_wrong_credentials(client, session, test_user):
     response = client.post(
         "/sync",
         json={"bookmarks": []},
-        headers={"X-QM-API-Username": test_user.username, "X-QM-API-Key": "deadbeef"},
+        headers={
+            "Quarchive-Username": test_user.username,
+            "Quarchive-API-Key": "deadbeef",
+        },
     )
     assert response.status_code == 400
 
@@ -38,8 +41,8 @@ def post_bookmarks(
             data="\n".join(json.dumps(b.to_json()) for b in bookmarks),
             headers={
                 "Content-Type": "application/ndjson",
-                "X-QM-API-Username": user.username,
-                "X-QM-API-Key": user.api_key.hex(),
+                "Quarchive-Username": user.username,
+                "Quarchive-API-Key": user.api_key.hex(),
             },
         )
 
@@ -47,8 +50,8 @@ def post_bookmarks(
         kwargs = dict(
             json={"bookmarks": [b.to_json() for b in bookmarks]},
             headers={
-                "X-QM-API-Username": user.username,
-                "X-QM-API-Key": user.api_key.hex(),
+                "Quarchive-Username": user.username,
+                "Quarchive-API-Key": user.api_key.hex(),
             },
         )
 
@@ -193,8 +196,8 @@ def test_logging_for_bug_6(client, caplog, session, test_user):
                 "/sync",
                 json={"bookmarks": [bm_json]},
                 headers={
-                    "X-QM-API-Username": test_user.username,
-                    "X-QM-API-Key": test_user.api_key.hex(),
+                    "Quarchive-Username": test_user.username,
+                    "Quarchive-API-Key": test_user.api_key.hex(),
                 },
             )
 
@@ -253,8 +256,8 @@ def test_syncing_with_urls_without_minimum_canonicalisation(
         data=json.dumps(bm_json),
         headers={
             "Content-Type": "application/ndjson",
-            "X-QM-API-Username": test_user.username,
-            "X-QM-API-Key": test_user.api_key.hex(),
+            "Quarchive-Username": test_user.username,
+            "Quarchive-API-Key": test_user.api_key.hex(),
         },
     )
 

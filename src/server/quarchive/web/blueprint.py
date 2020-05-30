@@ -117,8 +117,15 @@ def api_key_required(handler: V) -> V:
     @wraps(handler)
     def wrapper(*args, **kwargs):
         try:
-            username = flask.request.headers["X-QM-API-Username"]
-            api_key_str = flask.request.headers["X-QM-API-Key"]
+            # FIXME: Remove old synonyms
+            username = (
+                flask.request.headers.get("X-QM-API-Username")
+                or flask.request.headers["Quarchive-Username"]
+            )
+            api_key_str = (
+                flask.request.headers.get("X-QM-API-Key")
+                or flask.request.headers["Quarchive-API-Key"]
+            )
         except KeyError:
             flask.current_app.logger.info("no api credentials")
             return flask.jsonify({"error": "no api credentials"}), 400
