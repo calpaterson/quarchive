@@ -161,7 +161,7 @@ def getting_started():
 
 @blueprint.route("/")
 @sign_in_required
-def my_bookmarks() -> Tuple[flask.Response, int]:
+def my_bookmarks() -> flask.Response:
     # FIXME: This viewfunc really needs to get split up and work via the data
     # layer to get what it wants.
     page_size = flask.current_app.config["PAGE_SIZE"]
@@ -415,7 +415,7 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
 
 @blueprint.route("/url/<uuid:url_uuid>")
 @sign_in_required
-def view_url(url_uuid: UUID) -> Tuple[flask.Response, int]:
+def view_url(url_uuid: UUID) -> flask.Response:
     sqla_obj = db.session.query(SQLAUrl).filter(SQLAUrl.url_uuid == url_uuid).first()
     if sqla_obj is None:
         raise exc.NotFound()
@@ -430,7 +430,7 @@ def view_url(url_uuid: UUID) -> Tuple[flask.Response, int]:
 
 @blueprint.route("/netloc/<string:netloc>")
 @sign_in_required
-def view_netloc(netloc: str) -> Tuple[flask.Response, int]:
+def view_netloc(netloc: str) -> flask.Response:
     url_objs = db.session.query(SQLAUrl).filter(SQLAUrl.netloc == netloc)
     if url_objs.count() == 0:
         raise exc.NotFound()
