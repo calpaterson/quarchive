@@ -16,6 +16,16 @@ from .utils import sync_bookmarks
 pytestmark = pytest.mark.web
 
 
+def get_form_as_dict(response):
+    """Return a mapping of form item names to html elements"""
+    html_parser = etree.HTMLParser()
+    root = etree.fromstring(response.get_data(), html_parser)
+    input_elements = CSSSelector("input")(root)
+    form = {ie.attrib["name"].replace("-input", ""): ie for ie in input_elements}
+    form["description"] = CSSSelector("textarea#description-textarea")(root)[0]
+    return form
+
+
 @pytest.mark.parametrize(
     "inp, exp",
     [
@@ -83,18 +93,14 @@ def test_create_bookmark_form_add_tag(
     response = signed_in_client.get(flask.url_for(viewfunc, **params),)
 
     assert response.status_code == 200
-    html_parser = etree.HTMLParser()
-    root = etree.fromstring(response.get_data(), html_parser)
-    input_elements = CSSSelector("input")(root)
-    inputs = {ie.attrib["name"].replace("-input", ""): ie for ie in input_elements}
-    description_textarea = CSSSelector("textarea#description-textarea")(root)[0]
+    form_as_dict = get_form_as_dict(response)
 
-    assert inputs["url"].attrib["value"] == url
-    assert inputs["title"].attrib["value"] == title
-    assert description_textarea.text == description
-    assert "checked" in inputs["unread"].attrib
-    assert inputs["tags"].attrib["value"] == ",".join(expected_tags)
-    assert "value" not in inputs["add-tag"].attrib
+    assert form_as_dict["url"].attrib["value"] == url
+    assert form_as_dict["title"].attrib["value"] == title
+    assert form_as_dict["description"].text == description
+    assert "checked" in form_as_dict["unread"].attrib
+    assert form_as_dict["tags"].attrib["value"] == ",".join(expected_tags)
+    assert "value" not in form_as_dict["add-tag"].attrib
 
 
 @freeze_time("2018-01-03")
@@ -108,6 +114,9 @@ def test_edit_bookmark_form_simple_get(signed_in_client, session, test_user):
         flask.url_for("quarchive.edit_bookmark_form", url_uuid=url_uuid)
     )
     assert response.status_code == 200
+
+    form_as_dict = get_form_as_dict(response)
+    assert form_as_dict["url"].attrib["value"] == bm.url.to_string()
 
 
 @freeze_time("2018-01-03")

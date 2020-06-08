@@ -291,7 +291,7 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
 
     # Step one, load the template kwargs from the bookmark
     template_kwargs: Dict[str, Any] = dict(
-        url=bookmark.url,
+        url=bookmark.url.to_string(),
         title=bookmark.title,
         description=bookmark.description,
         page_title="Edit %s" % bookmark.title,
