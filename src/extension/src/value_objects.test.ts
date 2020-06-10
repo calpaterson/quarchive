@@ -22,7 +22,6 @@ describe("url class", function(){
         expect(quURL.toString()).toEqual(urlString);
     });
 
-
     test("url with trailing hash", function(){
         const urlString = "http://hostname:1234/something#";
         const expected = "http://hostname:1234/something";
@@ -46,7 +45,7 @@ describe("bookmark class", function() {
 
     test("equality", function(){
         let bm1 = new Bookmark(
-            "http://example.com",
+            new QuarchiveURL("http://example.com"),
             "Example",
             "",
             mifid2_start_date,
@@ -56,7 +55,7 @@ describe("bookmark class", function() {
             null
         );
         let bm2 = new Bookmark(
-            "http://example.com",
+            new QuarchiveURL("http://example.com"),
             "Example",
             "",
             mifid2_start_date,
@@ -70,7 +69,7 @@ describe("bookmark class", function() {
 
     test("different dates", function(){
         let bm1 = new Bookmark(
-            "http://example.com",
+            new QuarchiveURL("http://example.com"),
             "Example",
             "",
             mifid2_start_date,
@@ -80,7 +79,7 @@ describe("bookmark class", function() {
             null
         );
         let bm2 = new Bookmark(
-            "http://example.com",
+            new QuarchiveURL("http://example.com"),
             "Example",
             "",
             mifid2_start_date,
@@ -94,7 +93,7 @@ describe("bookmark class", function() {
 
     test("to json", function() {
         let bm1 = new Bookmark(
-            "http://example.com",
+            new QuarchiveURL("http://example.com"),
             "Example",
             "",
             mifid2_start_date,

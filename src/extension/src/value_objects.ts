@@ -20,6 +20,22 @@ export class QuarchiveURL {
         this.fragment = js_url.hash.substr(1);
     }
 
+    equals(other: QuarchiveURL) {
+        const fields = [
+            "scheme",
+            "netloc",
+            "path",
+            "query",
+            "fragment",
+        ]
+        for (var field of fields) {
+            if (this[field] !== other[field]){
+                return false;
+            }
+        }
+        return true;
+    }
+
     toString(): string {
         let stringArray = [this.scheme, "://", this.netloc, this.path]
         if (this.query !== "") {
@@ -36,7 +52,7 @@ export class QuarchiveURL {
 
 
 export class Bookmark {
-    url: string;
+    url: QuarchiveURL;
     title: string;
     description: string;
     created: Date;
@@ -45,7 +61,7 @@ export class Bookmark {
     unread: boolean;
     browserId: string;
     constructor(
-        url: string,
+        url: QuarchiveURL,
         title: string,
         description: string,
         created: Date,
@@ -134,7 +150,7 @@ export class Bookmark {
             "title": this.title,
             "unread": this.unread,
             "updated": this.updated.toISOString(),
-            "url": this.url,
+            "url": this.url.toString(),
         }
     }
 
@@ -152,7 +168,7 @@ export class Bookmark {
             browserId = null;
         }
         return new this(
-            json.url,
+            new QuarchiveURL(json.url),
             json.title,
             json.description,
             new Date(json.created),

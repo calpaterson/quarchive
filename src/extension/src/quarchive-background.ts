@@ -1,6 +1,6 @@
 "use strict";
 
-import { Bookmark } from "./value_objects"
+import { QuarchiveURL, Bookmark } from "./value_objects"
 
 const SCHEMA_VERSION = 2;
 
@@ -67,7 +67,7 @@ async function upsertBookmarkIntoBrowser(bookmark: Bookmark) {
     // Unable to read or write tags
     // https://bugzilla.mozilla.org/show_bug.cgi?id=1225916
     const argument = {
-        url: bookmark.url,
+        url: bookmark.url.toString(),
         title: bookmark.title,
     }
     if (bookmark.deleted){
@@ -201,7 +201,7 @@ async function syncBrowserBookmarksToLocalDb() {
         const localBookmark = await lookupBookmarkFromLocalDbByUrl(treeNode.url);
         if (localBookmark === null) {
             const bookmark = new Bookmark(
-                treeNode.url,
+                new QuarchiveURL(treeNode.url),
                 treeNode.title,
                 "",
                 new Date(treeNode.dateAdded),
@@ -361,7 +361,7 @@ export async function createdListener(
     console.log("created: browserId: %s - %o", browserId, buggyTreeNode);
     const treeNode = await lookupTreeNodeFromBrowser(browserId);
     let bookmark = new Bookmark(
-        treeNode.url,
+        new QuarchiveURL(treeNode.url),
         treeNode.title,
         "",
         new Date(treeNode.dateAdded),
