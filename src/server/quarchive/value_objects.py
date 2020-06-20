@@ -187,3 +187,28 @@ class User:
     username: str
     email: Optional[str]
     timezone: pytz.BaseTzInfo
+
+
+@dataclass
+class Feed:
+    feed_id: UUID
+    url: URL
+    title: Optional[str]
+    description: Optional[str]
+    raw_metadata: Mapping[str, Any]
+
+
+@dataclass
+class FeedEntry:
+    entry_id: UUID
+    first_seen: datetime
+    title: Optional[str]
+    description: Optional[str]
+    url: Optional[URL]
+    raw_metadata: Mapping[str, Any]
+
+
+@dataclass
+class FeedNotification:
+    user: User
+    notification_dt: datetime
