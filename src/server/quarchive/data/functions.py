@@ -1,7 +1,7 @@
 import secrets
 from logging import getLogger
 from typing import Any, Iterable, Optional, Set, Tuple
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlunsplit
 from uuid import UUID, uuid4
 
 import pytz
