@@ -13,6 +13,7 @@ from sqlalchemy.dialects.postgresql import (
 )
 from sqlalchemy.orm import Session
 
+from quarchive.cache import get_cache, UserUUIDKey
 from quarchive.value_objects import (
     URL,
     Bookmark,
@@ -45,6 +46,7 @@ def username_exists(session: Session, username: str) -> bool:
 
 
 def user_from_username(session, username: str) -> User:
+    cache = get_cache()
     user_uuid, email, timezone = (
         session.query(SQLUser.user_uuid, UserEmail.email_address, SQLUser.timezone)
         .outerjoin(UserEmail)
@@ -59,15 +61,30 @@ def user_from_username(session, username: str) -> User:
     )
 
 
-def set_user_timezone(session, username: str, timezone: str):
-    sql_user = session.query(SQLUser).filter(SQLUser.username == username).one()
+def set_user_timezone(session, username: str, timezone_name: str) -> None:
     # Pass it through pytz to make sure the timezone does in fact exist
-    timezone_name = pytz.timezone(timezone).zone
+    timezone = pytz.timezone(timezone_name)
+    timezone_name = timezone.zone
+
+    # update the cache
+    cache = get_cache()
+    user = user_from_username(session, username)
+    user.timezone = timezone
+    key = UserUUIDKey(user.user_uuid)
+    cache.set(key, user)
+
+    sql_user = session.query(SQLUser).filter(SQLUser.username == username).one()
     sql_user.timezone = timezone_name
-    log.debug("setting '%s' timezone to '%s'", username, timezone)
+    log.debug("set '%s' timezone to '%s'", username, timezone)
 
 
 def user_from_user_uuid(session, user_uuid: UUID) -> User:
+    cache = get_cache()
+    key = UserUUIDKey(user_uuid)
+    user = cache.get(key)
+    if user is not None:
+        return user
+
     username, email, timezone = (
         session.query(SQLUser.username, UserEmail.email_address, SQLUser.timezone)
         .outerjoin(UserEmail)
@@ -91,6 +108,10 @@ def create_user(
     timezone="Europe/London",
 ) -> UUID:
     user_uuid = uuid4()
+
+    cache = get_cache()
+    key = UserUUIDKey(user_uuid)
+
     password_hashed = crypt_context.hash(password_plain)
     # FIXME: accept timezone as an argument (infer it somehow, from IP
     # address?)
@@ -108,6 +129,16 @@ def create_user(
     sql_user.api_key_obj = APIKey(api_key=secrets.token_bytes(32))
 
     session.add(sql_user)
+    session.flush()
+
+    user = User(
+        user_uuid=user_uuid,
+        username=username,
+        email=email,
+        timezone=pytz.timezone(timezone),
+    )
+    cache.set(key, user)
+
     return user_uuid
 
 

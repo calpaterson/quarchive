@@ -10,7 +10,9 @@ def get_feeds_due(session: Session) -> Iterable[URL]:
     ...
 
 
-def upsert_feeds(session: Session, feeds: Sequence[Tuple[Feed, List[FeedEntry]]]) -> None:
+def upsert_feeds(
+    session: Session, feeds: Sequence[Tuple[Feed, List[FeedEntry]]]
+) -> None:
     ...
 
 
@@ -26,5 +28,7 @@ def unsubscribe_from_feed(session: Session, feed: Feed, user: User) -> None:
     ...
 
 
-def get_entries_for_user(session: Session, user: User, as_of: datetime) -> Iterable[Tuple[Feed, List[FeedEntry]]]:
+def get_entries_for_user(
+    session: Session, user: User, as_of: datetime
+) -> Iterable[Tuple[Feed, List[FeedEntry]]]:
     ...
