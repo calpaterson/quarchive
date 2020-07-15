@@ -17,14 +17,3 @@ def get_cache() -> Cache:
         _cache = MemcacheCache(client)
         _cache.prefix = "/quarchive/"
     return _cache
-
-
-class UserUUIDKey(Key[User]):
-    def __init__(self, user_uuid: UUID):
-        self._user_uuid = user_uuid
-
-    def should_compress(self, obj, as_bytes) -> bool:
-        return False
-
-    def as_segments(self):
-        return [str(self._user_uuid)]

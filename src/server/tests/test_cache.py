@@ -1,9 +1,10 @@
-from quarchive.cache import get_cache, UserUUIDKey
+from quarchive.cache import get_cache
+from quarchive.data.functions import UserUUIDToUserKey
 
 
 def test_caching_user(test_user):
     cache = get_cache()
-    key = UserUUIDKey(test_user.user_uuid)
+    key = UserUUIDToUserKey(test_user.user_uuid)
 
     cache.set(key, test_user)
 

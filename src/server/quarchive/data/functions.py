@@ -5,6 +5,8 @@ from urllib.parse import urlunsplit
 from uuid import UUID, uuid4
 
 import pytz
+from pyappcache.cache import Cache
+from pyappcache.keys import Key
 from sqlalchemy import and_, cast as sa_cast, func, types as satypes
 from sqlalchemy.dialects.postgresql import (
     ARRAY as PGARRAY,
@@ -13,7 +15,7 @@ from sqlalchemy.dialects.postgresql import (
 )
 from sqlalchemy.orm import Session
 
-from quarchive.cache import get_cache, UserUUIDKey
+from quarchive.cache import get_cache
 from quarchive.value_objects import (
     URL,
     Bookmark,
@@ -25,18 +27,56 @@ from .models import APIKey, BookmarkTag, SQLABookmark, SQLAUrl, SQLUser, Tag, Us
 log = getLogger(__name__)
 
 
-def is_correct_api_key(session: Session, username: str, api_key: bytes) -> bool:
-    api_key_from_db = get_api_key(session, username)
+class UserUUIDToUserKey(Key[User]):
+    def __init__(self, user_uuid: UUID):
+        self._user_uuid = user_uuid
+
+    def as_segments(self):
+        return [str(self._user_uuid)]
+
+
+class UsernameToUserKey(Key[User]):
+    def __init__(self, username: str):
+        self._username = username
+
+    def as_segments(self):
+        return [self._username]
+
+
+class UsernameToApiKey(Key[bytes]):
+    def __init__(self, username: str):
+        self._username = username
+
+    def as_segments(self):
+        return [self._username, "api_key"]
+
+
+def put_user_in_cache(cache: Cache, user: User):
+    cache.set(UserUUIDToUserKey(user.user_uuid), user)
+    cache.set(UsernameToUserKey(user.username), user)
+
+
+def is_correct_api_key(
+    session: Session, cache: Cache, username: str, api_key: bytes
+) -> bool:
+    api_key_from_db = get_api_key(session, cache, username)
     return secrets.compare_digest(api_key, api_key_from_db)
 
 
-def get_api_key(session, username: str) -> bytes:
-    return (
+def get_api_key(session, cache: Cache, username: str) -> bytes:
+    cache_key = UsernameToApiKey(username)
+    api_key = cache.get(cache_key)
+    if api_key is not None:
+        return api_key
+
+    api_key = (
         session.query(APIKey.api_key)
         .join(SQLUser)
         .filter(SQLUser.username == username)
         .scalar()
     )
+    cache.set(cache_key, api_key)
+    return api_key
 
 
 def username_exists(session: Session, username: str) -> bool:
@@ -45,42 +85,45 @@ def username_exists(session: Session, username: str) -> bool:
     ).scalar()
 
 
-def user_from_username(session, username: str) -> User:
-    cache = get_cache()
-    user_uuid, email, timezone = (
-        session.query(SQLUser.user_uuid, UserEmail.email_address, SQLUser.timezone)
-        .outerjoin(UserEmail)
-        .filter(SQLUser.username == username)
-        .one()
-    )
-    return User(
-        user_uuid=user_uuid,
-        username=username,
-        email=email,
-        timezone=pytz.timezone(timezone),
-    )
-
-
-def set_user_timezone(session, username: str, timezone_name: str) -> None:
+def set_user_timezone(session, cache: Cache, username: str, timezone_name: str) -> None:
     # Pass it through pytz to make sure the timezone does in fact exist
     timezone = pytz.timezone(timezone_name)
     timezone_name = timezone.zone
 
     # update the cache
-    cache = get_cache()
-    user = user_from_username(session, username)
+    user = user_from_username(session, cache, username)
     user.timezone = timezone
-    key = UserUUIDKey(user.user_uuid)
-    cache.set(key, user)
+    put_user_in_cache(cache, user)
 
     sql_user = session.query(SQLUser).filter(SQLUser.username == username).one()
     sql_user.timezone = timezone_name
     log.debug("set '%s' timezone to '%s'", username, timezone)
 
 
-def user_from_user_uuid(session, user_uuid: UUID) -> User:
-    cache = get_cache()
-    key = UserUUIDKey(user_uuid)
+def user_from_username(session, cache: Cache, username: str) -> User:
+    key = UsernameToUserKey(username)
+    user = cache.get(key)
+    if user is not None:
+        return user
+
+    user_uuid, email, timezone = (
+        session.query(SQLUser.user_uuid, UserEmail.email_address, SQLUser.timezone)
+        .outerjoin(UserEmail)
+        .filter(SQLUser.username == username)
+        .one()
+    )
+    user = User(
+        user_uuid=user_uuid,
+        username=username,
+        email=email,
+        timezone=pytz.timezone(timezone),
+    )
+    put_user_in_cache(cache, user)
+    return user
+
+
+def user_from_user_uuid(session, cache: Cache, user_uuid: UUID) -> User:
+    key = UserUUIDToUserKey(user_uuid)
     user = cache.get(key)
     if user is not None:
         return user
@@ -91,16 +134,19 @@ def user_from_user_uuid(session, user_uuid: UUID) -> User:
         .filter(SQLUser.user_uuid == user_uuid)
         .one()
     )
-    return User(
+    user = User(
         user_uuid=user_uuid,
         username=username,
         email=email,
         timezone=pytz.timezone(timezone),
     )
+    put_user_in_cache(cache, user)
+    return user
 
 
 def create_user(
     session: Session,
+    cache: Cache,
     crypt_context: Any,
     username: str,
     password_plain: str,
@@ -109,8 +155,7 @@ def create_user(
 ) -> UUID:
     user_uuid = uuid4()
 
-    cache = get_cache()
-    key = UserUUIDKey(user_uuid)
+    key = UserUUIDToUserKey(user_uuid)
 
     password_hashed = crypt_context.hash(password_plain)
     # FIXME: accept timezone as an argument (infer it somehow, from IP
@@ -137,7 +182,7 @@ def create_user(
         email=email,
         timezone=pytz.timezone(timezone),
     )
-    cache.set(key, user)
+    put_user_in_cache(cache, user)
 
     return user_uuid
 

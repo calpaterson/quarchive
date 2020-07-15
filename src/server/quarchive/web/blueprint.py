@@ -25,6 +25,7 @@ import yaml
 from sqlalchemy import func
 from werkzeug import exceptions as exc
 
+from quarchive.cache import get_cache
 from quarchive.data.functions import (
     all_bookmarks,
     bookmarks_with_tag,
@@ -76,7 +77,7 @@ def get_current_user() -> User:
 def put_user_in_g() -> None:
     user_uuid: Optional[UUID] = flask.session.get("user_uuid")
     if user_uuid is not None:
-        flask.g.user = user_from_user_uuid(db.session, user_uuid)
+        flask.g.user = user_from_user_uuid(db.session, get_cache(), user_uuid)
         flask.current_app.logger.debug("currently signed in as: %s", flask.g.user)
     else:
         flask.current_app.logger.debug("not signed in")
@@ -130,8 +131,9 @@ def api_key_required(handler: V) -> V:
             flask.current_app.logger.info("no api credentials")
             return flask.jsonify({"error": "no api credentials"}), 400
 
-        if is_correct_api_key(db.session, username, bytes.fromhex(api_key_str)):
-            flask.g.user = user_from_username(db.session, username)
+        cache = get_cache()
+        if is_correct_api_key(db.session, cache, username, bytes.fromhex(api_key_str)):
+            flask.g.user = user_from_username(db.session, cache, username)
             return handler()
         else:
             flask.current_app.logger.info("bad api credentials")
@@ -455,6 +457,7 @@ def register() -> flask.Response:
         username = flask.request.form["username"]
         password_plain = flask.request.form["password"]
         email: Optional[str] = flask.request.form["email"] or None
+        cache = get_cache()
 
         if username_exists(db.session, username):
             log.error("username already registered: %s", username)
@@ -469,6 +472,7 @@ def register() -> flask.Response:
 
         user_uuid = create_user(
             db.session,
+            cache,
             flask.current_app.config["CRYPT_CONTEXT"],
             username,
             password_plain,
@@ -530,10 +534,11 @@ def sign_out() -> flask.Response:
 
 @blueprint.route("/user/<username>", methods=["GET"])
 def user_page(username: str) -> flask.Response:
-    user = user_from_username(db.session, username)
+    cache = get_cache()
+    user = user_from_username(db.session, cache, username)
     api_key: Optional[bytes]
     if user == flask.g.user:
-        api_key = get_api_key(db.session, user.username)
+        api_key = get_api_key(db.session, cache, user.username)
     else:
         api_key = None
     return flask.make_response(
@@ -549,7 +554,7 @@ def user_page(username: str) -> flask.Response:
 
 @blueprint.route("/user/<username>", methods=["POST"])
 def user_page_post(username: str) -> Tuple[flask.Response, int]:
-    set_user_timezone(db.session, username, flask.request.form["timezone"])
+    set_user_timezone(db.session, get_cache(), username, flask.request.form["timezone"])
     db.session.commit()
     put_user_in_g()
     flask.flash("User updated successfully")
