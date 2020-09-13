@@ -247,7 +247,7 @@ def test_syncing_with_urls_without_minimum_canonicalisation(
 ):
     """The urls without minimum canonicalisation (basically: where urlunsplit
     is not a clean undo of urlsplit) are not accepted"""
-    caplog.set_level(logging.ERROR)
+    caplog.set_level(logging.ERROR, logger="quarchive.web.blueprint")
     bm_json = dict(make_bookmark().to_json())
     bm_json["url"] = problem_url
 
@@ -262,4 +262,5 @@ def test_syncing_with_urls_without_minimum_canonicalisation(
     )
 
     assert response.status_code == 400
-    assert "bad canonicalised url" in caplog.records[0].message
+    # FIXME: something is pulling other log messages in here.
+    assert "bad canonicalised url" in caplog.text
