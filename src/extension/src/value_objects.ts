@@ -15,6 +15,9 @@ export class QuarchiveURL {
         } else {
             this.netloc = js_url.host;
         }
+        // NOTE: .pathname returns "/" when the input was actually "".  Right
+        // now, I don't think this matters for sync (god help me, if it turns
+        // out to)
         this.path = js_url.pathname;
         this.query = js_url.search.substr(1);
         this.fragment = js_url.hash.substr(1);
@@ -124,8 +127,10 @@ export class Bookmark {
     }
 
     equals(other: Bookmark) {
+        if (!other.url.equals(this.url)){
+            return false;
+        }
         const fields = [
-            "url",
             "title",
             "description",
             "created",

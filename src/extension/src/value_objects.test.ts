@@ -109,7 +109,7 @@ describe("bookmark class", function() {
             "title": "Example",
             "unread": false,
             "updated": mifid2_start_date.toISOString(),
-            "url": "http://example.com",
+            "url": "http://example.com/",
         }
         expect(bm1.to_json()).toEqual(expected);
     })
@@ -129,7 +129,7 @@ describe("bookmark class", function() {
 
         let bm = Bookmark.from_json(json);
 
-        expect(bm.url).toEqual("http://example.com");
+        expect(bm.url).toEqual(new QuarchiveURL("http://example.com"));
         expect(bm.title).toEqual("Example");
         expect(bm.description).toEqual("An example");
         expect(bm.created).toEqual(new Date(Date.UTC(2020, 4, 17, 16, 29, 41, 161)));
