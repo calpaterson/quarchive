@@ -11,7 +11,7 @@ var db: IDBDatabase;
 
 let listenersEnabled = false;
 
-async function getHTTPConfig() {
+async function getHTTPConfig(): Promise<Array<string>> {
     var gettingKey = await browser.storage.sync.get("APIKey");
     var gettingUsername = await browser.storage.sync.get("username");
     var gettingURL = await browser.storage.sync.get("APIURL");
@@ -34,7 +34,7 @@ class NoConfigurationError extends Error {
 
 
 // Lookup the bookmark from browser.bookmarks
-async function lookupTreeNodeFromBrowser(browserId: string) {
+async function lookupTreeNodeFromBrowser(browserId: string): Promise<browser.bookmarks.BookmarkTreeNode> {
     // FIXME: this can fail, should check to make sure no more than one
     // treeNode
     const treeNodes = await browser.bookmarks.get(browserId)
@@ -63,7 +63,7 @@ async function allTreeNodesFromBrowser(): Promise<Array<browser.bookmarks.Bookma
     return treeNodes;
 }
 
-async function upsertBookmarkIntoBrowser(bookmark: Bookmark) {
+async function upsertBookmarkIntoBrowser(bookmark: Bookmark): Promise<void> {
     // Unable to read or write tags
     // https://bugzilla.mozilla.org/show_bug.cgi?id=1225916
     const argument = {
@@ -105,14 +105,14 @@ async function allBookmarksFromLocalDb(): Promise<Array<Bookmark>> {
     });
 }
 
-async function lookupBookmarkFromLocalDbByUrl(url: string): Promise<Bookmark> {
+async function lookupBookmarkFromLocalDbByUrl(url: QuarchiveURL): Promise<Bookmark> {
     return new Promise(function(resolve, reject) {
         var transaction = db.transaction(["bookmarks"], "readonly");
         transaction.onerror = function(event){
             console.warn("lookupBookmarkFromLocalDbByUrl transaction failed: %o", event);
         }
         var objectStore = transaction.objectStore("bookmarks");
-        var request = objectStore.get(new QuarchiveURL(url).toString())
+        var request = objectStore.get(url.toString())
         // eslint-disable-next-line no-unused-vars
         request.onsuccess = function(event){
             if (request.result === undefined){
@@ -156,7 +156,7 @@ async function lookupBookmarkFromLocalDbByBrowserId(browserId: string): Promise<
 }
 
 // Insert the bookmark into local db
-async function insertBookmarkIntoLocalDb(bookmark: Bookmark){
+async function insertBookmarkIntoLocalDb(bookmark: Bookmark): Promise<void> {
     return new Promise(function(resolve, reject) {
         var transaction = db.transaction(["bookmarks"], "readwrite");
         transaction.onerror = function(event){
@@ -175,7 +175,7 @@ async function insertBookmarkIntoLocalDb(bookmark: Bookmark){
     });
 }
 
-async function updateBookmarkInLocalDb(bookmark: Bookmark){
+async function updateBookmarkInLocalDb(bookmark: Bookmark): Promise<void> {
     return new Promise(function(resolve, reject) {
         var transaction = db.transaction(["bookmarks"], "readwrite");
         transaction.onerror = function(event){
@@ -198,7 +198,8 @@ async function syncBrowserBookmarksToLocalDb() {
     console.log("starting syncBrowserBookmarksToLocalDb");
     const treeNodes = await allTreeNodesFromBrowser();
     for (var treeNode of treeNodes) {
-        const localBookmark = await lookupBookmarkFromLocalDbByUrl(treeNode.url);
+        const url = new QuarchiveURL(treeNode.url);
+        const localBookmark = await lookupBookmarkFromLocalDbByUrl(url);
         if (localBookmark === null) {
             const bookmark = new Bookmark(
                 new QuarchiveURL(treeNode.url),
@@ -231,7 +232,7 @@ async function syncBrowserBookmarksToLocalDb() {
 }
 
 // Syncs a bookmark with the API
-async function callSyncAPI(bookmark: Bookmark) {
+async function callSyncAPI(bookmark: Bookmark): Promise<Array<Bookmark>> {
     const sync_body = JSON.stringify(bookmark.to_json());
     console.log("syncing %o", sync_body);
     let [APIURL, username, APIKey] = [undefined, undefined, undefined];
@@ -276,7 +277,7 @@ async function callSyncAPI(bookmark: Bookmark) {
     return returnValue;
 }
 
-async function callFullSyncAPI(bookmarks: Array<Bookmark>){
+async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookmark>>{
     var body = [];
     for (var bookmark of bookmarks) {
         body.push(JSON.stringify(bookmark.to_json()));
@@ -329,7 +330,6 @@ export async function fullSync() {
     await syncBrowserBookmarksToLocalDb();
     const bookmarksFromServer = await callFullSyncAPI(await allBookmarksFromLocalDb());
     for (var serverBookmark of bookmarksFromServer) {
-        const url = new QuarchiveURL(serverBookmark.url);
         const localBookmark = await lookupBookmarkFromLocalDbByUrl(serverBookmark.url);
         if (localBookmark === null) {
             await insertBookmarkIntoLocalDb(serverBookmark);
@@ -361,8 +361,9 @@ export async function createdListener(
     // https://github.com/calpaterson/quarchive/issues/6
     console.log("created: browserId: %s - %o", browserId, buggyTreeNode);
     const treeNode = await lookupTreeNodeFromBrowser(browserId);
+    const url = new QuarchiveURL(treeNode.url)
     let bookmark = new Bookmark(
-        new QuarchiveURL(treeNode.url),
+        url,
         treeNode.title,
         "",
         new Date(treeNode.dateAdded),
@@ -371,7 +372,7 @@ export async function createdListener(
         false,
         treeNode.id,
     )
-    const bookmarkFromLocalDbIfPresent = await lookupBookmarkFromLocalDbByUrl(treeNode.url)
+    const bookmarkFromLocalDbIfPresent = await lookupBookmarkFromLocalDbByUrl(url)
     if (bookmarkFromLocalDbIfPresent !== null){
         // Bookmark already exists in db (probably deleted then re-created)
         bookmark = bookmark.merge(bookmarkFromLocalDbIfPresent);
