@@ -445,6 +445,31 @@ function disableListeners() {
     }
 }
 
+function clearVersion2IDBSchema (db: IDBDatabase): void {
+    console.log("clearing idb schema from version 2");
+    try {
+        db.deleteObjectStore("bookmarks");
+    } catch (e) {
+        if (e.name === "NotFoundError"){
+            // It wasn't there - fine
+            console.log("no previous object store existed");
+        } else {
+            // Something else went wrong - can't continue
+            console.error("got exception when trying to delete previous object store")
+            throw e;
+        }
+    }
+}
+
+function createIDBSchema(db: IDBDatabase) : void {
+    console.log("creating idb schema for version %d", SCHEMA_VERSION);
+    var objectStore = db.createObjectStore("bookmarks", {keyPath: "idbKey"});
+    objectStore.createIndex("browserId", "browserId", {unique: true});
+    objectStore.transaction.oncomplete = function(event){
+        console.log("upgrade transaction complete: %o", event);
+    }
+}
+
 // De facto Main method
 if (typeof window !== 'undefined') {
     console.log("starting quarchive load");
@@ -456,12 +481,14 @@ if (typeof window !== 'undefined') {
         console.log("upgrade needed: %o", event);
         let target = <IDBOpenDBRequest> event.target;
         var db = target.result;
-        db.deleteObjectStore("bookmarks");
-        var objectStore = db.createObjectStore("bookmarks", {keyPath: "idbKey"});
-        objectStore.createIndex("browserId", "browserId", {unique: true});
-        objectStore.transaction.oncomplete = function(event){
-            console.log("upgrade transaction complete: %o", event);
+        const oldVersion = event.oldVersion;
+
+        console.log("running upgrade %d -> %d", oldVersion, db.version);
+        if (oldVersion < 3) {
+            clearVersion2IDBSchema(db);
         }
+        createIDBSchema(db);
+
     }
     dbOpenRequest.onsuccess = function(event){
         console.log("opened database: %o, %o", event, dbOpenRequest.result);
