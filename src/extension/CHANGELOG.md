@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Send well canonicalised URLs to the backend (eg: no trailing # or ?)
+- Canonicalise URLs once they enter the extension and use them with the backend (eg: no trailing # or ?)
 
 ## [1.0.0] - 2020-05-21
 ### Changed
