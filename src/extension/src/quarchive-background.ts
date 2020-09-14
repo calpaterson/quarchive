@@ -1,8 +1,8 @@
 "use strict";
 
-import { QuarchiveURL, Bookmark } from "./value_objects"
+import { QuarchiveURL, Bookmark } from "./value_objects.js"
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 // An hour
 const PERIODIC_FULL_SYNC_INTERVAL_IN_MINUTES = 60;
@@ -112,7 +112,7 @@ async function lookupBookmarkFromLocalDbByUrl(url: string): Promise<Bookmark> {
             console.warn("lookupBookmarkFromLocalDbByUrl transaction failed: %o", event);
         }
         var objectStore = transaction.objectStore("bookmarks");
-        var request = objectStore.get(url)
+        var request = objectStore.get(new QuarchiveURL(url).toString())
         // eslint-disable-next-line no-unused-vars
         request.onsuccess = function(event){
             if (request.result === undefined){
@@ -329,6 +329,7 @@ export async function fullSync() {
     await syncBrowserBookmarksToLocalDb();
     const bookmarksFromServer = await callFullSyncAPI(await allBookmarksFromLocalDb());
     for (var serverBookmark of bookmarksFromServer) {
+        const url = new QuarchiveURL(serverBookmark.url);
         const localBookmark = await lookupBookmarkFromLocalDbByUrl(serverBookmark.url);
         if (localBookmark === null) {
             await insertBookmarkIntoLocalDb(serverBookmark);
@@ -445,6 +446,7 @@ function disableListeners() {
 
 // De facto Main method
 if (typeof window !== 'undefined') {
+    console.log("starting quarchive load");
     const dbOpenRequest = window.indexedDB.open("quarchive", SCHEMA_VERSION);
     dbOpenRequest.onerror = function(event){
         console.warn("unable to open database: %o", event);
@@ -453,7 +455,8 @@ if (typeof window !== 'undefined') {
         console.log("upgrade needed: %o", event);
         let target = <IDBOpenDBRequest> event.target;
         var db = target.result;
-        var objectStore = db.createObjectStore("bookmarks", {keyPath: "url"});
+        db.deleteObjectStore("bookmarks");
+        var objectStore = db.createObjectStore("bookmarks", {keyPath: "idbKey"});
         objectStore.createIndex("browserId", "browserId", {unique: true});
         objectStore.transaction.oncomplete = function(event){
             console.log("upgrade transaction complete: %o", event);

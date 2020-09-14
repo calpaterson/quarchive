@@ -63,6 +63,10 @@ export class Bookmark {
     deleted: boolean;
     unread: boolean;
     browserId: string;
+
+    // Key for indexedDB
+    idbKey: string;
+
     constructor(
         url: QuarchiveURL,
         title: string,
@@ -85,6 +89,8 @@ export class Bookmark {
 
         this.browserId = browserId;
         // this.tags = tags;
+
+        this.idbKey = url.toString();
     }
 
     merge(other: Bookmark): Bookmark {
@@ -162,6 +168,7 @@ export class Bookmark {
     to_db_json() {
         let json = this.to_json();
         json["browserId"] = this.browserId;
+        json["idbKey"] = this.url.toString();
         return json
     }
 

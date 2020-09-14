@@ -112,7 +112,32 @@ describe("bookmark class", function() {
             "url": "http://example.com/",
         }
         expect(bm1.to_json()).toEqual(expected);
-    })
+    });
+
+    test("to db json", function(){
+        let bm1 = new Bookmark(
+            new QuarchiveURL("http://example.com"),
+            "Example",
+            "",
+            mifid2_start_date,
+            mifid2_start_date,
+            false,
+            false,
+            "abcd"
+        );
+        let expected = {
+            "created": mifid2_start_date.toISOString(),
+            "deleted": false,
+            "description": "",
+            "title": "Example",
+            "unread": false,
+            "updated": mifid2_start_date.toISOString(),
+            "url": "http://example.com/",
+            "browserId": "abcd",
+            "idbKey": "http://example.com/"
+        }
+        expect(bm1.to_db_json()).toEqual(expected);
+    });
 
     test("from json", function() {
         let json = {
