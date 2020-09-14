@@ -42,7 +42,7 @@ setup(
             "cssselect~=1.1.0",
             "freezegun~=0.3.12",
             "responses~=0.10.9",
-            "moto~=1.3.14",
+            "moto~=1.3.16",
         ],
         "dev": [
             "wheel~=0.33.6",

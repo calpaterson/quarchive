@@ -67,7 +67,12 @@ def mock_s3():
 
     with moto.mock_s3():
         s3_resource = sut.get_s3()
-        s3_resource.create_bucket(Bucket=environ["QM_RESPONSE_BODY_BUCKET_NAME"])
+        s3_resource.create_bucket(
+            Bucket=environ["QM_RESPONSE_BODY_BUCKET_NAME"],
+            CreateBucketConfiguration={
+                "LocationConstraint": "moon",
+            },
+        )
         yield s3_resource
 
 
