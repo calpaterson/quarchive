@@ -12,16 +12,30 @@ from dateutil.parser import isoparse
 log = getLogger(__name__)
 
 
-class BadCanonicalisationException(Exception):
+SCHEME_WHITELIST = frozenset(["http", "https"])
+
+
+class URLException(Exception):
+    """Base exception for all url problems"""
+
+    def __init__(self, url_string: str):
+        self.url_string = url_string
+
+
+class DisallowedSchemeException(URLException):
+    """Raised for schemes that aren't allowed.
+
+    Eg: ftp, magnet, ssh, etc
+    """
+
+
+class BadCanonicalisationException(URLException):
     """This exception is raised when the a string url can't be split and
     unsplit without changing the string.  Many examples are due to trailing
     (but legal) characters.
 
     Eg: http://example.com#, http://example.com?
     """
-
-    def __init__(self, url_string: str):
-        self.url_string = url_string
 
 
 @dataclass(frozen=True)
@@ -54,6 +68,8 @@ class URL:
 
         """
         s, n, p, q, f = urlsplit(url_str)
+        if s not in SCHEME_WHITELIST:
+            raise DisallowedSchemeException(url_str)
         if url_str != urlunsplit([s, n, p, q, f]):
             raise BadCanonicalisationException(url_str)
         url_uuid = uuid5(UUID_URL_NAMESPACE, url_str)

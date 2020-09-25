@@ -4,7 +4,11 @@ import pytest
 from hypothesis import given
 from hypothesis.provisional import urls
 
-from quarchive.value_objects import URL, BadCanonicalisationException
+from quarchive.value_objects import (
+    URL,
+    BadCanonicalisationException,
+    DisallowedSchemeException,
+)
 
 
 def test_from_string():
@@ -14,6 +18,14 @@ def test_from_string():
     assert url.path == "/a"
     assert url.query == "b=c"
     assert url.fragment == "d"
+
+
+@pytest.mark.parametrize(
+    "url", ["ftp://calpaterson.com/foo/bar", "rsync://calpaterson.com:", "about:blank"]
+)
+def test_from_string_disallowed_schemes(url):
+    with pytest.raises(DisallowedSchemeException):
+        URL.from_string(url)
 
 
 def test_to_string():
