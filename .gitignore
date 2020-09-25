@@ -1,2 +1,3 @@
 dist/
 .mypy_cache
+.hypothesis
