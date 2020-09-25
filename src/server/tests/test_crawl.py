@@ -27,7 +27,7 @@ def lower_requests_timeout():
 @freeze_time("2018-01-03")
 @pytest.mark.parametrize("status_code", [200, 404, 500])
 def test_crawl_when_response_is_recieved(session, status_code, mock_s3):
-    url = "http://example.com"
+    url = "http://example.com/"
 
     responses.add(responses.GET, url, body=b"hello", status=status_code, stream=True)
 
@@ -54,7 +54,7 @@ def test_crawl_when_response_is_recieved(session, status_code, mock_s3):
 
 @responses.activate
 def test_crawl_when_no_response(session):
-    url = "http://example.com"
+    url = "http://example.com/"
     responses.add(
         responses.GET, url, body=requests.exceptions.ConnectTimeout("connect timeout")
     )

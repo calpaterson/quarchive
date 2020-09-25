@@ -111,7 +111,7 @@ def test_my_bookmarks_search(
     app, signed_in_client, session, test_user, title, search_str, result_count
 ):
     bm1 = make_bookmark()
-    bm2 = make_bookmark(url=sut.URL.from_string("http://test.com"), title=title)
+    bm2 = make_bookmark(url=sut.URL.from_string("http://test.com/"), title=title)
 
     sync_bookmarks(signed_in_client, test_user, [bm1, bm2])
 

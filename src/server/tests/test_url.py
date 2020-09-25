@@ -28,6 +28,11 @@ def test_from_string_disallowed_schemes(url):
         URL.from_string(url)
 
 
+def test_from_string_with_empty_path():
+    with pytest.raises(BadCanonicalisationException):
+        URL.from_string("http://example.com")
+
+
 def test_to_string():
     url_string = "http://example.com/a?b=c#d"
     url = URL.from_string(url_string)

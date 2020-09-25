@@ -61,19 +61,32 @@ class URL:
     def from_string(self, url_str: str) -> "URL":
         """Construct from a url string.
 
-        If the URL string doesn't have "minimum canonicalisation" (ie, if it
-        can't be split and unsplit without returning a different url string),
-        an exception is raised.  Such URLs can't be represented unambiguously
-        by this class.
+        Minimum canonicalisation requirements:
+        - no # if fragment empty
+        - no ? if query string empty
+        - path must not be "" - instead should be "/"
+
+        Allowed schemes:
+        - http
+        - https
 
         """
         s, n, p, q, f = urlsplit(url_str)
         if s not in SCHEME_WHITELIST:
             raise DisallowedSchemeException(url_str)
-        if url_str != urlunsplit([s, n, p, q, f]):
+        if p == "":
             raise BadCanonicalisationException(url_str)
+
         url_uuid = uuid5(UUID_URL_NAMESPACE, url_str)
-        return URL(url_uuid, s, n, p, q, f)
+        url = URL(url_uuid, s, n, p, q, f)
+
+        # Make completely sure that we can regenerate this exact string from
+        # our object - otherwise raise an exception to avoid any problem urls
+        # being processed
+        if url_str != url.to_string():
+            raise BadCanonicalisationException(url_str)
+
+        return url
 
 
 TagTriple = Tuple[str, datetime, bool]
