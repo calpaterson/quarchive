@@ -15,9 +15,8 @@ export class QuarchiveURL {
         } else {
             this.netloc = js_url.host;
         }
-        // NOTE: .pathname returns "/" when the input was actually "".  Right
-        // now, I don't think this matters for sync (god help me, if it turns
-        // out to)
+        // NOTE: .pathname returns "/" when the input was actually "".  This is
+        // technically correct under RFC but is a bit of a gotcha
         this.path = js_url.pathname;
         this.query = js_url.search.substr(1);
         this.fragment = js_url.hash.substr(1);
