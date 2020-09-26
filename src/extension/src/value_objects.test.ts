@@ -1,6 +1,12 @@
-import { QuarchiveURL, Bookmark } from "./value_objects";
+import { QuarchiveURL, Bookmark, DisallowedSchemeError } from "./value_objects";
 
 describe("url class", function(){
+    test("disallowed scheme", function(){
+        const t = function() {
+            new QuarchiveURL("about:blank")
+        }
+        expect(t).toThrow(DisallowedSchemeError);
+    });
     test("url with username and password", function(){
         const urlString = "http://username:password@hostname:1234/sample/path?q=1&a=2#fraggy";
         const quURL = new QuarchiveURL(urlString);

@@ -1,6 +1,6 @@
 "use strict";
 
-import { QuarchiveURL, Bookmark } from "./value_objects.js"
+import { QuarchiveURL, Bookmark, DisallowedSchemeError } from "./value_objects.js"
 
 const SCHEMA_VERSION = 3;
 
@@ -198,11 +198,21 @@ async function syncBrowserBookmarksToLocalDb() {
     console.log("starting syncBrowserBookmarksToLocalDb");
     const treeNodes = await allTreeNodesFromBrowser();
     for (var treeNode of treeNodes) {
-        const url = new QuarchiveURL(treeNode.url);
+        let url;
+        try {
+            url = new QuarchiveURL(treeNode.url);
+        } catch (e) {
+            if (e instanceof DisallowedSchemeError){
+                console.log("skipping %s - disallowed scheme", treeNode.url);
+                continue;
+            } else {
+                throw e;
+            }
+        }
         const localBookmark = await lookupBookmarkFromLocalDbByUrl(url);
         if (localBookmark === null) {
             const bookmark = new Bookmark(
-                new QuarchiveURL(treeNode.url),
+                url,
                 treeNode.title,
                 "",
                 new Date(treeNode.dateAdded),
@@ -361,7 +371,17 @@ export async function createdListener(
     // https://github.com/calpaterson/quarchive/issues/6
     console.log("created: browserId: %s - %o", browserId, buggyTreeNode);
     const treeNode = await lookupTreeNodeFromBrowser(browserId);
-    const url = new QuarchiveURL(treeNode.url)
+    let url;
+    try {
+        url = new QuarchiveURL(treeNode.url)
+    } catch (e) {
+        if (e instanceof DisallowedSchemeError){
+            console.log("skipping %s - disallowed scheme", treeNode.url);
+            return;
+        } else {
+            throw e;
+        }
+    }
     let bookmark = new Bookmark(
         url,
         treeNode.title,

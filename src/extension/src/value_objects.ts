@@ -1,3 +1,15 @@
+export const SCHEME_WHITELIST = new Set(["http", "https"]);
+
+export class DisallowedSchemeError extends Error {
+    constructor(message) {
+        super(message);
+
+        // Hack required due to TS limitation
+        // https://github.com/Microsoft/TypeScript/wiki/Breaking-Changes#extending-built-ins-like-error-array-and-map-may-no-longer-work
+        Object.setPrototypeOf(this, DisallowedSchemeError.prototype);
+    }
+}
+
 export class QuarchiveURL {
     scheme: string;
     netloc: string;
@@ -8,6 +20,9 @@ export class QuarchiveURL {
     constructor (url_string: string) {
         const js_url = new URL(url_string);
         this.scheme = js_url.protocol.slice(0, -1);
+        if (!SCHEME_WHITELIST.has(this.scheme)){
+            throw new DisallowedSchemeError(url_string);
+        }
         if (js_url.username !== "" && js_url.password !== "") {
             this.netloc = [js_url.username, ":", js_url.password, "@", js_url.host].join("");
         } else if (js_url.username !== "") {
