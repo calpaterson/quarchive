@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Ignore all bookmarks that have a scheme other than http or https
+  - quarchive server is about to drop support for these
+
 ## [1.1.0] - 2020-09-14
 
 - Canonicalise URLs once they enter the extension and use them with the backend (eg: no trailing # or ?)
