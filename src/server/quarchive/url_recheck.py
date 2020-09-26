@@ -19,10 +19,16 @@ log = logging.getLogger("quarchive-url-recheck")
 
 
 def is_valid(db_uuid: UUID, url_tuple: Tuple[str, str, str, str, str]) -> bool:
+    # First check that the url works as a string
     try:
-        URL.from_string(urlunsplit(url_tuple))
+        url = URL.from_string(urlunsplit(url_tuple))
     except URLException:
         return False
+
+    # Then check that the uuid is right
+    if url.url_uuid != db_uuid:
+        return False
+
     return True
 
 
