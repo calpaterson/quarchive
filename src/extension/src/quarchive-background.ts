@@ -2,7 +2,7 @@
 
 import { QuarchiveURL, Bookmark, DisallowedSchemeError } from "./value_objects.js"
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 // An hour
 const PERIODIC_FULL_SYNC_INTERVAL_IN_MINUTES = 60;
@@ -465,8 +465,8 @@ function disableListeners() {
     }
 }
 
-function clearVersion2IDBSchema (db: IDBDatabase): void {
-    console.log("clearing idb schema from version 2");
+function clearIDBSchema (db: IDBDatabase): void {
+    console.log("clearing idb schema");
     try {
         db.deleteObjectStore("bookmarks");
     } catch (e) {
@@ -504,8 +504,8 @@ if (typeof window !== 'undefined') {
         const oldVersion = event.oldVersion;
 
         console.log("running upgrade %d -> %d", oldVersion, db.version);
-        if (oldVersion < 3) {
-            clearVersion2IDBSchema(db);
+        if (oldVersion < 4) {
+            clearIDBSchema(db);
         }
         createIDBSchema(db);
 
