@@ -72,7 +72,7 @@ $(jest_sentinel): $(ext_path)/jest.config.js $(ts_files) $(jest)
 # 	$(eslint) -f unix $(ext_path)/quarchive-background.js $(ext_path)/quarchive-options.js
 # 	touch $@
 
-$(web_ext) $(tsc) $(eslint) $(jest) $(webextension_polyfill):
+$(web_ext) $(tsc) $(eslint) $(jest) $(webextension_polyfill): $(ext_path)/package.json
 	cd $(ext_path); npm install --save-dev
 
 dist $(ext_firefox_build_dir) $(ext_chrome_build_dir):
