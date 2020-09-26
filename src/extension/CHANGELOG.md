@@ -9,7 +9,13 @@ extension only**.
 
 ## Unreleased
 
-## [1.2.0] - 2020-09-26
+## [1.3.0] - 2020-09-26
+
+- Clear indexed db on upgrade
+  - necessary because old uri's and other nonsense will be sitting in there
+  - internal idb schema is now version 4
+
+## [1.2.0] - 2020-09-26 (never released)
 
 - Ignore all bookmarks that have a scheme other than http or https
   - quarchive server is about to drop support for these
