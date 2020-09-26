@@ -56,6 +56,7 @@ setup(
     entry_points={
         "console_scripts": [
             "quarchive=quarchive.local:main",
+            "quarchive-url-recheck=quarchive:url_recheck",
             "qm-pinboard-import=quarchive.pinboard:pinboard_import",
             "quarchive-message-processor=quarchive.tasks:message_processor",
         ]

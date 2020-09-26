@@ -36,10 +36,13 @@ def is_valid(db_uuid: UUID, url_tuple: Tuple[str, str, str, str, str]) -> bool:
 def url_recheck():
     logging.basicConfig(level=logging.INFO)
     app = init_app()
-    exit_code = 0
+    errors = 0
+    count = 0
     with app.app_context():
         for db_uuid, url_tuple in get_all_urls_as_5_tuples(db.session):
             if not is_valid(db_uuid, url_tuple):
-                exit_code = 1
+                errors += 1
                 log.error("invalid url: (%s) %s", db_uuid, url_tuple)
-    sys.exit(exit_code)
+            count += 1
+    log.info("checked %d urls, found %d errors", count, errors)
+    sys.exit(1 if errors > 0 else 0)
