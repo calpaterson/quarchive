@@ -75,6 +75,8 @@ $(jest_sentinel): $(ext_path)/jest.config.js $(ts_files) $(jest)
 
 $(web_ext) $(tsc) $(eslint) $(jest) $(webextension_polyfill): $(ext_path)/package.json
 	cd $(ext_path); npm install --save-dev
+# FIXME: for some reason mtimes don't get updated
+	touch $(tsc) $(eslint) $(jest) $(webextension_polyfill)
 
 dist $(ext_firefox_build_dir) $(ext_chrome_build_dir):
 	mkdir -p $@
