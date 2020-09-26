@@ -10,8 +10,6 @@ from freezegun import freeze_time
 import pytest
 from .conftest import test_data_path, make_bookmark
 
-runner = CliRunner()
-
 
 @pytest.fixture(scope="session", autouse=True)
 def environment_variables():

@@ -381,3 +381,34 @@ def bookmark_from_sqla(url: str, sqla_obj: SQLABookmark) -> Bookmark:
             for btag in sqla_obj.bookmark_tag_objs
         ),
     )
+
+
+def get_all_urls_as_5_tuples(
+    session: Session,
+) -> Iterable[Tuple[UUID, Tuple[str, str, str, str, str]]]:
+    query = session.query(
+        SQLAUrl.url_uuid,
+        SQLAUrl.scheme,
+        SQLAUrl.netloc,
+        SQLAUrl.path,
+        SQLAUrl.query,
+        SQLAUrl.fragment,
+    )
+    for uuid, s, n, p, q, f in query:
+        yield (uuid, (s, n, p, q, f))
+
+
+def delete_bookmark(session, user_uuid: UUID, url_uuid: UUID):
+    """Delete a bookmark by user_uuid and url_uuid.  For test purposes only"""
+    log.warning("deleting bookmark: %s %s", user_uuid, url_uuid)
+    query = session.query(SQLABookmark).filter(
+        SQLABookmark.url_uuid == url_uuid, SQLABookmark.user_uuid == user_uuid
+    )
+    query.delete(synchronize_session="fetch")
+
+
+def delete_url(session, url_uuid: UUID):
+    """Delete a url by url_uuid.  For test purposes only"""
+    log.warning("deleting url: %s", url_uuid)
+    query = session.query(SQLAUrl).filter(SQLAUrl.url_uuid == url_uuid)
+    query.delete(synchronize_session="fetch")

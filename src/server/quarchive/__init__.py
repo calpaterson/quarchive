@@ -34,6 +34,7 @@ from .config import load_config
 from .web.app import init_app
 from .web.blueprint import db
 from .pinboard import pinboard_import
+from .url_recheck import url_recheck
 from .tasks import (
     celery_app,
     get_s3,
