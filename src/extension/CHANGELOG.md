@@ -2,13 +2,18 @@
 
 This is the changelog for the web browser extension part of Quarchive.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a
+Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html) **for the browser
+extension only**.
 
 ## Unreleased
 
+## [1.2.0] - 2020-09-26
+
 - Ignore all bookmarks that have a scheme other than http or https
   - quarchive server is about to drop support for these
+  - fixes bug [#15](https://github.com/calpaterson/quarchive/issues/15)
 
 ## [1.1.0] - 2020-09-14
 
