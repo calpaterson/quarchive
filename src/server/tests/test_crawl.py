@@ -103,9 +103,7 @@ def test_enqueue_crawls_for_uncrawled_urls(session, eager_celery, mock_s3, test_
     session.commit()
     url = bookmark.url
 
-    responses.add(
-        responses.GET, re.compile(r"http://example.com/.*"), body=b"hello", stream=True
-    )
+    responses.add(responses.GET, re.compile(r".*"), body=b"hello", stream=True)
     sut.enqueue_crawls_for_uncrawled_urls()
 
     resp_query = (
