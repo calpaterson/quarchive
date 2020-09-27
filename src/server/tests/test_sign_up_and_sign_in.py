@@ -122,3 +122,20 @@ def test_logout(signed_in_client, test_user):
     response = signed_in_client.get("/sign-out")
     assert response.status_code == 200
     assert "user_uuid" not in flask.session
+
+
+def test_session_cookie(app, client, test_user):
+    """Check that the session cookie has been set correctly, and with the
+    relevant security headers.
+
+    """
+    sign_in_response = client.post(
+        "/sign-in",
+        data={"username": test_user.username, "password": test_user.password},
+    )
+    assert sign_in_response.status_code == 303
+
+    cookie_header = sign_in_response.headers["Set-Cookie"]
+    cookie_sections = cookie_header.split("; ")
+    assert "HttpOnly" in cookie_sections
+    assert "SameSite=Lax" in cookie_sections

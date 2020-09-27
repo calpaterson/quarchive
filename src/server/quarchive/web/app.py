@@ -37,6 +37,7 @@ def init_app() -> flask.Flask:
     app.config["SQLALCHEMY_DATABASE_URI"] = environ["QM_SQL_URL"]
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["CRYPT_CONTEXT"] = CryptContext(["bcrypt"])
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
     # By default Postgres will consult the locale to decide what timezone to
     # return datetimes in.  We want UTC in all cases.
