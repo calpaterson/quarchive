@@ -22,6 +22,12 @@ jobs:
         ports:
         - 11211:11211
         options: --entrypoint memcached
+      rabbitmq:
+        image: rabbitmq:3.7
+        env:
+          RABBITMQ_DEFAULT_VHOST: test
+        ports:
+          - 5672:5672
 
 
     steps:

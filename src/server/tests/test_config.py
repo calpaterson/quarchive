@@ -28,6 +28,7 @@ def test_load_config_with_test_config():
             "QM_AWS_ACCESS_KEY": "",
             "QM_AWS_REGION_NAME": "",
             "QM_AWS_S3_ENDPOINT_URL": "",
+            "QM_RABBITMQ_URL": "",
         },
         clear=True,
     ):

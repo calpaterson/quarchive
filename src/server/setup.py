@@ -30,6 +30,7 @@ setup(
         "python-magic~=0.4.15",
         "pyhash~=0.9.3",
         "pyappcache~=0.1",
+        "kombu~=4.6.8",
     ],
     extras_require={
         "tests": [
