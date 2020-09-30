@@ -295,43 +295,42 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
 def crawl_url(session: Session, crawl_uuid: UUID, url: str) -> None:
     client = get_client()
     bucket = get_response_body_bucket()
-    with contextlib.closing(get_session_cls()) as session:
-        url_uuid = upsert_url(session, url)
-        crawl_request = CrawlRequest(
-            crawl_uuid=crawl_uuid,
-            url_uuid=url_uuid,
-            requested=datetime.utcnow().replace(tzinfo=timezone.utc),
-            got_response=False,
-        )
-        session.add(crawl_request)
+    url_uuid = upsert_url(session, url)
+    crawl_request = CrawlRequest(
+        crawl_uuid=crawl_uuid,
+        url_uuid=url_uuid,
+        requested=datetime.utcnow().replace(tzinfo=timezone.utc),
+        got_response=False,
+    )
+    session.add(crawl_request)
 
-        try:
-            response = client.get(url, stream=True, timeout=REQUESTS_TIMEOUT)
-        except requests.exceptions.RequestException as e:
-            log.warning("unable to request %s - %s", url, e)
-            session.commit()
-            return
-        log.info("crawled %s", url)
-
-        crawl_request.got_response = True
-
-        body_uuid = uuid4()
-        # Typeshed type looks wrong, proposed a fix in
-        # https://github.com/python/typeshed/pull/3610
-        headers = cast(requests.structures.CaseInsensitiveDict, response.headers)
-        session.add(
-            CrawlResponse(
-                crawl_uuid=crawl_uuid,
-                body_uuid=body_uuid,
-                headers=dict(headers.lower_items()),
-                status_code=response.status_code,
-            )
-        )
-
-        # Otherwise we'll get the raw stream (often gzipped) rather than the
-        # raw payload (usually html bytes)
-        response.raw.decode_content = True
-
-        upload_file(bucket, response.raw, str(body_uuid))
-
+    try:
+        response = client.get(url, stream=True, timeout=REQUESTS_TIMEOUT)
+    except requests.exceptions.RequestException as e:
+        log.warning("unable to request %s - %s", url, e)
         session.commit()
+        return
+    log.info("crawled %s", url)
+
+    crawl_request.got_response = True
+
+    body_uuid = uuid4()
+    # Typeshed type looks wrong, proposed a fix in
+    # https://github.com/python/typeshed/pull/3610
+    headers = cast(requests.structures.CaseInsensitiveDict, response.headers)
+    session.add(
+        CrawlResponse(
+            crawl_uuid=crawl_uuid,
+            body_uuid=body_uuid,
+            headers=dict(headers.lower_items()),
+            status_code=response.status_code,
+        )
+    )
+
+    # Otherwise we'll get the raw stream (often gzipped) rather than the
+    # raw payload (usually html bytes)
+    response.raw.decode_content = True
+
+    upload_file(bucket, response.raw, str(body_uuid))
+
+    session.commit()
