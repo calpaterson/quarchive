@@ -7,7 +7,9 @@ import click
 import missive
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
-from quarchive.messaging.message_lib import Event, HelloEvent
+from quarchive import crawler
+from quarchive.data.functions import get_bookmark_by_url_uuid
+from quarchive.messaging.message_lib import Event, HelloEvent, BookmarkCreated
 from quarchive.messaging.receipt import PickleMessage
 
 log = getLogger(__name__)
@@ -33,6 +35,18 @@ def print_hellos(message: PickleMessage, ctx: missive.HandlingContext):
         round(time_taken_ms, 3),
         event.message,
     )
+    ctx.ack(message)
+
+
+@processor.handle_for([ClassMatcher(BookmarkCreated)])
+def on_bookmark_created(message: PickleMessage, ctx: missive.HandlingContext):
+    event: BookmarkCreated = cast(BookmarkCreated, message.get_obj())
+    session = crawler.get_session_hack()
+    bookmark = get_bookmark_by_url_uuid(session, event.user_uuid, event.url_uuid)
+    if bookmark is None:
+        raise RuntimeError("i was told a bookmark was created but it was a lie!")
+    crawler.ensure_url_is_crawled(session, bookmark.url)
+    session.commit()
     ctx.ack(message)
 
 

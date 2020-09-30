@@ -1,19 +1,21 @@
+from os import environ
 import secrets
 from logging import getLogger
-from typing import Any, Iterable, Optional, Set, Tuple
+from typing import Any, Iterable, Optional, Set, Tuple, Dict
 from urllib.parse import urlunsplit
 from uuid import UUID, uuid4
+from datetime import datetime, timezone
 
 import pytz
 from pyappcache.cache import Cache
 from pyappcache.keys import Key
-from sqlalchemy import and_, cast as sa_cast, func, types as satypes
+from sqlalchemy import and_, cast as sa_cast, func, types as satypes, create_engine
 from sqlalchemy.dialects.postgresql import (
     ARRAY as PGARRAY,
     array as pg_array,
     insert as pg_insert,
 )
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, scoped_session, sessionmaker
 
 from quarchive.cache import get_cache
 from quarchive.value_objects import (
@@ -22,9 +24,28 @@ from quarchive.value_objects import (
     User,
 )
 
-from .models import APIKey, BookmarkTag, SQLABookmark, SQLAUrl, SQLUser, Tag, UserEmail
+from .models import (
+    APIKey,
+    BookmarkTag,
+    SQLABookmark,
+    SQLAUrl,
+    SQLUser,
+    Tag,
+    UserEmail,
+    CrawlRequest,
+    CrawlResponse,
+)
 
 log = getLogger(__name__)
+
+
+def get_session_cls() -> Session:
+    url: str = environ["QM_SQL_URL"]
+    engine = create_engine(url)
+    session_factory = sessionmaker(bind=engine)
+    Session = scoped_session(session_factory)
+    log.info("using engine: %s", engine)
+    return Session
 
 
 class UserUUIDToUserKey(Key[User]):
@@ -218,6 +239,7 @@ def get_bookmark_by_url_uuid(
 
 
 def upsert_url(session: Session, url_string: str) -> UUID:
+    """Put a url into the database if it isn't already present"""
     url = URL.from_string(url_string)
     url_stmt = (
         pg_insert(SQLAUrl.__table__)
@@ -412,3 +434,48 @@ def delete_url(session, url_uuid: UUID):
     log.warning("deleting url: %s", url_uuid)
     query = session.query(SQLAUrl).filter(SQLAUrl.url_uuid == url_uuid)
     query.delete(synchronize_session="fetch")
+
+
+def is_crawled(session: Session, url: URL):
+    """Return true if we've already attempted to crawl this url"""
+    return_value: bool = session.query(
+        session.query(CrawlRequest)
+        .filter(CrawlRequest.url_uuid == url.url_uuid)
+        .exists()
+    ).scalar()
+    return return_value
+
+
+def create_crawl_request(session: Session, crawl_uuid: UUID, url):
+    """Record a request that was made"""
+    crawl_request = CrawlRequest(
+        crawl_uuid=crawl_uuid,
+        url_uuid=url.url_uuid,
+        requested=datetime.utcnow().replace(tzinfo=timezone.utc),
+        got_response=False,
+    )
+    session.add(crawl_request)
+
+
+def mark_crawl_request_with_response(session: Session, crawl_uuid: UUID):
+    """Mark the crawl request as having gotten a response"""
+    crawl_request = session.query(CrawlRequest).get(crawl_uuid)
+    crawl_request.got_response = True
+
+
+def add_crawl_response(
+    session: Session,
+    crawl_uuid: UUID,
+    body_uuid: UUID,
+    headers: Dict[str, Any],
+    status_code: int,
+):
+    """Save a crawl response"""
+    session.add(
+        CrawlResponse(
+            crawl_uuid=crawl_uuid,
+            body_uuid=body_uuid,
+            headers=headers,
+            status_code=status_code,
+        )
+    )

@@ -12,6 +12,9 @@ from freezegun import freeze_time
 import pytest
 
 import quarchive as sut
+from quarchive.data.functions import upsert_url
+from quarchive.value_objects import URL
+from quarchive import crawler
 from .conftest import random_string, make_bookmark
 
 pytestmark = pytest.mark.crawler
@@ -27,12 +30,13 @@ def lower_requests_timeout():
 @freeze_time("2018-01-03")
 @pytest.mark.parametrize("status_code", [200, 404, 500])
 def test_crawl_when_response_is_recieved(session, status_code, mock_s3):
-    url = "http://example.com/"
+    url = "http://example.com/" + random_string()
+    upsert_url(session, url)
 
     responses.add(responses.GET, url, body=b"hello", status=status_code, stream=True)
 
     crawl_uuid = uuid4()
-    sut.crawl_url(session, crawl_uuid, url)
+    crawler.crawl_url(session, crawl_uuid, URL.from_string(url))
 
     request = session.query(sut.CrawlRequest).get(crawl_uuid)
     response = session.query(sut.CrawlResponse).get(crawl_uuid)
