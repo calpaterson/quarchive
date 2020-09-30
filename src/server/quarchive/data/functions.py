@@ -238,9 +238,9 @@ def get_bookmark_by_url_uuid(
     return bookmark_from_sqla(url, sqla_bookmark)
 
 
-def upsert_url(session: Session, url_string: str) -> UUID:
+def upsert_url(session: Session, url: URL) -> UUID:
     """Put a url into the database if it isn't already present"""
-    url = URL.from_string(url_string)
+    # This could clearly be faster if it used the url uuid better
     url_stmt = (
         pg_insert(SQLAUrl.__table__)
         .values(

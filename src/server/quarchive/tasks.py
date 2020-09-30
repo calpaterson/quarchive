@@ -295,7 +295,7 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
 def crawl_url(session: Session, crawl_uuid: UUID, url: str) -> None:
     client = get_client()
     bucket = get_response_body_bucket()
-    url_uuid = upsert_url(session, url)
+    url_uuid = upsert_url(session, URL.from_string(url))
     crawl_request = CrawlRequest(
         crawl_uuid=crawl_uuid,
         url_uuid=url_uuid,
