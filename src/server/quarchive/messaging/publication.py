@@ -1,9 +1,11 @@
-from logging import getLogger
+from logging import getLogger, basicConfig, INFO
 from os import environ
-from typing import Any
 import pickle
 
+import click
 import kombu
+
+from .message_lib import Event, HelloEvent
 
 _connection = None
 
@@ -35,10 +37,20 @@ _producer = None
 def get_producer():
     global _producer
     if _producer is None:
-        _producer = kombu.Producer(_channel)
+        _producer = kombu.Producer(get_channel())
     return _producer
 
 
-def publish_message(message: Any, routing_key: str) -> None:
+def publish_message(message: Event, routing_key: str) -> None:
     producer = get_producer()
     producer.publish(pickle.dumps(message), routing_key=routing_key)
+    log.info("published %s message to with %s", message, routing_key)
+
+
+@click.command()
+@click.argument("message")
+def send_hello(message):
+    basicConfig(level=INFO)
+    get_producer()  # call this for side-effects - to ensure things are set up
+    hello_event = HelloEvent(message)
+    publish_message(hello_event, routing_key=environ["QM_RABBITMQ_BG_WORKER_TOPIC"])

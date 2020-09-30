@@ -42,9 +42,6 @@ def test_message(message, ctx):
     ctx.ack(message)
 
 
-adapted_processor = RabbitMQAdapter(missive.JSONMessage, processor, "quarchive-events")
-
-
 @lru_cache(1)
 def get_session_cls() -> Session:
     url: str = environ["QM_SQL_URL"]
@@ -338,8 +335,3 @@ def crawl_url(session: Session, crawl_uuid: UUID, url: str) -> None:
         upload_file(bucket, response.raw, str(body_uuid))
 
         session.commit()
-
-
-def message_processor() -> None:
-    logging.basicConfig(level=logging.INFO)
-    adapted_processor.run()

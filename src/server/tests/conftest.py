@@ -41,6 +41,7 @@ def config():
             "QM_AWS_REGION_NAME": "moon",
             "QM_AWS_S3_ENDPOINT_URL": "UNSET",
             "QM_RABBITMQ_URL": "amqp:///test",
+            "QM_RABBITMQ_BG_WORKER_TOPIC": "bg_q",
         },
     ):
         yield

@@ -24,13 +24,14 @@ setup(
         "requests~=2.22.0",
         "boto3~=1.11.0",
         "lxml~=4.4.2",
-        "missive~=0.5",
+        "missive~=0.5.2",
         "passlib~=1.7.2",
         "bcrypt~=3.1.7",
         "python-magic~=0.4.15",
         "pyhash~=0.9.3",
         "pyappcache~=0.1",
         "kombu~=4.6.8",
+        "attrs~=20.2.0",
     ],
     extras_require={
         "tests": [
@@ -59,7 +60,8 @@ setup(
             "quarchive=quarchive.local:main",
             "quarchive-url-recheck=quarchive:url_recheck",
             "qm-pinboard-import=quarchive.pinboard:pinboard_import",
-            "quarchive-message-processor=quarchive.tasks:message_processor",
+            "quarchive-send-hello=quarchive.messaging.publication:send_hello",
+            "quarchive-bg-worker=quarchive.bg_worker:bg_worker",
         ]
     },
 )
