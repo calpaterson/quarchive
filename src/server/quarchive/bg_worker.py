@@ -8,13 +8,14 @@ import click
 import missive
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
-from quarchive import crawler
+from quarchive import crawler, file_storage
 from quarchive.data.functions import get_url_by_url_uuid
 from quarchive.messaging.message_lib import (
     Event,
     HelloEvent,
     BookmarkCreated,
     CrawlRequested,
+    IndexRequested,
 )
 from quarchive.messaging.receipt import PickleMessage
 
@@ -79,6 +80,19 @@ def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
         raise RuntimeError("url crawled to crawl does not exist in the db")
     crawl_uuid = uuid4()
     crawler.crawl_url(session, crawl_uuid, url)
+    session.commit()
+    ctx.ack(message)
+
+
+@processor.handle_for([ClassMatcher(IndexRequested)])
+def on_full_text_requested(message: PickleMessage, ctx: missive.HandlingContext):
+    event = cast(IndexRequested, message.get_obj())
+    session = crawler.get_session_hack()
+    # FIXME: This should reindex if necessary
+    try:
+        crawler.ensure_fulltext(session, event.crawl_uuid)
+    except file_storage.FileStorageException as e:
+        log.exception(e.message)
     session.commit()
     ctx.ack(message)
 

@@ -464,6 +464,29 @@ def get_uncrawled_urls(session: Session) -> Iterable[URL]:
         yield sqla_url.to_url()
 
 
+def get_unindexed_urls(session: Session) -> Iterable[Tuple[URL, UUID]]:
+    """Returns unindexed urls and their most recent crawl_uuid"""
+    most_recent_crawls = (
+        session.query(
+            CrawlRequest.crawl_uuid, SQLAUrl.url_uuid, func.max(CrawlRequest.requested)
+        )
+        .join(SQLAUrl, CrawlRequest.url_uuid == SQLAUrl.url_uuid)
+        .filter(CrawlRequest.got_response)
+        .join(CrawlResponse, CrawlRequest.crawl_uuid == CrawlResponse.crawl_uuid)
+        .group_by(CrawlRequest.crawl_uuid, SQLAUrl.url_uuid)
+        .subquery()
+    )
+    which_are_missing_from_fulltext = (
+        session.query(most_recent_crawls.c.crawl_uuid, SQLAUrl)
+        .outerjoin(FullText, most_recent_crawls.c.crawl_uuid == FullText.crawl_uuid)
+        .join(SQLAUrl, most_recent_crawls.c.url_uuid == SQLAUrl.url_uuid)
+        .filter(FullText.crawl_uuid.is_(None))
+    )
+    for crawl_uuid, sqla_url in which_are_missing_from_fulltext:
+        print(crawl_uuid, sqla_url.to_url())
+        yield sqla_url.to_url(), crawl_uuid
+
+
 def create_crawl_request(session: Session, crawl_uuid: UUID, url):
     """Record a request that was made"""
     crawl_request = CrawlRequest(
@@ -510,9 +533,9 @@ def get_crawl_metadata(
             SQLAUrl,
             FullText.inserted,
         )
-        .outerjoin(FullText, CrawlResponse.crawl_uuid == FullText.crawl_uuid)
         .join(CrawlRequest, CrawlResponse.crawl_uuid == CrawlRequest.crawl_uuid)
         .join(SQLAUrl, CrawlRequest.url_uuid == SQLAUrl.url_uuid)
+        .outerjoin(FullText, CrawlResponse.crawl_uuid == FullText.crawl_uuid)
         .filter(CrawlResponse.crawl_uuid == crawl_uuid)
         .one()
     )

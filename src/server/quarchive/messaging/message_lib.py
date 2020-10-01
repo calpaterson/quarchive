@@ -32,3 +32,10 @@ class CrawlRequested(Event):
     user action."""
 
     url_uuid: UUID
+
+
+@attr.s(auto_attribs=True)
+class IndexRequested(Event):
+    """A request for a crawl's response to be indexed"""
+
+    crawl_uuid: UUID

@@ -13,7 +13,7 @@ import requests
 import lxml
 
 from quarchive import file_storage
-from quarchive.messaging.message_lib import CrawlRequested
+from quarchive.messaging.message_lib import CrawlRequested, IndexRequested
 from quarchive.messaging.publication import publish_message
 from quarchive.value_objects import URL
 from quarchive.data.functions import (
@@ -24,6 +24,7 @@ from quarchive.data.functions import (
     mark_crawl_request_with_response,
     add_crawl_response,
     get_uncrawled_urls,
+    get_unindexed_urls,
     add_fulltext,
 )
 
@@ -90,12 +91,23 @@ def crawl_url(session: Session, crawl_uuid: UUID, url: URL) -> None:
 
 
 def request_crawls_for_uncrawled_urls(session):
-    for index, url in enumerate(get_uncrawled_urls(session)):
+    index = 0
+    for index, url in enumerate(get_uncrawled_urls(session), start=1):
         publish_message(
             CrawlRequested(url.url_uuid), environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
         )
         log.info("requested crawl: %s", url.to_string())
-    log.info("requested %d crawls", index)
+    log.info("requested %d crawls", index + 1)
+
+
+def request_indexes_for_unindexed_urls(session):
+    index = 0
+    for index, (url, crawl_uuid) in enumerate(get_unindexed_urls(session), start=1):
+        publish_message(
+            IndexRequested(crawl_uuid), environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
+        )
+        log.info("requested index: %s", url.to_string())
+    log.info("requested %d indexes", index)
 
 
 def get_meta_descriptions(root: lxml.html.HtmlElement) -> List[str]:

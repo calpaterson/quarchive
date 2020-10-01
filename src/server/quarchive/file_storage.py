@@ -7,9 +7,22 @@ import shutil
 import gzip
 
 import boto3
+import botocore.exceptions as boto_exceptions
 from botocore.utils import fix_s3_host
 
 log = getLogger(__name__)
+
+
+class FileStorageException(Exception):
+    """Indicates something went wrong in here.
+
+    Custom exception used to keep the horrors of boto contained within this
+    file.
+
+    """
+    def __init__(self, message):
+        super().__init__(self)
+        self.message = message
 
 
 @lru_cache(1)
@@ -51,7 +64,10 @@ def upload_file(bucket, filelike: BinaryIO, filename: str) -> None:
 def download_file(bucket, filename: str) -> gzip.GzipFile:
     """Download a fileobj from a bucket (decompressed)"""
     temp_file = tempfile.TemporaryFile(mode="w+b")
-    bucket.download_fileobj(filename, temp_file)
+    try:
+        bucket.download_fileobj(filename, temp_file)
+    except boto_exceptions.ClientError:
+        raise FileStorageException(f"unable to download '{filename}' from '{bucket}'")
     temp_file.seek(0)
     gzip_fileobj = gzip.GzipFile(mode="r+b", fileobj=temp_file)
     return gzip_fileobj

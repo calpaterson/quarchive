@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 
 from sqlalchemy import func
 from freezegun import freeze_time
+import responses
 
-import quarchive as sut
 from quarchive import file_storage, crawler
 from quarchive.data.models import SQLAUrl, CrawlRequest, CrawlResponse, FullText
 from quarchive.value_objects import URL
@@ -257,7 +257,7 @@ def test_indexing_junk_content_type(session, mock_s3):
 
 
 @freeze_time("2018-01-03")
-def test_enqueue_fulltext_indexing(session, eager_celery, mock_s3):
+def test_enqueue_fulltext_indexing(session, mock_s3, patched_publish_message):
     url_str = "http://example.com/" + random_string()
     scheme, netloc, urlpath, query, fragment = urlsplit(url_str)
     crawl_uuid = uuid4()
@@ -292,7 +292,7 @@ def test_enqueue_fulltext_indexing(session, eager_celery, mock_s3):
     with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
         file_storage.upload_file(bucket, html_f, str(body_uuid))
 
-    sut.enqueue_fulltext_indexing()
+    crawler.request_indexes_for_unindexed_urls(session)
 
     fulltext_obj = session.query(FullText).get(url_uuid)
     assert fulltext_obj.url_uuid == url_uuid

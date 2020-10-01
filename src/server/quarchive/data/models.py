@@ -88,6 +88,7 @@ class CrawlRequest(Base):
     # FIXME: url_uuid should be NOT NULL
     url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), index=True)
     requested = Column(satypes.DateTime(timezone=True), nullable=False, index=True)
+    # FIXME: should default to false
     got_response = Column(satypes.Boolean, index=True)
 
     url_obj: "RelationshipProperty[SQLAUrl]" = relationship(

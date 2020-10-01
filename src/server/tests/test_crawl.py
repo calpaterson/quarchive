@@ -12,6 +12,7 @@ from freezegun import freeze_time
 import pytest
 
 import quarchive as sut
+from quarchive import file_storage
 from quarchive.data.functions import upsert_url, set_bookmark
 from quarchive.data.models import CrawlRequest, CrawlResponse, SQLAUrl
 from quarchive.value_objects import URL
@@ -51,7 +52,7 @@ def test_crawl_when_response_is_recieved(session, status_code, mock_s3):
     assert response.headers == {"content-type": "text/plain"}
 
     s3_obj = (
-        crawler.get_s3()
+        file_storage.get_s3()
         .Object(environ["QM_RESPONSE_BODY_BUCKET_NAME"], str(response.body_uuid))
         .get()
     )
