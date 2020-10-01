@@ -96,13 +96,8 @@ def crawl_url(session: Session, crawl_uuid: UUID, url: URL) -> None:
     mark_crawl_request_with_response(session, crawl_uuid)
 
     body_uuid = uuid4()
-    # Typeshed type looks wrong, proposed a fix in
-    # https://github.com/python/typeshed/pull/3610
-    from typing import cast
 
-    headers = cast(requests.structures.CaseInsensitiveDict, response.headers)
-
-    lowered_headers = dict(headers.lower_items())
+    lowered_headers = dict(response.headers.lower_items())
     add_crawl_response(
         session, crawl_uuid, body_uuid, lowered_headers, response.status_code
     )
