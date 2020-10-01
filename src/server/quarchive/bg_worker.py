@@ -56,7 +56,7 @@ def bg_worker():
     adapted_processor = RabbitMQAdapter(
         PickleMessage,
         processor,
-        environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
+        [environ["QM_RABBITMQ_BG_WORKER_TOPIC"]],
         url=environ["QM_RABBITMQ_URL"],
     )
     adapted_processor.run()
