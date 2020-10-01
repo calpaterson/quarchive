@@ -34,6 +34,7 @@ from .models import (
     UserEmail,
     CrawlRequest,
     CrawlResponse,
+    FullText,
 )
 
 log = getLogger(__name__)
@@ -496,3 +497,34 @@ def add_crawl_response(
             status_code=status_code,
         )
     )
+
+
+def get_crawl_metadata(
+    session: Session, crawl_uuid: UUID
+) -> Tuple[UUID, Optional[str], URL, datetime]:
+    """Return some crawl metadata (for indexing purposes)"""
+    body_uuid, content_type_header, sqla_url_obj, inserted = (
+        session.query(
+            CrawlResponse.body_uuid,
+            CrawlResponse.headers["content-type"],
+            SQLAUrl,
+            FullText.inserted,
+        )
+        .outerjoin(FullText, CrawlResponse.crawl_uuid == FullText.crawl_uuid)
+        .join(CrawlRequest, CrawlResponse.crawl_uuid == CrawlRequest.crawl_uuid)
+        .join(SQLAUrl, CrawlRequest.url_uuid == SQLAUrl.url_uuid)
+        .filter(CrawlResponse.crawl_uuid == crawl_uuid)
+        .one()
+    )
+    return body_uuid, content_type_header, sqla_url_obj.to_url(), inserted
+
+
+def add_fulltext(session: Session, url: URL, crawl_uuid: UUID, text: str) -> None:
+    fulltext_obj = FullText(
+        url_uuid=url.url_uuid,
+        crawl_uuid=crawl_uuid,
+        inserted=datetime.utcnow().replace(tzinfo=timezone.utc),
+        full_text=text,
+        tsvector=func.to_tsvector(text),
+    )
+    session.add(fulltext_obj)

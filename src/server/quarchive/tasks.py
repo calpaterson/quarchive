@@ -33,6 +33,7 @@ log = logging.getLogger(__name__)
 
 celery_app = Celery("quarchive")
 
+
 @lru_cache(1)
 def get_session_cls() -> Session:
     url: str = environ["QM_SQL_URL"]

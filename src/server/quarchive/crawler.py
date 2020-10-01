@@ -2,23 +2,29 @@ from os import environ
 from logging import getLogger
 from uuid import uuid4, UUID
 from functools import lru_cache
+from typing import BinaryIO, Union, List, FrozenSet
+import gzip
+import mimetypes
+import cgi
 
-import boto3
+import magic
 from sqlalchemy.orm import Session
 import requests
-from botocore.utils import fix_s3_host
+import lxml
 
-from quarchive.tasks import upload_file
+from quarchive import file_storage
 from quarchive.messaging.message_lib import CrawlRequested
 from quarchive.messaging.publication import publish_message
 from quarchive.value_objects import URL
 from quarchive.data.functions import (
+    get_crawl_metadata,
     get_session_cls,
     is_crawled,
     create_crawl_request,
     mark_crawl_request_with_response,
     add_crawl_response,
     get_uncrawled_urls,
+    add_fulltext,
 )
 
 log = getLogger(__name__)
@@ -31,25 +37,6 @@ def get_client() -> requests.Session:
     return requests.Session()
 
 
-@lru_cache(1)
-def get_s3():
-    session = boto3.Session(
-        aws_access_key_id=environ["QM_AWS_ACCESS_KEY"],
-        aws_secret_access_key=environ["QM_AWS_SECRET_ACCESS_KEY"],
-        region_name=environ["QM_AWS_REGION_NAME"],
-    )
-
-    # This is a magic value to facilitate testing
-    resource_kwargs = {}
-    if environ["QM_AWS_S3_ENDPOINT_URL"] != "UNSET":
-        resource_kwargs["endpoint_url"] = environ["QM_AWS_S3_ENDPOINT_URL"]
-
-    resource = session.resource("s3", **resource_kwargs)
-    resource.meta.client.meta.events.unregister("before-sign.s3", fix_s3_host)
-    log.info("constructed s3 resource")
-    return resource
-
-
 _session = None
 
 
@@ -58,13 +45,6 @@ def get_session_hack() -> Session:
     if _session is None:
         _session = get_session_cls()
     return _session
-
-
-@lru_cache(1)
-def get_response_body_bucket():
-    bucket = get_s3().Bucket(environ["QM_RESPONSE_BODY_BUCKET_NAME"])
-    log.info("constructed response body bucket")
-    return bucket
 
 
 ## END temporary hacks
@@ -83,7 +63,7 @@ def ensure_url_is_crawled(session: Session, url: URL):
 
 def crawl_url(session: Session, crawl_uuid: UUID, url: URL) -> None:
     client = get_client()
-    bucket = get_response_body_bucket()
+    bucket = file_storage.get_response_body_bucket()
     create_crawl_request(session, crawl_uuid, url)
 
     try:
@@ -106,7 +86,7 @@ def crawl_url(session: Session, crawl_uuid: UUID, url: URL) -> None:
     # raw payload (usually html bytes)
     response.raw.decode_content = True
 
-    upload_file(bucket, response.raw, str(body_uuid))
+    file_storage.upload_file(bucket, response.raw, str(body_uuid))
 
 
 def request_crawls_for_uncrawled_urls(session):
@@ -116,3 +96,92 @@ def request_crawls_for_uncrawled_urls(session):
         )
         log.info("requested crawl: %s", url.to_string())
     log.info("requested %d crawls", index)
+
+
+def get_meta_descriptions(root: lxml.html.HtmlElement) -> List[str]:
+    meta_description_elements = root.xpath("//meta[@name='description']")
+    if len(meta_description_elements) == 0:
+        return []
+    else:
+        return [e.attrib.get("content", "") for e in meta_description_elements]
+
+
+def extract_full_text_from_html(filelike: Union[BinaryIO, gzip.GzipFile]) -> str:
+    # union required as gzip.GzipFile doesn't implement the full API required
+    # by BinaryIO - we only need the shared subset
+    document = lxml.html.parse(filelike)
+    root = document.getroot()
+    meta_descs = get_meta_descriptions(root)
+    text_content: str = root.text_content()
+    return " ".join(meta_descs + [text_content])
+
+
+@lru_cache(1)
+def known_content_types() -> FrozenSet[str]:
+    mimetypes.init()
+    return frozenset(mimetypes.types_map.values())
+
+
+def infer_content_type(fileobj: Union[BinaryIO, gzip.GzipFile]) -> str:
+    """Use libmagic to infer the content type of a file from the first 2k."""
+    content_type = magic.from_buffer(fileobj.read(2048), mime=True)
+    fileobj.seek(0)
+    return content_type
+
+
+def ensure_fulltext(session, crawl_uuid) -> None:
+    body_uuid, content_type_header, url, inserted = get_crawl_metadata(
+        session, crawl_uuid
+    )
+
+    if inserted is not None:
+        log.info(
+            "%s (%s) already indexed - not indexing again", url.to_string(), crawl_uuid,
+        )
+        return
+
+    bucket = file_storage.get_response_body_bucket()
+    # Try to avoid downloading the content unless we need it
+    fileobj = None
+
+    # FIXME: Some error modes not handled here, see
+    # https://github.com/calpaterson/quarchive/issues/11
+    if content_type_header is not None:
+        content_type, parameters = cgi.parse_header(content_type_header)
+        # charset = parameters.get("charset")
+
+        # If we were given something we don't recognise, infer the content type
+        if content_type not in known_content_types():
+            old_content_type = content_type
+            fileobj = file_storage.download_file(bucket, str(body_uuid))
+            content_type = infer_content_type(fileobj)
+            log.info(
+                "inferred %s for %s (instead of %s)",
+                content_type,
+                url.to_string(),
+                old_content_type,
+            )
+    else:
+        # No Content-Type, so infer it
+        fileobj = file_storage.download_file(bucket, str(body_uuid))
+        content_type = infer_content_type(fileobj)
+        log.info("inferred %s for %s (none provided)", content_type, url.to_string())
+
+    if content_type != "text/html":
+        log.info(
+            "%s (%s) has wrong content type: %s - skipping",
+            url.to_string(),
+            crawl_uuid,
+            content_type,
+        )
+        return
+
+    # If we didn't download it before, we should now
+    if fileobj is None:
+        fileobj = file_storage.download_file(bucket, str(body_uuid))
+
+    # FIXME: charset should be handed to extract_full_text_from_html
+    text = extract_full_text_from_html(fileobj)
+
+    add_fulltext(session, url, crawl_uuid, text)
+    log.info("indexed %s (%s)", url.to_string(), crawl_uuid)
