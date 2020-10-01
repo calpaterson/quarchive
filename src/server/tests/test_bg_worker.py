@@ -8,11 +8,6 @@ from quarchive.bg_worker import processor
 from quarchive.messaging.message_lib import HelloEvent
 
 
-@pytest.fixture(scope="session")
-def bg_client():
-    yield processor.test_client()
-
-
 def test_hello_event(bg_client: TestAdapter[PickleMessage], caplog):
     caplog.set_level(logging.INFO, logger="quarchive.bg_worker")
     event = HelloEvent("greetings earthling")

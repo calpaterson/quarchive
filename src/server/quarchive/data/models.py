@@ -42,7 +42,7 @@ class SQLAUrl(Base):
         )
 
     @classmethod
-    def from_url(self, url) -> "SQLAUrl":
+    def from_url(self, url: URL) -> "SQLAUrl":
         return SQLAUrl(
             url_uuid=url.url_uuid,
             scheme=url.scheme,

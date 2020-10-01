@@ -9,14 +9,16 @@ import requests
 from botocore.utils import fix_s3_host
 
 from quarchive.tasks import upload_file
+from quarchive.messaging.message_lib import CrawlRequested
+from quarchive.messaging.publication import publish_message
 from quarchive.value_objects import URL
 from quarchive.data.functions import (
     get_session_cls,
     is_crawled,
-    upsert_url,
     create_crawl_request,
     mark_crawl_request_with_response,
     add_crawl_response,
+    get_uncrawled_urls,
 )
 
 log = getLogger(__name__)
@@ -110,3 +112,12 @@ def crawl_url(session: Session, crawl_uuid: UUID, url: URL) -> None:
     response.raw.decode_content = True
 
     upload_file(bucket, response.raw, str(body_uuid))
+
+
+def request_crawls_for_uncrawled_urls(session):
+    for index, url in enumerate(get_uncrawled_urls(session)):
+        publish_message(
+            CrawlRequested(url.url_uuid), environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
+        )
+        log.info("requested crawl: %s", url.to_string())
+    log.info("requested %d crawls", index)

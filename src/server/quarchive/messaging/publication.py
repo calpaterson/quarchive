@@ -11,6 +11,8 @@ _connection = None
 
 log = getLogger()
 
+PICKLE_PROTOCOL = 4
+
 
 def get_connection():
     global _connection
@@ -43,7 +45,9 @@ def get_producer():
 
 def publish_message(message: Event, routing_key: str) -> None:
     producer = get_producer()
-    producer.publish(pickle.dumps(message), routing_key=routing_key)
+    producer.publish(
+        pickle.dumps(message, protocol=PICKLE_PROTOCOL), routing_key=routing_key
+    )
     log.info("published %s message to with %s", message, routing_key)
 
 

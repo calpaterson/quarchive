@@ -109,14 +109,16 @@ def test_ensure_crawled_only_runs_once(session, mock_s3):
 
 
 @responses.activate
-def test_enqueue_crawls_for_uncrawled_urls(session, eager_celery, mock_s3, test_user):
+def test_request_crawls_for_uncrawled_urls(
+    session, patched_publish_message, mock_s3, test_user
+):
     bookmark = make_bookmark()
     set_bookmark(session, test_user.user_uuid, bookmark)
     session.commit()
     url = bookmark.url
 
     responses.add(responses.GET, re.compile(r".*"), body=b"hello", stream=True)
-    sut.enqueue_crawls_for_uncrawled_urls()
+    crawler.request_crawls_for_uncrawled_urls(session)
 
     resp_query = (
         session.query(CrawlResponse)

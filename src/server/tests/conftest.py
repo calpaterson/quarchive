@@ -1,4 +1,5 @@
 from os import environ, path
+from logging import getLogger
 from typing import Mapping, Any
 from datetime import datetime, timezone
 import logging
@@ -8,16 +9,20 @@ import secrets
 import random
 import contextlib
 import string
+import pickle
 
 import flask
 import moto
 from passlib.context import CryptContext
 
 import quarchive as sut
-from quarchive import value_objects
+from quarchive import value_objects, bg_worker
 from quarchive.data import models as sut_models
+from quarchive.messaging import publication, receipt, message_lib
 
 import pytest
+
+log = getLogger(__name__)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -108,6 +113,24 @@ def patch_out_secrets_module():
         mock_tb = stack.enter_context(mock.patch.object(secrets, "token_bytes"))
         mock_cd.side_effect = lambda a, b: a == b
         mock_tb.side_effect = lambda n: bytes(random.randint(0, 255) for _ in range(n))
+        yield
+
+
+@pytest.fixture(scope="session")
+def bg_client():
+    yield bg_worker.processor.test_client()
+
+
+@pytest.fixture
+def patched_publish_message(bg_client):
+    def fake_publish(as_bytes: bytes, routing_key: str) -> None:
+        message_obj = receipt.PickleMessage(as_bytes)
+        log.debug("sending %s directly to test client", message_obj)
+        bg_client.send(message_obj)
+
+    producer = publication.get_producer()
+    with mock.patch.object(producer, "publish") as mock_publish_message:
+        mock_publish_message.side_effect = fake_publish
         yield
 
 

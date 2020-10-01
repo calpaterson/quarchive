@@ -1,6 +1,6 @@
 from os import environ
 from datetime import datetime, timezone
-from typing import Type, cast
+from typing import Type, cast, Sequence, Union
 from logging import getLogger, basicConfig, INFO
 
 import click
@@ -8,8 +8,13 @@ import missive
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
 from quarchive import crawler
-from quarchive.data.functions import get_bookmark_by_url_uuid
-from quarchive.messaging.message_lib import Event, HelloEvent, BookmarkCreated
+from quarchive.data.functions import get_url_by_url_uuid
+from quarchive.messaging.message_lib import (
+    Event,
+    HelloEvent,
+    BookmarkCreated,
+    CrawlRequested,
+)
 from quarchive.messaging.receipt import PickleMessage
 
 log = getLogger(__name__)
@@ -26,6 +31,14 @@ class ClassMatcher:
         return isinstance(message.get_obj(), self.required_class)
 
 
+class LogicalOrMatcher:
+    def __init__(self, matchers: Sequence[missive.Matcher]):
+        self.matchers = matchers
+
+    def __call__(self, message: PickleMessage) -> bool:
+        return any(matcher(message) for matcher in self.matchers)
+
+
 @processor.handle_for([ClassMatcher(HelloEvent)])
 def print_hellos(message: PickleMessage, ctx: missive.HandlingContext):
     event: HelloEvent = cast(HelloEvent, message.get_obj())
@@ -38,14 +51,18 @@ def print_hellos(message: PickleMessage, ctx: missive.HandlingContext):
     ctx.ack(message)
 
 
-@processor.handle_for([ClassMatcher(BookmarkCreated)])
+@processor.handle_for(
+    [LogicalOrMatcher([ClassMatcher(BookmarkCreated), ClassMatcher(CrawlRequested)])]
+)
 def on_bookmark_created(message: PickleMessage, ctx: missive.HandlingContext):
-    event: BookmarkCreated = cast(BookmarkCreated, message.get_obj())
+    # FIXME: this isn't right, a CrawlRequested event should not be based on a
+    # check of previous attempts
+    event = cast(Union[BookmarkCreated, CrawlRequested], message.get_obj())
     session = crawler.get_session_hack()
-    bookmark = get_bookmark_by_url_uuid(session, event.user_uuid, event.url_uuid)
-    if bookmark is None:
-        raise RuntimeError("i was told a bookmark was created but it was a lie!")
-    crawler.ensure_url_is_crawled(session, bookmark.url)
+    url = get_url_by_url_uuid(session, event.url_uuid)
+    if url is None:
+        raise RuntimeError("url requested to crawl does not exist in db")
+    crawler.ensure_url_is_crawled(session, url)
     session.commit()
     ctx.ack(message)
 

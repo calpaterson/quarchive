@@ -260,6 +260,12 @@ def upsert_url(session: Session, url: URL) -> UUID:
     return url.url_uuid
 
 
+def get_url_by_url_uuid(session: Session, url_uuid: UUID) -> Optional[URL]:
+    """Get a URL object by url uuid"""
+    sql_url = session.query(SQLAUrl).filter(SQLAUrl.url_uuid == url_uuid).first()
+    return sql_url.to_url()
+
+
 def set_bookmark(session: Session, user_uuid: UUID, bookmark: Bookmark) -> UUID:
     url = bookmark.url
     if len(bookmark.tag_triples) > 0:
@@ -444,6 +450,17 @@ def is_crawled(session: Session, url: URL):
         .exists()
     ).scalar()
     return return_value
+
+
+def get_uncrawled_urls(session: Session) -> Iterable[URL]:
+    """Return an all uncrawled urls"""
+    query = (
+        session.query(SQLAUrl)
+        .outerjoin(CrawlRequest)
+        .filter(CrawlRequest.crawl_uuid.is_(None))
+    )
+    for sqla_url in query:
+        yield sqla_url.to_url()
 
 
 def create_crawl_request(session: Session, crawl_uuid: UUID, url):
