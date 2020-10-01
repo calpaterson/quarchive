@@ -42,9 +42,6 @@ from .tasks import (
     extract_full_text_from_html,
     upload_file,
     ensure_fulltext,
-    crawl_url,
     enqueue_fulltext_indexing,
-    ensure_crawled,
-    enqueue_crawls_for_uncrawled_urls,
     REQUESTS_TIMEOUT,
 )

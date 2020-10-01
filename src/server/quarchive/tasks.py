@@ -33,15 +33,6 @@ log = logging.getLogger(__name__)
 
 celery_app = Celery("quarchive")
 
-processor: missive.Processor[missive.JSONMessage] = missive.Processor()
-
-
-@processor.handle_for([lambda m: m.get_json()["event_type"] == "test"])
-def test_message(message, ctx):
-    log.info("test message recieved")
-    ctx.ack(message)
-
-
 @lru_cache(1)
 def get_session_cls() -> Session:
     url: str = environ["QM_SQL_URL"]
@@ -86,37 +77,10 @@ def get_response_body_bucket():
     return bucket
 
 
-@celery_app.task
-def celery_ok():
-    log.info("ok")
-
-
 @celery_app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
     # FIXME: add periodic tasks here
     pass
-
-
-def enqueue_crawls_for_uncrawled_urls():
-    with contextlib.closing(get_session_cls()) as sesh:
-        rs = (
-            sesh.query(
-                SQLAUrl.scheme,
-                SQLAUrl.netloc,
-                SQLAUrl.path,
-                SQLAUrl.query,
-                SQLAUrl.fragment,
-            )
-            .join(SQLABookmark)
-            .outerjoin(CrawlRequest, SQLAUrl.url_uuid == CrawlRequest.url_uuid)
-            .filter(CrawlRequest.crawl_uuid.is_(None))
-        )
-        uncrawled_urls = (urlunsplit(tup) for tup in rs)
-    index = 0
-    for index, uncrawled_url in enumerate(uncrawled_urls, start=1):
-        log.info("enqueuing %s for crawl", uncrawled_url)
-        ensure_crawled.delay(uncrawled_url)
-    log.info("enqueued %d urls", index)
 
 
 def enqueue_fulltext_indexing():
@@ -173,30 +137,6 @@ def download_file(bucket, filename: str) -> gzip.GzipFile:
 def known_content_types() -> FrozenSet[str]:
     mimetypes.init()
     return frozenset(mimetypes.types_map.values())
-
-
-@celery_app.task
-def ensure_crawled(url: str) -> None:
-    """Crawl a url only if it has never been crawled before.
-
-    For use from celery beat"""
-    scheme, netloc, path, query, fragment = urlsplit(url)
-    with contextlib.closing(get_session_cls()) as sesh:
-        is_crawled: bool = sesh.query(
-            sesh.query(CrawlRequest)
-            .join(SQLAUrl)
-            .filter(
-                SQLAUrl.scheme == scheme,
-                SQLAUrl.netloc == netloc,
-                SQLAUrl.path == path,
-                SQLAUrl.query == query,
-                SQLAUrl.fragment == fragment,
-            )
-            .exists()
-        ).scalar()
-        if not is_crawled:
-            crawl_uuid = uuid4()
-            crawl_url(sesh, crawl_uuid, url)
 
 
 def infer_content_type(fileobj: Union[BinaryIO, gzip.GzipFile]) -> str:
@@ -290,47 +230,3 @@ def ensure_fulltext(crawl_uuid: UUID) -> None:
         sesh.add(fulltext_obj)
         sesh.commit()
         log.info("indexed %s (%s)", url.to_string(), crawl_uuid)
-
-
-def crawl_url(session: Session, crawl_uuid: UUID, url: str) -> None:
-    client = get_client()
-    bucket = get_response_body_bucket()
-    url_uuid = upsert_url(session, URL.from_string(url))
-    crawl_request = CrawlRequest(
-        crawl_uuid=crawl_uuid,
-        url_uuid=url_uuid,
-        requested=datetime.utcnow().replace(tzinfo=timezone.utc),
-        got_response=False,
-    )
-    session.add(crawl_request)
-
-    try:
-        response = client.get(url, stream=True, timeout=REQUESTS_TIMEOUT)
-    except requests.exceptions.RequestException as e:
-        log.warning("unable to request %s - %s", url, e)
-        session.commit()
-        return
-    log.info("crawled %s", url)
-
-    crawl_request.got_response = True
-
-    body_uuid = uuid4()
-    # Typeshed type looks wrong, proposed a fix in
-    # https://github.com/python/typeshed/pull/3610
-    headers = cast(requests.structures.CaseInsensitiveDict, response.headers)
-    session.add(
-        CrawlResponse(
-            crawl_uuid=crawl_uuid,
-            body_uuid=body_uuid,
-            headers=dict(headers.lower_items()),
-            status_code=response.status_code,
-        )
-    )
-
-    # Otherwise we'll get the raw stream (often gzipped) rather than the
-    # raw payload (usually html bytes)
-    response.raw.decode_content = True
-
-    upload_file(bucket, response.raw, str(body_uuid))
-
-    session.commit()

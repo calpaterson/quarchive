@@ -1,4 +1,5 @@
 from os import environ
+from uuid import uuid4
 from datetime import datetime, timezone
 from typing import Type, cast, Sequence, Union
 from logging import getLogger, basicConfig, INFO
@@ -51,18 +52,33 @@ def print_hellos(message: PickleMessage, ctx: missive.HandlingContext):
     ctx.ack(message)
 
 
-@processor.handle_for(
-    [LogicalOrMatcher([ClassMatcher(BookmarkCreated), ClassMatcher(CrawlRequested)])]
-)
+@processor.handle_for([ClassMatcher(BookmarkCreated)])
 def on_bookmark_created(message: PickleMessage, ctx: missive.HandlingContext):
-    # FIXME: this isn't right, a CrawlRequested event should not be based on a
-    # check of previous attempts
-    event = cast(Union[BookmarkCreated, CrawlRequested], message.get_obj())
+    """When a new bookmark is created, we want to:
+
+    - crawl it, if it's not yet crawled
+    - (tbc) other things
+
+    """
+    event = cast(BookmarkCreated, message.get_obj())
     session = crawler.get_session_hack()
     url = get_url_by_url_uuid(session, event.url_uuid)
     if url is None:
-        raise RuntimeError("url requested to crawl does not exist in db")
+        raise RuntimeError("url requested to crawl does not exist in the db")
     crawler.ensure_url_is_crawled(session, url)
+    session.commit()
+    ctx.ack(message)
+
+
+@processor.handle_for([ClassMatcher(CrawlRequested)])
+def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
+    event = cast(CrawlRequested, message.get_obj())
+    session = crawler.get_session_hack()
+    url = get_url_by_url_uuid(session, event.url_uuid)
+    if url is None:
+        raise RuntimeError("url crawled to crawl does not exist in the db")
+    crawl_uuid = uuid4()
+    crawler.crawl_url(session, crawl_uuid, url)
     session.commit()
     ctx.ack(message)
 
