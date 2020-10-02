@@ -20,7 +20,6 @@ setup(
         "click~=7.0.0",
         "python-dateutil~=2.8.1",
         "pytz",
-        "celery~=4.4.0",
         "requests~=2.22.0",
         "boto3~=1.11.0",
         "lxml~=4.4.2",

@@ -16,7 +16,7 @@ import moto
 from passlib.context import CryptContext
 
 import quarchive as sut
-from quarchive import value_objects, bg_worker
+from quarchive import value_objects, bg_worker, file_storage
 from quarchive.data import models as sut_models
 from quarchive.messaging import publication, receipt, message_lib
 
@@ -69,23 +69,16 @@ def app(config):
 @pytest.fixture(scope="function")
 def mock_s3():
     # Clear out old handles
-    sut.get_s3.cache_clear()
-    sut.get_response_body_bucket.cache_clear()
+    file_storage.get_s3.cache_clear()
+    file_storage.get_response_body_bucket.cache_clear()
 
     with moto.mock_s3():
-        s3_resource = sut.get_s3()
+        s3_resource = file_storage.get_s3()
         s3_resource.create_bucket(
             Bucket=environ["QM_RESPONSE_BODY_BUCKET_NAME"],
             CreateBucketConfiguration={"LocationConstraint": "moon",},
         )
         yield s3_resource
-
-
-@pytest.fixture(scope="function")
-def eager_celery():
-    sut.celery_app.conf.update(task_always_eager=True)
-    yield
-    sut.celery_app.conf.update(task_always_eager=False)
 
 
 @pytest.fixture()

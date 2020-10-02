@@ -35,13 +35,3 @@ from .web.app import init_app
 from .web.blueprint import db
 from .pinboard import pinboard_import
 from .url_recheck import url_recheck
-from .tasks import (
-    celery_app,
-    get_s3,
-    get_response_body_bucket,
-    extract_full_text_from_html,
-    upload_file,
-    ensure_fulltext,
-    enqueue_fulltext_indexing,
-    REQUESTS_TIMEOUT,
-)

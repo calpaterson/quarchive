@@ -11,6 +11,7 @@ import magic
 from sqlalchemy.orm import Session
 import requests
 import lxml
+import lxml.html
 
 from quarchive import file_storage
 from quarchive.messaging.message_lib import CrawlRequested, IndexRequested
