@@ -524,7 +524,7 @@ def add_crawl_response(
 
 def get_crawl_metadata(
     session: Session, crawl_uuid: UUID
-) -> Tuple[UUID, Optional[str], URL, datetime]:
+) -> Tuple[UUID, Optional[str], URL, Optional[datetime]]:
     """Return some crawl metadata (for indexing purposes)"""
     body_uuid, content_type_header, sqla_url_obj, inserted = (
         session.query(

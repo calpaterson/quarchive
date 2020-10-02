@@ -1,13 +1,11 @@
 from os import path
-from uuid import uuid4
+from uuid import uuid4, UUID
 import re
-from urllib.parse import urlsplit
 from datetime import datetime, timezone
 from typing import Tuple
 
 from sqlalchemy import func
 from freezegun import freeze_time
-import responses
 
 from quarchive import file_storage, crawler
 from quarchive.data.models import SQLAUrl, CrawlRequest, CrawlResponse, FullText
@@ -36,7 +34,16 @@ def make_crawl_with_response(session) -> Tuple[SQLAUrl, CrawlRequest, CrawlRespo
         status_code=200,
     )
     session.add_all([url_obj, crawl_req, crawl_resp])
+
+    put_simple_website_into_bucket(crawl_resp.body_uuid)
+
     return (url_obj, crawl_req, crawl_resp)
+
+
+def put_simple_website_into_bucket(body_uuid: UUID):
+    bucket = file_storage.get_response_body_bucket()
+    with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
+        file_storage.upload_file(bucket, html_f, str(body_uuid))
 
 
 def test_simple():
@@ -62,10 +69,6 @@ def test_calpaterson():
 def test_indexing_for_fresh(session, mock_s3):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
     session.commit()
-
-    bucket = file_storage.get_response_body_bucket()
-    with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
-        file_storage.upload_file(bucket, html_f, str(crawl_resp.body_uuid))
 
     crawler.ensure_fulltext(session, crawl_req.crawl_uuid)
 
@@ -98,7 +101,7 @@ def test_indexing_idempotent(session, mock_s3):
     assert fulltext_count == 1
 
 
-def test_indexing_non_html(session):
+def test_indexing_non_html(session, mock_s3):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
     crawl_resp.headers["content-type"] = "application/pdf"  # type: ignore
     session.commit()
@@ -119,10 +122,6 @@ def test_indexing_nonsense_content_type(session, mock_s3):
     crawl_resp.headers["content-type"] = "nonsense"  # type: ignore
     session.commit()
 
-    bucket = file_storage.get_response_body_bucket()
-    with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
-        file_storage.upload_file(bucket, html_f, str(crawl_resp.body_uuid))
-
     crawler.ensure_fulltext(session, crawl_req.crawl_uuid)
 
     fulltext_obj = session.query(FullText).get(sqla_url.url_uuid)
@@ -139,10 +138,6 @@ def test_indexing_absent_content_type(session, mock_s3):
     crawl_resp.headers = {}
     session.commit()
 
-    bucket = file_storage.get_response_body_bucket()
-    with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
-        file_storage.upload_file(bucket, html_f, str(crawl_resp.body_uuid))
-
     crawler.ensure_fulltext(session, crawl_req.crawl_uuid)
 
     fulltext_obj = session.query(FullText).get(sqla_url.url_uuid)
@@ -157,10 +152,6 @@ def test_indexing_absent_content_type(session, mock_s3):
 def test_enqueue_fulltext_indexing(session, mock_s3, patched_publish_message):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
     session.commit()
-
-    bucket = file_storage.get_response_body_bucket()
-    with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
-        file_storage.upload_file(bucket, html_f, str(crawl_resp.body_uuid))
 
     crawler.request_indexes_for_unindexed_urls(session)
 
