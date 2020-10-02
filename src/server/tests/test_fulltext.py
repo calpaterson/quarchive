@@ -4,6 +4,7 @@ import re
 from datetime import datetime, timezone
 from typing import Tuple
 
+import pytest
 from sqlalchemy import func
 from freezegun import freeze_time
 
@@ -117,25 +118,13 @@ def test_indexing_non_html(session, mock_s3):
 
 
 @freeze_time("2018-01-03")
-def test_indexing_nonsense_content_type(session, mock_s3):
+@pytest.mark.parametrize("headers", [
+    pytest.param({}, id="no content type"),
+    pytest.param({"content-type": "nonsense"}, id="nonsense"),
+])
+def test_indexing_with_content_type_problems(session, mock_s3, headers):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
-    crawl_resp.headers["content-type"] = "nonsense"  # type: ignore
-    session.commit()
-
-    crawler.ensure_fulltext(session, crawl_req.crawl_uuid)
-
-    fulltext_obj = session.query(FullText).get(sqla_url.url_uuid)
-    assert fulltext_obj.url_uuid == sqla_url.url_uuid
-    assert fulltext_obj.crawl_uuid == crawl_req.crawl_uuid
-    assert fulltext_obj.inserted == datetime(2018, 1, 3, tzinfo=timezone.utc)
-    assert len(fulltext_obj.tsvector.split(" ")) == 6
-    assert len(fulltext_obj.full_text) > 0
-
-
-@freeze_time("2018-01-03")
-def test_indexing_absent_content_type(session, mock_s3):
-    sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
-    crawl_resp.headers = {}
+    crawl_resp.headers = headers
     session.commit()
 
     crawler.ensure_fulltext(session, crawl_req.crawl_uuid)
