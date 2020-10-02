@@ -48,7 +48,7 @@ class SQLAUrl(Base):
             scheme=url.scheme,
             netloc=url.netloc,
             path=url.path,
-            query=url.path,
+            query=url.query,
             fragment=url.fragment,
         )
 
