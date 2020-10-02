@@ -69,7 +69,6 @@ def test_calpaterson():
 @freeze_time("2018-01-03")
 def test_indexing_for_fresh(session, mock_s3):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
-    session.commit()
 
     crawler.ensure_fulltext(session, crawl_req.crawl_uuid)
 
@@ -92,7 +91,6 @@ def test_indexing_idempotent(session, mock_s3):
     )
 
     session.add(fulltext)
-    session.commit()
 
     crawler.ensure_fulltext(session, crawl_req.crawl_uuid)
 
@@ -105,7 +103,6 @@ def test_indexing_idempotent(session, mock_s3):
 def test_indexing_non_html(session, mock_s3):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
     crawl_resp.headers["content-type"] = "application/pdf"  # type: ignore
-    session.commit()
 
     crawler.ensure_fulltext(session, crawl_req.crawl_uuid)
 
@@ -125,7 +122,6 @@ def test_indexing_non_html(session, mock_s3):
 def test_indexing_with_content_type_problems(session, mock_s3, headers):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
     crawl_resp.headers = headers
-    session.commit()
 
     crawler.ensure_fulltext(session, crawl_req.crawl_uuid)
 
