@@ -640,9 +640,7 @@ def sync() -> flask.Response:
         )
 
     try:
-        merge_result = merge_bookmarks(
-            db.session, user.user_uuid, recieved_bookmarks
-        )
+        merge_result = merge_bookmarks(db.session, user.user_uuid, recieved_bookmarks)
     except BadCanonicalisationException as e:
         log.error(
             "bad canonicalised url ('%s') from version %s, user %s",

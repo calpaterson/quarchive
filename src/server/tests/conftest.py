@@ -120,6 +120,7 @@ def bg_worker(bg_client):
     mechanisms - make bg_worker run the event right now.
 
     """
+
     def fake_publish(as_bytes: bytes, routing_key: str) -> None:
         message_obj = receipt.PickleMessage(as_bytes)
         log.debug("sending %s directly to test client", message_obj)
