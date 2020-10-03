@@ -1,5 +1,7 @@
 # Quarchive - a social bookmarking tool
 
+**Please beware that Quarchive is in an alpha state at the moment and has lots of bugs**
+
 Quarchive is a open source social bookmarking system.
 
 It consists of a web server and a browser extension (that syncs your bookmarks with the server).
