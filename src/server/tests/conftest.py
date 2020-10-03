@@ -9,8 +9,8 @@ import secrets
 import random
 import contextlib
 import string
-import pickle
 
+import responses
 import flask
 import moto
 from passlib.context import CryptContext
@@ -125,6 +125,26 @@ def patched_publish_message(bg_client):
     with mock.patch.object(producer, "publish") as mock_publish_message:
         mock_publish_message.side_effect = fake_publish
         yield
+
+
+@pytest.fixture(scope="session", autouse=True)
+def requests_mock_session():
+    """Patch out requests across all tests.  This ensures that anything that
+    does network IO with requests will raise a ConnectionError immeadiately
+    rather than actually making a request to some third party server.
+
+    """
+    requests_mock = responses.RequestsMock()
+    with requests_mock:
+        yield requests_mock
+
+
+@pytest.fixture(scope="function")
+def requests_mock(requests_mock_session):
+    """Returns the (cleared) requests mock"""
+    requests_mock_session.reset()
+    requests_mock_session.start()
+    yield requests_mock_session
 
 
 # Everything below this line should be moved to .utils

@@ -28,14 +28,13 @@ def lower_requests_timeout():
         yield
 
 
-@responses.activate
 @freeze_time("2018-01-03")
 @pytest.mark.parametrize("status_code", [200, 404, 500])
-def test_crawl_when_response_is_recieved(session, status_code, mock_s3):
+def test_crawl_when_response_is_recieved(session, status_code, mock_s3, requests_mock):
     url = URL.from_string("http://example.com/" + random_string())
     upsert_url(session, url)
 
-    responses.add(
+    requests_mock.add(
         responses.GET, url.to_string(), body=b"hello", status=status_code, stream=True
     )
 
@@ -60,12 +59,11 @@ def test_crawl_when_response_is_recieved(session, status_code, mock_s3):
     assert response_body == gzip.compress(b"hello")
 
 
-@responses.activate
-def test_crawl_when_no_response(session):
+def test_crawl_when_no_response(session, requests_mock):
     url = URL.from_string("http://example.com/" + random_string())
     upsert_url(session, url)
 
-    responses.add(
+    requests_mock.add(
         responses.GET,
         url.to_string(),
         body=requests.exceptions.ConnectTimeout("connect timeout"),
@@ -80,12 +78,11 @@ def test_crawl_when_no_response(session):
     assert response is None
 
 
-@responses.activate
-def test_ensure_crawled_only_runs_once(session, mock_s3):
+def test_ensure_crawled_only_runs_once(session, mock_s3, requests_mock):
     url = URL.from_string("http://example.com/" + random_string())
     upsert_url(session, url)
 
-    responses.add(responses.GET, url.to_string(), body=b"hello", stream=True)
+    requests_mock.add(responses.GET, url.to_string(), body=b"hello", stream=True)
 
     crawler.ensure_url_is_crawled(session, url)
 
@@ -109,16 +106,15 @@ def test_ensure_crawled_only_runs_once(session, mock_s3):
     assert resp_query.count() == 1
 
 
-@responses.activate
 def test_request_crawls_for_uncrawled_urls(
-    session, patched_publish_message, mock_s3, test_user
+    session, patched_publish_message, mock_s3, test_user, requests_mock
 ):
     bookmark = make_bookmark()
     set_bookmark(session, test_user.user_uuid, bookmark)
     session.commit()
     url = bookmark.url
 
-    responses.add(responses.GET, re.compile(r".*"), body=b"hello", stream=True)
+    requests_mock.add(responses.GET, re.compile(r".*"), body=b"hello", stream=True)
     crawler.request_crawls_for_uncrawled_urls(session)
 
     resp_query = (
