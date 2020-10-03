@@ -5,11 +5,13 @@ from typing import Any, Iterable, Optional, Set, Tuple, Dict
 from urllib.parse import urlunsplit
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
+from dataclasses import dataclass
 
 import pytz
 from pyappcache.cache import Cache
 from pyappcache.keys import Key
 from sqlalchemy import and_, cast as sa_cast, func, types as satypes, create_engine
+from sqlalchemy.sql.expression import case
 from sqlalchemy.dialects.postgresql import (
     ARRAY as PGARRAY,
     array as pg_array,
@@ -35,6 +37,7 @@ from .models import (
     CrawlRequest,
     CrawlResponse,
     FullText,
+    IndexingError,
 )
 
 log = getLogger(__name__)
@@ -522,24 +525,39 @@ def add_crawl_response(
     )
 
 
-def get_crawl_metadata(
-    session: Session, crawl_uuid: UUID
-) -> Tuple[UUID, Optional[str], URL, Optional[datetime]]:
+@dataclass(frozen=True)
+class CrawlMetadata:
+    body_uuid: UUID
+    content_type: Optional[str]
+    fulltext_failed: bool
+    fulltext_inserted: Optional[datetime]
+    url: URL
+
+
+def get_crawl_metadata(session: Session, crawl_uuid: UUID) -> CrawlMetadata:
     """Return some crawl metadata (for indexing purposes)"""
-    body_uuid, content_type_header, sqla_url_obj, inserted = (
+    body_uuid, content_type_header, sqla_url_obj, inserted, previous_failure = (
         session.query(
             CrawlResponse.body_uuid,
             CrawlResponse.headers["content-type"],
             SQLAUrl,
             FullText.inserted,
+            case([(IndexingError.crawl_uuid.is_(None), False)], else_=True),
         )
         .join(CrawlRequest, CrawlResponse.crawl_uuid == CrawlRequest.crawl_uuid)
         .join(SQLAUrl, CrawlRequest.url_uuid == SQLAUrl.url_uuid)
         .outerjoin(FullText, CrawlResponse.crawl_uuid == FullText.crawl_uuid)
+        .outerjoin(IndexingError, CrawlResponse.crawl_uuid == IndexingError.crawl_uuid)
         .filter(CrawlResponse.crawl_uuid == crawl_uuid)
         .one()
     )
-    return body_uuid, content_type_header, sqla_url_obj.to_url(), inserted
+    return CrawlMetadata(
+        body_uuid=body_uuid,
+        content_type=content_type_header,
+        fulltext_failed=previous_failure,
+        fulltext_inserted=inserted,
+        url=sqla_url_obj.to_url(),
+    )
 
 
 def add_fulltext(session: Session, url: URL, crawl_uuid: UUID, text: str) -> None:
@@ -551,3 +569,7 @@ def add_fulltext(session: Session, url: URL, crawl_uuid: UUID, text: str) -> Non
         tsvector=func.to_tsvector(text),
     )
     session.add(fulltext_obj)
+
+
+def record_index_error(session: Session, crawl_uuid: UUID, message: str) -> None:
+    session.add(IndexingError(crawl_uuid=crawl_uuid, description=message))

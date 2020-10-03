@@ -133,6 +133,15 @@ class FullText(Base):
     )
 
 
+class IndexingError(Base):
+    __tablename__ = "index_errors"
+
+    crawl_uuid = Column(
+        PGUUID, ForeignKey("crawl_requests.crawl_uuid"), primary_key=True
+    )
+    description = Column(satypes.String, nullable=False)
+
+
 class SQLUser(Base):
     __tablename__ = "users"
     __tableargs__ = (CheckConstraint("username ~ '^[-A-z0-9]+$'"),)

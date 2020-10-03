@@ -1,15 +1,17 @@
 from os import path
+from io import BytesIO
 from uuid import uuid4, UUID
 import re
 from datetime import datetime, timezone
 from typing import Tuple
+from unittest import mock
 
 import pytest
 from sqlalchemy import func
 from freezegun import freeze_time
 
 from quarchive import file_storage, crawler
-from quarchive.data.models import SQLAUrl, CrawlRequest, CrawlResponse, FullText
+from quarchive.data.models import SQLAUrl, CrawlRequest, CrawlResponse, FullText, IndexingError
 from quarchive.value_objects import URL
 
 from .conftest import test_data_path, random_string
@@ -18,6 +20,7 @@ WORDS_REGEX = re.compile(r"\w+")
 
 
 def make_crawl_with_response(session) -> Tuple[SQLAUrl, CrawlRequest, CrawlResponse]:
+    # FIXME: This should probably return a CrawlMetadata
     url = URL.from_string("http://example.com/" + random_string())
     crawl_uuid = uuid4()
     body_uuid = uuid4()
@@ -70,7 +73,7 @@ def test_calpaterson():
 def test_indexing_for_fresh(session, mock_s3):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
 
-    crawler.ensure_fulltext(session, crawl_req.crawl_uuid)
+    crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
 
     fulltext_obj = session.query(FullText).get(sqla_url.url_uuid)
     assert fulltext_obj.url_uuid == sqla_url.url_uuid
@@ -92,7 +95,7 @@ def test_indexing_idempotent(session, mock_s3):
 
     session.add(fulltext)
 
-    crawler.ensure_fulltext(session, crawl_req.crawl_uuid)
+    crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
 
     fulltext_count = (
         session.query(FullText).filter(FullText.url_uuid == sqla_url.url_uuid).count()
@@ -104,7 +107,7 @@ def test_indexing_non_html(session, mock_s3):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
     crawl_resp.headers["content-type"] = "application/pdf"  # type: ignore
 
-    crawler.ensure_fulltext(session, crawl_req.crawl_uuid)
+    crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
 
     fulltext_count = (
         session.query(FullText)
@@ -115,15 +118,18 @@ def test_indexing_non_html(session, mock_s3):
 
 
 @freeze_time("2018-01-03")
-@pytest.mark.parametrize("headers", [
-    pytest.param({}, id="no content type"),
-    pytest.param({"content-type": "nonsense"}, id="nonsense"),
-])
+@pytest.mark.parametrize(
+    "headers",
+    [
+        pytest.param({}, id="no content type"),
+        pytest.param({"content-type": "nonsense"}, id="nonsense"),
+    ],
+)
 def test_indexing_with_content_type_problems(session, mock_s3, headers):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
     crawl_resp.headers = headers
 
-    crawler.ensure_fulltext(session, crawl_req.crawl_uuid)
+    crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
 
     fulltext_obj = session.query(FullText).get(sqla_url.url_uuid)
     assert fulltext_obj.url_uuid == sqla_url.url_uuid
@@ -131,6 +137,23 @@ def test_indexing_with_content_type_problems(session, mock_s3, headers):
     assert fulltext_obj.inserted == datetime(2018, 1, 3, tzinfo=timezone.utc)
     assert len(fulltext_obj.tsvector.split(" ")) == 6
     assert len(fulltext_obj.full_text) > 0
+
+
+def test_index_throws_an_error(session, mock_s3):
+    sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
+    session.commit()
+
+    # First time, error thrown and recorded
+    with mock.patch.object(crawler, "get_meta_descriptions") as mock_gmd:
+        mock_gmd.side_effect = RuntimeError
+        crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
+
+    error_count = session.query(IndexingError).filter(IndexingError.crawl_uuid==crawl_req.crawl_uuid).count()
+    assert error_count == 1
+
+    # Second time, it's skipped
+    crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
+    assert error_count == 1
 
 
 @freeze_time("2018-01-03")

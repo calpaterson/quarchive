@@ -9,7 +9,7 @@ import missive
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
 from quarchive import crawler, file_storage
-from quarchive.data.functions import get_url_by_url_uuid
+from quarchive.data.functions import get_url_by_url_uuid, record_index_error
 from quarchive.messaging.message_lib import (
     Event,
     HelloEvent,
@@ -88,13 +88,8 @@ def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
 def on_full_text_requested(message: PickleMessage, ctx: missive.HandlingContext):
     event = cast(IndexRequested, message.get_obj())
     session = crawler.get_session_hack()
-    # FIXME: This should reindex if necessary
-    try:
-        crawler.ensure_fulltext(session, event.crawl_uuid)
-    except file_storage.FileStorageException as e:
-        log.exception(e.message)
+    crawler.add_to_fulltext_index(session, event.crawl_uuid)
     session.commit()
-    ctx.ack(message)
 
 
 @click.command()
