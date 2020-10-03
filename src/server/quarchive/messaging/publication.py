@@ -53,8 +53,19 @@ def publish_message(message: Event, routing_key: str) -> None:
 
 @click.command()
 @click.argument("message")
-def send_hello(message):
+@click.option(
+    "--loop", is_flag=True, help="send the message repeatedly (as a load generator)"
+)
+def send_hello(message, loop):
     basicConfig(level=INFO)
-    get_producer()  # call this for side-effects - to ensure things are set up
+    routing_key: str = environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
+
+    # call this for side-effects - to ensure things are set up so that the timing numbers are accurate
+    get_producer()
+
     hello_event = HelloEvent(message)
-    publish_message(hello_event, routing_key=environ["QM_RABBITMQ_BG_WORKER_TOPIC"])
+    publish_message(hello_event, routing_key=routing_key)
+    if loop:
+        while True:
+            hello_event = HelloEvent(message)
+            publish_message(hello_event, routing_key=routing_key)

@@ -11,7 +11,13 @@ from sqlalchemy import func
 from freezegun import freeze_time
 
 from quarchive import file_storage, crawler
-from quarchive.data.models import SQLAUrl, CrawlRequest, CrawlResponse, FullText, IndexingError
+from quarchive.data.models import (
+    SQLAUrl,
+    CrawlRequest,
+    CrawlResponse,
+    FullText,
+    IndexingError,
+)
 from quarchive.value_objects import URL
 
 from .conftest import test_data_path, random_string
@@ -148,7 +154,11 @@ def test_index_throws_an_error(session, mock_s3):
         mock_gmd.side_effect = RuntimeError
         crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
 
-    error_count = session.query(IndexingError).filter(IndexingError.crawl_uuid==crawl_req.crawl_uuid).count()
+    error_count = (
+        session.query(IndexingError)
+        .filter(IndexingError.crawl_uuid == crawl_req.crawl_uuid)
+        .count()
+    )
     assert error_count == 1
 
     # Second time, it's skipped
