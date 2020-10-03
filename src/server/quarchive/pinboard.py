@@ -54,6 +54,7 @@ def pinboard_import(user_uuid: UUID, json_file, as_of: datetime):
     app = init_app()
     with app.app_context():
         generator = (pinboard_bookmark_to_bookmark(b) for b in document)
-        changed = merge_bookmarks(db.session, user_uuid, generator)
-        log.info("changed %d bookmarks", len(changed))
+        merge_result = merge_bookmarks(db.session, user_uuid, generator)
+        log.info("added %d bookmarks", len(merge_result.added))
+        log.info("changed %d bookmarks", len(merge_result.changed))
         db.session.commit()

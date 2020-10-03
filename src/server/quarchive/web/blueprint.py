@@ -640,7 +640,7 @@ def sync() -> flask.Response:
         )
 
     try:
-        changed_bookmarks = merge_bookmarks(
+        merge_result = merge_bookmarks(
             db.session, user.user_uuid, recieved_bookmarks
         )
     except BadCanonicalisationException as e:
@@ -653,10 +653,11 @@ def sync() -> flask.Response:
         db.session.rollback()
         flask.abort(400, "bad canonicalisation on url: %s" % e.url_string)
     db.session.commit()
+
     if "full" in flask.request.args:
         response_bookmarks = all_bookmarks(db.session, get_current_user().user_uuid)
     else:
-        response_bookmarks = changed_bookmarks
+        response_bookmarks = merge_result.changed
 
     # If we got JSON, send json back
     if not use_jsonlines:

@@ -303,9 +303,16 @@ def set_bookmark(session: Session, user_uuid: UUID, bookmark: Bookmark) -> UUID:
     return url.url_uuid
 
 
+@dataclass
+class MergeResult:
+    changed: Set[Bookmark]
+    added: Set[Bookmark]
+
+
 def merge_bookmarks(
     session: Session, user_uuid: UUID, recieved_bookmarks: Iterable[Bookmark]
-) -> Set[Bookmark]:
+) -> MergeResult:
+    added_bookmarks: Set[Bookmark] = set()
     changed_bookmarks: Set[Bookmark] = set()
     for recieved in recieved_bookmarks:
         existing = get_bookmark_by_url(
@@ -316,6 +323,7 @@ def merge_bookmarks(
             # knows
             set_bookmark(session, user_uuid, recieved)
             log.debug("added: %s", recieved)
+            added_bookmarks.add(recieved)
         else:
             merged = existing.merge(recieved)
             if merged != existing:
@@ -333,7 +341,7 @@ def merge_bookmarks(
                 # If what we have is different from what were sent, we need to
                 # tell the client
                 changed_bookmarks.add(merged)
-    return changed_bookmarks
+    return MergeResult(changed=changed_bookmarks, added=added_bookmarks)
 
 
 def all_bookmarks(session, user_uuid: UUID) -> Iterable[Bookmark]:
