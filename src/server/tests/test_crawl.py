@@ -107,7 +107,7 @@ def test_ensure_crawled_only_runs_once(session, mock_s3, requests_mock):
 
 
 def test_request_crawls_for_uncrawled_urls(
-    session, patched_publish_message, mock_s3, test_user, requests_mock
+    session, bg_worker, mock_s3, test_user, requests_mock
 ):
     bookmark = make_bookmark()
     set_bookmark(session, test_user.user_uuid, bookmark)

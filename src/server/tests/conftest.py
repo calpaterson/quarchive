@@ -16,7 +16,7 @@ import moto
 from passlib.context import CryptContext
 
 import quarchive as sut
-from quarchive import value_objects, bg_worker, file_storage
+from quarchive import value_objects, bg_worker as bg_worker_module, file_storage
 from quarchive.data import models as sut_models
 from quarchive.messaging import publication, receipt, message_lib
 
@@ -111,11 +111,15 @@ def patch_out_secrets_module():
 
 @pytest.fixture(scope="session")
 def bg_client():
-    yield bg_worker.processor.test_client()
+    yield bg_worker_module.processor.test_client()
 
 
 @pytest.fixture
-def patched_publish_message(bg_client):
+def bg_worker(bg_client):
+    """Replace the kombu publish method with a direct call into missive
+    mechanisms - make bg_worker run the event right now.
+
+    """
     def fake_publish(as_bytes: bytes, routing_key: str) -> None:
         message_obj = receipt.PickleMessage(as_bytes)
         log.debug("sending %s directly to test client", message_obj)
@@ -124,7 +128,7 @@ def patched_publish_message(bg_client):
     producer = publication.get_producer()
     with mock.patch.object(producer, "publish") as mock_publish_message:
         mock_publish_message.side_effect = fake_publish
-        yield
+        yield bg_client
 
 
 @pytest.fixture(scope="session", autouse=True)

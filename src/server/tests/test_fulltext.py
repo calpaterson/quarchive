@@ -167,7 +167,7 @@ def test_index_throws_an_error(session, mock_s3):
 
 
 @freeze_time("2018-01-03")
-def test_enqueue_fulltext_indexing(session, mock_s3, patched_publish_message):
+def test_enqueue_fulltext_indexing(session, mock_s3, bg_worker):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
     session.commit()
 
