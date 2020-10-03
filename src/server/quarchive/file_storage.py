@@ -41,14 +41,14 @@ def get_s3():
 
     resource = session.resource("s3", **resource_kwargs)
     resource.meta.client.meta.events.unregister("before-sign.s3", fix_s3_host)
-    log.info("constructed s3 resource")
+    log.debug("constructed s3 resource")
     return resource
 
 
 @lru_cache(1)
 def get_response_body_bucket():
     bucket = get_s3().Bucket(environ["QM_RESPONSE_BODY_BUCKET_NAME"])
-    log.info("constructed response body bucket")
+    log.debug("constructed response body bucket")
     return bucket
 
 
@@ -60,6 +60,7 @@ def upload_file(bucket, filelike: BinaryIO, filename: str) -> None:
         gzip_fileobj.close()
         temp_file.seek(0)
         bucket.upload_fileobj(temp_file, Key=filename)
+    log.debug("uploaded '%s' to '%s'", filename, bucket.name)
 
 
 def download_file(bucket, filename: str) -> gzip.GzipFile:
@@ -71,4 +72,5 @@ def download_file(bucket, filename: str) -> gzip.GzipFile:
         raise FileStorageException(f"unable to download '{filename}' from '{bucket}'")
     temp_file.seek(0)
     gzip_fileobj = gzip.GzipFile(mode="r+b", fileobj=temp_file)
+    log.debug("downloaded '%s' from '%s'", filename, bucket.name)
     return gzip_fileobj
