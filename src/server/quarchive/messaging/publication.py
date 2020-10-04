@@ -10,7 +10,7 @@ from .message_lib import Event, HelloEvent
 
 _connection = None
 
-log = getLogger()
+log = getLogger(__name__)
 
 PICKLE_PROTOCOL = 4
 
