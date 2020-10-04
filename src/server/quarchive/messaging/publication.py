@@ -1,10 +1,11 @@
-from logging import getLogger, basicConfig, INFO
+from logging import getLogger
 from os import environ
 import pickle
 
 import click
 import kombu
 
+from quarchive.logging import LOG_LEVELS, configure_logging
 from .message_lib import Event, HelloEvent
 
 _connection = None
@@ -53,11 +54,12 @@ def publish_message(message: Event, routing_key: str) -> None:
 
 @click.command()
 @click.argument("message")
+@click.option("--log-level", type=click.Choice(LOG_LEVELS), default="INFO")
 @click.option(
     "--loop", is_flag=True, help="send the message repeatedly (as a load generator)"
 )
-def send_hello(message, loop):
-    basicConfig(level=INFO)
+def send_hello(message, loop, log_level):
+    configure_logging(log_level)
     routing_key: str = environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
 
     # call this for side-effects - to ensure things are set up so that the timing numbers are accurate

@@ -12,6 +12,7 @@ from .data.functions import merge_bookmarks
 from .value_objects import Bookmark, TagTriples, URL
 from .web.app import init_app
 from .web.blueprint import db
+from .logging import LOG_LEVELS, configure_logging
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +25,9 @@ log = logging.getLogger(__name__)
     type=click.DateTime(),
     default=lambda: datetime.strftime(datetime.utcnow(), "%Y-%m-%d %H:%M:%S"),
 )
-def pinboard_import(user_uuid: UUID, json_file, as_of: datetime):
+@click.option("--log-level", type=click.Choice(LOG_LEVELS))
+def pinboard_import(user_uuid: UUID, json_file, as_of: datetime, log_level):
+    configure_logging(log_level)
     as_of_dt = as_of.replace(tzinfo=timezone.utc)
     log.info("as of: %s", as_of_dt)
 
@@ -47,7 +50,6 @@ def pinboard_import(user_uuid: UUID, json_file, as_of: datetime):
             tag_triples=tag_triples,
         )
 
-    logging.basicConfig(level=logging.INFO)
     document = json.load(json_file)
     keys = set(itertools.chain(*[item.keys() for item in document]))
     log.info("keys = %s", keys)

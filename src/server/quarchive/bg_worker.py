@@ -2,12 +2,13 @@ from os import environ
 from uuid import uuid4
 from datetime import datetime, timezone
 from typing import Type, cast, Sequence, Union
-from logging import getLogger, basicConfig, INFO
+from logging import getLogger, INFO
 
 import click
 import missive
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
+from quarchive.logging import configure_logging, LOG_LEVELS
 from quarchive import crawler, file_storage
 from quarchive.data.functions import get_url_by_url_uuid, record_index_error
 from quarchive.messaging.message_lib import (
@@ -93,8 +94,9 @@ def on_full_text_requested(message: PickleMessage, ctx: missive.HandlingContext)
 
 
 @click.command()
-def bg_worker():
-    basicConfig(level=INFO)
+@click.option("--log-level", type=click.Choice(LOG_LEVELS), default="INFO")
+def bg_worker(log_level):
+    configure_logging(log_level)
     adapted_processor = RabbitMQAdapter(
         PickleMessage,
         processor,

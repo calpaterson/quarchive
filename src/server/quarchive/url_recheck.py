@@ -10,6 +10,7 @@ from urllib.parse import urlunsplit
 
 import click
 
+from .logging import LOG_LEVELS, configure_logging
 from .value_objects import URL, URLException
 from .web.app import init_app
 from .web.blueprint import db
@@ -33,8 +34,9 @@ def is_valid(db_uuid: UUID, url_tuple: Tuple[str, str, str, str, str]) -> bool:
 
 
 @click.command()
-def url_recheck():
-    logging.basicConfig(level=logging.INFO)
+@click.option("--log-level", type=click.Choice(LOG_LEVELS), default="INFO")
+def url_recheck(log_level):
+    configure_logging(log_level)
     app = init_app()
     errors = 0
     count = 0

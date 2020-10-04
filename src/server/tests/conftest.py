@@ -17,6 +17,7 @@ from passlib.context import CryptContext
 
 import quarchive as sut
 from quarchive import value_objects, bg_worker as bg_worker_module, file_storage
+from quarchive import logging as q_logging
 from quarchive.data import models as sut_models
 from quarchive.messaging import publication, receipt, message_lib
 
@@ -27,10 +28,7 @@ log = getLogger(__name__)
 
 @pytest.fixture(scope="session", autouse=True)
 def reduce_boto_logging():
-    # AWS provided libraries have extremely verbose debug logs
-    boto_loggers = ["boto3", "botocore", "s3transfer"]
-    for boto_logger in boto_loggers:
-        logging.getLogger(boto_logger).setLevel(logging.INFO)
+    q_logging.reduce_boto_logging()
 
 
 @pytest.fixture(scope="session")
