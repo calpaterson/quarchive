@@ -74,7 +74,6 @@ def crawl_url(session: Session, crawl_uuid: UUID, url: URL) -> None:
     except requests.exceptions.RequestException as e:
         log.warning("unable to request %s - %s", url, e)
         return
-    log.info("crawled %s", url)
 
     mark_crawl_request_with_response(session, crawl_uuid)
 
@@ -90,6 +89,7 @@ def crawl_url(session: Session, crawl_uuid: UUID, url: URL) -> None:
     response.raw.decode_content = True
 
     file_storage.upload_file(bucket, response.raw, str(body_uuid))
+    log.info("crawled %s", url)
 
 
 def request_crawls_for_uncrawled_urls(session):

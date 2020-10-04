@@ -29,7 +29,7 @@ def load_config(env_ini: Optional[str] = None) -> None:
         parser.read(env_ini)
         environ.update(parser["env"].items())
     else:
-        log.warning("not loading env from any config file")
+        log.info("not loading env from any config file")
 
     if not REQUIRED_CONFIG_KEYS.issubset(set(environ.keys())):
         missing_keys = REQUIRED_CONFIG_KEYS.difference(set(environ.keys()))
