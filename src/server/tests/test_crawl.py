@@ -22,12 +22,6 @@ from .conftest import random_string, make_bookmark
 pytestmark = pytest.mark.crawler
 
 
-@pytest.fixture(scope="session", autouse=True)
-def lower_requests_timeout():
-    with mock.patch.object(crawler, "REQUESTS_TIMEOUT", 0.1):
-        yield
-
-
 @freeze_time("2018-01-03")
 @pytest.mark.parametrize("status_code", [200, 404, 500])
 def test_crawl_when_response_is_recieved(session, status_code, mock_s3, requests_mock):

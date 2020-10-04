@@ -16,10 +16,15 @@ import moto
 from passlib.context import CryptContext
 
 import quarchive as sut
-from quarchive import value_objects, bg_worker as bg_worker_module, file_storage
+from quarchive import (
+    value_objects,
+    bg_worker as bg_worker_module,
+    file_storage,
+    crawler,
+)
 from quarchive import logging as q_logging
 from quarchive.data import models as sut_models
-from quarchive.messaging import publication, receipt, message_lib
+from quarchive.messaging import publication, receipt
 
 import pytest
 
@@ -29,6 +34,12 @@ log = getLogger(__name__)
 @pytest.fixture(scope="session", autouse=True)
 def reduce_boto_logging():
     q_logging.reduce_boto_logging()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def lower_requests_timeout():
+    with mock.patch.object(crawler, "REQUESTS_TIMEOUT", 0.1):
+        yield
 
 
 @pytest.fixture(scope="session")
