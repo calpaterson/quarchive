@@ -151,7 +151,7 @@ def add_to_fulltext_index(session, crawl_uuid) -> None:
         session.rollback()
         record_index_error(session, crawl_uuid, e.message)
     except Exception as e:
-        log.exception("crawl error")
+        log.exception("indexing error")
         session.rollback()
         record_index_error(session, crawl_uuid, str(e))
 

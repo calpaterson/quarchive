@@ -10,7 +10,8 @@ from missive.adapters.rabbitmq import RabbitMQAdapter
 
 from quarchive.logging import configure_logging, LOG_LEVELS
 from quarchive import crawler, file_storage
-from quarchive.data.functions import get_url_by_url_uuid, record_index_error
+from quarchive.data.functions import get_url_by_url_uuid, record_index_error, is_crawled
+from quarchive.messaging.publication import publish_message
 from quarchive.messaging.message_lib import (
     Event,
     HelloEvent,
@@ -67,8 +68,13 @@ def on_bookmark_created(message: PickleMessage, ctx: missive.HandlingContext):
     url = get_url_by_url_uuid(session, event.url_uuid)
     if url is None:
         raise RuntimeError("url requested to crawl does not exist in the db")
-    crawler.ensure_url_is_crawled(session, url)
+    if not is_crawled(session, url):
+        publish_message(
+            CrawlRequested(url_uuid=url.url_uuid),
+            environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
+        )
     session.commit()
+
     ctx.ack(message)
 
 
@@ -82,6 +88,9 @@ def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
     crawl_uuid = uuid4()
     crawler.crawl_url(session, crawl_uuid, url)
     session.commit()
+    publish_message(
+        IndexRequested(crawl_uuid=crawl_uuid), environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
+    )
     ctx.ack(message)
 
 
@@ -91,6 +100,7 @@ def on_full_text_requested(message: PickleMessage, ctx: missive.HandlingContext)
     session = crawler.get_session_hack()
     crawler.add_to_fulltext_index(session, event.crawl_uuid)
     session.commit()
+    ctx.ack(message)
 
 
 @click.command()
