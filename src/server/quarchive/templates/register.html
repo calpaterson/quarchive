@@ -27,9 +27,12 @@
       </p>
       <p>
         <input type="email" name="email" autocomplete="email">
+        <span class="input-copy">An email address is optional, but could help if you forget your password</span>
       </p>
       <p>
-        <small>Optional, but could help if you forget your password</small>
+        <input name="its-alpha" type="checkbox" required>
+        <label for="its-alpha">I know this is an alpha quality service and will have the odd bug.</label>
+        <span class="input-copy">You can always contact support via email on the <a href="{{url_for('quarchive.faq')}}">FAQ page</a></span>
       </p>
       <p>
         <button type="submit">Register</button>

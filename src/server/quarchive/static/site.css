@@ -148,6 +148,11 @@ p.bookmark-date {
     color: inherit;
 }
 
+.input-copy {
+    display: block;
+    font-size: smaller;
+}
+
 textarea, input, button, select {
     font-family: inherit;
     font-size: inherit;
