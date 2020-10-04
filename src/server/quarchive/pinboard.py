@@ -1,4 +1,5 @@
 import itertools
+from os import environ
 import json
 import logging
 from datetime import datetime, timezone
@@ -8,6 +9,8 @@ from uuid import UUID
 import click
 from dateutil.parser import isoparse
 
+from .messaging import message_lib
+from .messaging.publication import publish_message
 from .data.functions import merge_bookmarks
 from .value_objects import Bookmark, TagTriples, URL
 from .web.app import init_app
@@ -60,3 +63,10 @@ def pinboard_import(user_uuid: UUID, json_file, as_of: datetime, log_level):
         log.info("added %d bookmarks", len(merge_result.added))
         log.info("changed %d bookmarks", len(merge_result.changed))
         db.session.commit()
+    for added in merge_result.added:
+        publish_message(
+            message_lib.BookmarkCreated(
+                user_uuid=user_uuid, url_uuid=added.url.url_uuid
+            ),
+            environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
+        )

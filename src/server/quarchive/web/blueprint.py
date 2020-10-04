@@ -3,7 +3,7 @@ import re
 from datetime import datetime, timezone
 from functools import wraps
 from logging import getLogger
-from os import path
+from os import path, environ
 from typing import (
     Any,
     Callable,
@@ -25,6 +25,8 @@ import yaml
 from sqlalchemy import func
 from werkzeug import exceptions as exc
 
+from quarchive.messaging import message_lib
+from quarchive.messaging.publication import publish_message
 from quarchive.cache import get_cache
 from quarchive.data.functions import (
     all_bookmarks,
@@ -363,10 +365,12 @@ def tag_triples_from_form(
 @sign_in_required
 def create_bookmark() -> flask.Response:
     form = flask.request.form
+    user = get_current_user()
     creation_time = datetime.utcnow().replace(tzinfo=timezone.utc)
     tag_triples = tag_triples_from_form(form)
+    url = URL.from_string(form["url"])
     bookmark = Bookmark(
-        url=URL.from_string(form["url"]),
+        url=url,
         title=form["title"],
         description=form["description"],
         unread="unread" in form,
@@ -375,8 +379,12 @@ def create_bookmark() -> flask.Response:
         created=creation_time,
         tag_triples=tag_triples,
     )
-    url_uuid = set_bookmark(db.session, get_current_user().user_uuid, bookmark)
+    url_uuid = set_bookmark(db.session, user.user_uuid, bookmark)
     db.session.commit()
+    publish_message(
+        message_lib.BookmarkCreated(user_uuid=user.user_uuid, url_uuid=url.url_uuid),
+        environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
+    )
     flask.flash("Bookmarked: %s" % bookmark.title)
     response = flask.make_response("Redirecting...", 303)
     response.headers["Location"] = flask.url_for(
@@ -628,6 +636,7 @@ def sync() -> flask.Response:
     )
     log.debug("extension version: %s", extension_version)
     user = get_current_user()
+    user_uuid = user.user_uuid
     use_jsonlines = flask.request.headers["Content-Type"] != "application/json"
     if not use_jsonlines:
         log.warning("sync request using deprecated single json object")
@@ -640,7 +649,7 @@ def sync() -> flask.Response:
         )
 
     try:
-        merge_result = merge_bookmarks(db.session, user.user_uuid, recieved_bookmarks)
+        merge_result = merge_bookmarks(db.session, user_uuid, recieved_bookmarks)
     except BadCanonicalisationException as e:
         log.error(
             "bad canonicalised url ('%s') from version %s, user %s",
@@ -651,6 +660,14 @@ def sync() -> flask.Response:
         db.session.rollback()
         flask.abort(400, "bad canonicalisation on url: %s" % e.url_string)
     db.session.commit()
+
+    for added in merge_result.added:
+        publish_message(
+            message_lib.BookmarkCreated(
+                user_uuid=user_uuid, url_uuid=added.url.url_uuid
+            ),
+            environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
+        )
 
     if "full" in flask.request.args:
         response_bookmarks = all_bookmarks(db.session, get_current_user().user_uuid)
