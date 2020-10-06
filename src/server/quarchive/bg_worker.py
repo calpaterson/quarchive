@@ -8,6 +8,7 @@ import click
 import missive
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
+from quarchive.messaging.publication import get_connection
 from quarchive.logging import configure_logging, LOG_LEVELS
 from quarchive import crawler, file_storage
 from quarchive.data.functions import get_url_by_url_uuid, record_index_error, is_crawled
@@ -43,7 +44,7 @@ class LogicalOrMatcher:
         return any(matcher(message) for matcher in self.matchers)
 
 
-@processor.handle_for([ClassMatcher(HelloEvent)])
+@processor.handle_for(ClassMatcher(HelloEvent))
 def print_hellos(message: PickleMessage, ctx: missive.HandlingContext):
     event: HelloEvent = cast(HelloEvent, message.get_obj())
     time_taken_ms = (datetime.now(timezone.utc) - event.created).total_seconds() * 1000
@@ -55,7 +56,7 @@ def print_hellos(message: PickleMessage, ctx: missive.HandlingContext):
     ctx.ack(message)
 
 
-@processor.handle_for([ClassMatcher(BookmarkCreated)])
+@processor.handle_for(ClassMatcher(BookmarkCreated))
 def on_bookmark_created(message: PickleMessage, ctx: missive.HandlingContext):
     """When a new bookmark is created, we want to:
 
@@ -78,7 +79,7 @@ def on_bookmark_created(message: PickleMessage, ctx: missive.HandlingContext):
     ctx.ack(message)
 
 
-@processor.handle_for([ClassMatcher(CrawlRequested)])
+@processor.handle_for(ClassMatcher(CrawlRequested))
 def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
     event = cast(CrawlRequested, message.get_obj())
     session = crawler.get_session_hack()
@@ -94,7 +95,7 @@ def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
     ctx.ack(message)
 
 
-@processor.handle_for([ClassMatcher(IndexRequested)])
+@processor.handle_for(ClassMatcher(IndexRequested))
 def on_full_text_requested(message: PickleMessage, ctx: missive.HandlingContext):
     event = cast(IndexRequested, message.get_obj())
     session = crawler.get_session_hack()
@@ -111,6 +112,6 @@ def bg_worker(log_level):
         PickleMessage,
         processor,
         [environ["QM_RABBITMQ_BG_WORKER_TOPIC"]],
-        url=environ["QM_RABBITMQ_URL"],
+        url_or_conn=get_connection(),
     )
     adapted_processor.run()

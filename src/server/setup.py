@@ -23,7 +23,7 @@ setup(
         "requests~=2.22.0",
         "boto3~=1.11.0",
         "lxml~=4.4.2",
-        "missive~=0.5.2",
+        "missive~=0.6.0",
         "passlib~=1.7.2",
         "bcrypt~=3.1.7",
         "python-magic~=0.4.15",
