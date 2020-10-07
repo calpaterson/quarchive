@@ -335,6 +335,7 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
 }
 
 export async function fullSync() {
+    // FIXME: Use console timers here
     console.log("starting full sync");
     disableListeners();
     await syncBrowserBookmarksToLocalDb();
