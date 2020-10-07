@@ -56,6 +56,7 @@ def config():
             "QM_AWS_S3_ENDPOINT_URL": "UNSET",
             "QM_RABBITMQ_URL": "amqp:///test",
             "QM_RABBITMQ_BG_WORKER_TOPIC": "bg_q",
+            "QM_MISSIVE_SQLITE_DLQ_CONNSTRING": "file:quarchive_test?mode=memory&cache=shared",
         },
     ):
         yield

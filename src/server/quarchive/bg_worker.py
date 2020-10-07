@@ -6,6 +6,7 @@ from logging import getLogger, INFO
 
 import click
 import missive
+import missive.dlq.sqlite
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
 from quarchive.messaging.publication import get_connection
@@ -107,6 +108,9 @@ def on_full_text_requested(message: PickleMessage, ctx: missive.HandlingContext)
 @click.command()
 @click.option("--log-level", type=click.Choice(LOG_LEVELS), default="INFO")
 def bg_worker(log_level):
+    processor.set_dlq(
+        missive.dlq.sqlite.SQLiteDLQ(environ["QM_MISSIVE_SQLITE_DQL_CONNSTRING"])
+    )
     configure_logging(log_level)
     adapted_processor = RabbitMQAdapter(
         PickleMessage,
