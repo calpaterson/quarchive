@@ -36,7 +36,7 @@ def init_app() -> flask.Flask:
     app.config["SECRET_KEY"] = environ["QM_SECRET_KEY"]
     app.config["SQLALCHEMY_DATABASE_URI"] = environ["QM_SQL_URL"]
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["CRYPT_CONTEXT"] = CryptContext(["bcrypt"])
+    app.config["CRYPT_CONTEXT"] = CryptContext(["argon2", "bcrypt"])
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
     # By default Postgres will consult the locale to decide what timezone to

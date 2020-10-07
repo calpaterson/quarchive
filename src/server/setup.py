@@ -26,6 +26,7 @@ setup(
         "missive~=0.6.0",
         "passlib~=1.7.2",
         "bcrypt~=3.1.7",
+        "argon2_cffi~=20.1.0",
         "python-magic~=0.4.15",
         "pyhash~=0.9.3",
         "pyappcache~=0.1",
