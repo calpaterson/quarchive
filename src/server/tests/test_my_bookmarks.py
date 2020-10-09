@@ -61,13 +61,13 @@ def test_my_bookmarks_excludes_deleted_bookmarks(signed_in_client, session, test
     assert len(bookmarks) == 0
 
 
-def test_my_bookmarks_excludes_bookmarks_from_others(client, session):
+def test_my_bookmarks_excludes_bookmarks_from_others(app, client, session):
     bm1 = make_bookmark(title="Example 1")
-    user1 = register_user(session, client, "test_user1" + random_string())
+    user1 = register_user(session, app, "test_user1" + random_string())
     sync_bookmarks(client, user1, [bm1])
 
     bm2 = make_bookmark(title="Example 2")
-    user2 = register_user(session, client, "test_user1" + random_string())
+    user2 = register_user(session, app, "test_user1" + random_string())
     sync_bookmarks(client, user2, [bm2])
 
     sign_in_as(client, user2)
@@ -214,7 +214,7 @@ def test_html_injection(app, signed_in_client, test_user):
 def test_user_timezones_are_observed(session, app, client):
     bm1 = make_bookmark(title="Example 1")
     user1 = register_user(
-        session, client, "test_user1" + random_string(), timezone="America/Los_Angeles"
+        session, app, "test_user1" + random_string(), timezone="America/Los_Angeles"
     )
     sign_in_as(client, user1)
     sync_bookmarks(client, user1, [bm1])

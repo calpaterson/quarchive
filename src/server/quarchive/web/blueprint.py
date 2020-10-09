@@ -75,6 +75,37 @@ def get_current_user() -> User:
     return flask.g.user
 
 
+def set_sign_in_cookies(user: User, api_key: bytes):
+    """Sets two sign in cookies.  Firstly a traditional (encrypted) session
+    cookie.  Secondly a sync credentials cookie to help the extension get
+    started without user configuration.
+
+    """
+    flask.session["user_uuid"] = user.user_uuid
+
+    # Make it last for 31 days
+    flask.session.permanent = True
+    flask.g.sync_credentials = "|".join([user.username, api_key.hex()])
+
+
+@blueprint.after_request
+def set_api_key_cookie_if_necessary(response: flask.Response) -> flask.Response:
+    """If the user signed in in this session, set the sync_credentials cookie."""
+    if hasattr(flask.g, "sync_credentials"):
+        log.debug("setting sync_credentials cookie for %s", get_current_user())
+        seconds_in_a_month = 31 * 24 * 60 * 60
+
+        response.set_cookie(
+            "sync_credentials",
+            value=flask.g.sync_credentials,
+            secure=True,
+            max_age=seconds_in_a_month,
+            httponly=True,
+            samesite="Strict",
+        )
+    return response
+
+
 @blueprint.before_request
 def put_user_in_g() -> None:
     user_uuid: Optional[UUID] = flask.session.get("user_uuid")
@@ -478,7 +509,7 @@ def register() -> flask.Response:
                 400, description="invalid username - must match %s" % username_regex
             )
 
-        user_uuid = create_user(
+        user, api_key = create_user(
             db.session,
             cache,
             flask.current_app.config["CRYPT_CONTEXT"],
@@ -490,8 +521,13 @@ def register() -> flask.Response:
         db.session.commit()
         response = flask.make_response("Redirecting...", 303)
         response.headers["Location"] = flask.url_for("quarchive.my_bookmarks")
-        log.info("created user: %s", username)
-        flask.session["user_uuid"] = user_uuid
+        log.info("created user: %s", user.username)
+
+        flask.session["user_uuid"] = user.user_uuid
+        flask.g.user = user
+
+        set_sign_in_cookies(user, api_key)
+
         return response
 
 
@@ -517,10 +553,10 @@ def sign_in() -> flask.Response:
         is_correct_password: bool = crypt_context.verify(password, user.password)
         if is_correct_password:
             flask.current_app.logger.info("successful sign in")
-            flask.session["user_uuid"] = user.user_uuid
+            api_key = get_api_key(db.session, get_cache(), user.username)
 
-            # Make it last for 31 days
-            flask.session.permanent = True
+            flask.g.user = user
+            set_sign_in_cookies(user, api_key)
             flask.flash("Signed in")
 
             response = flask.make_response("Redirecting...", 303)
@@ -545,7 +581,7 @@ def user_page(username: str) -> flask.Response:
     cache = get_cache()
     user = user_from_username(db.session, cache, username)
     api_key: Optional[bytes]
-    if user == flask.g.user:
+    if user == get_current_user():
         api_key = get_api_key(db.session, cache, user.username)
     else:
         api_key = None

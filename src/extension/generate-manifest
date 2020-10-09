@@ -26,7 +26,14 @@ def main():
         "manifest_version": 2,
         "name": "Quarchive",
         "options_ui": {"page": "options.html"},
-        "permissions": ["alarms", "bookmarks", "storage", "unlimitedStorage"],
+        "permissions": [
+            "alarms",
+            "bookmarks",
+            "cookies",
+            "https://quarchive.com/",
+            "storage",
+            "unlimitedStorage",
+        ],
         "version": args.version,
     }
 

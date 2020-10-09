@@ -24,9 +24,9 @@ def test_own_user_page(signed_in_client, test_user):
     assert pre(tree)[0].text == test_user.api_key.hex()
 
 
-def test_others_user_page(session, client, test_user):
+def test_others_user_page(session, app, client, test_user):
     other_username = "not-" + test_user.username
-    other_user = register_user(session, client, other_username)
+    other_user = register_user(session, app, other_username)
     sign_in_as(client, test_user)
 
     response = client.get(

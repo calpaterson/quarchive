@@ -177,7 +177,8 @@ def create_user(
     password_plain: str,
     email: Optional[str] = None,
     timezone="Europe/London",
-) -> UUID:
+) -> Tuple[User, bytes]:
+    """Creates a new user, returns User object and api_key"""
     user_uuid = uuid4()
 
     key = UserUUIDToUserKey(user_uuid)
@@ -196,7 +197,8 @@ def create_user(
         log.info("got an email for %s", username)
         sql_user.email_obj = UserEmail(email_address=email)
 
-    sql_user.api_key_obj = APIKey(api_key=secrets.token_bytes(32))
+    api_key = secrets.token_bytes(32)
+    sql_user.api_key_obj = APIKey(api_key=api_key)
 
     session.add(sql_user)
     session.flush()
@@ -209,7 +211,7 @@ def create_user(
     )
     put_user_in_cache(cache, user)
 
-    return user_uuid
+    return user, api_key
 
 
 def get_bookmark_by_url(

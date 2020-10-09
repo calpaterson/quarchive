@@ -1,8 +1,7 @@
 from os import environ, path
 from logging import getLogger
-from typing import Mapping, Any
+from typing import Mapping, Any, Optional
 from datetime import datetime, timezone
-import logging
 from dataclasses import dataclass
 from unittest import mock
 import secrets
@@ -92,10 +91,10 @@ def mock_s3():
 
 
 @pytest.fixture()
-def test_user(session, client):
+def test_user(session, app) -> "User":
     username = "testuser-" + random_string()
     username, password = (username, "password1")
-    return register_user(session, client, username, password, username + "@example.com")
+    return register_user(session, app, username, password, username + "@example.com")
 
 
 @pytest.fixture()
@@ -202,23 +201,31 @@ def sign_out(client):
 
 
 def register_user(
-    session, client, username, password="password", email=None, timezone=None
-) -> User:
-    response = client.post(
-        "/register",
-        data={"username": username, "password": password, "email": email or ""},
-    )
-    assert response.status_code == 303
-    # Registration gives us an automatic log in, which is unwanted here
-    with client.session_transaction() as flask_sesh:
-        flask_sesh.clear()
-
-    if timezone is not None:
-        # A specific timezone is desired, set it
-        client.post(
-            flask.url_for("quarchive.user_page", username=username),
-            data={"timezone": timezone},
+    session,
+    app: flask.Flask,
+    username: str,
+    password: str = "password",
+    email: Optional[str] = None,
+    timezone: Optional[str] = None,
+) -> "User":
+    """Register a new user"""
+    # Create a whole new application context because registration by it's
+    # nature sets a bunch of state that callers don't want (in particular:
+    # flask.g.user and things on flask.session)
+    with app.app_context():
+        client = app.test_client()
+        response = client.post(
+            "/register",
+            data={"username": username, "password": password, "email": email or ""},
         )
+        assert response.status_code == 303
+
+        if timezone is not None:
+            # A specific timezone is desired, set it
+            client.post(
+                flask.url_for("quarchive.user_page", username=username),
+                data={"timezone": timezone},
+            )
 
     api_key, user_uuid, user_timezone = (
         session.query(
