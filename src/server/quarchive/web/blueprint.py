@@ -53,6 +53,7 @@ from quarchive.value_objects import (
     TagTriples,
     User,
     BadCanonicalisationException,
+    DisallowedSchemeException,
 )
 
 from .db_obj import db
@@ -400,9 +401,14 @@ def create_bookmark() -> flask.Response:
     creation_time = datetime.utcnow().replace(tzinfo=timezone.utc)
     tag_triples = tag_triples_from_form(form)
 
-    # As it's a user entering this url, help them along with getting a
-    # sufficiently canonicalised url
-    url = URL.from_string(form["url"], coerce_canonicalisation=True)
+    url_str = form["url"]
+    try:
+        # As it's a user entering this url, help them along with getting a
+        # sufficiently canonicalised url
+        url = URL.from_string(url_str, coerce_canonicalisation=True)
+    except DisallowedSchemeException:
+        log.warning("user tried to create url: %s (disallowed scheme)", url_str)
+        flask.abort(400, "invalid url (disallowed scheme)")
 
     bookmark = Bookmark(
         url=url,

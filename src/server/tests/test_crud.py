@@ -174,6 +174,18 @@ def test_creating_a_bookmark_non_canonical(test_user, signed_in_client, session)
     assert response.status_code == 303
 
 
+def test_creating_a_bookmark_junk_url(test_user, signed_in_client, session):
+    """Sometimes users enter completely invalid urls"""
+    form_data = dict(
+        url="", title="Example", description="Example description", tags="",
+    )
+
+    response = signed_in_client.post(
+        flask.url_for("quarchive.create_bookmark",), data=form_data
+    )
+    assert response.status_code == 400
+
+
 jan_1 = datetime(2018, 1, 1, tzinfo=timezone.utc)
 mifid2_start_date = datetime(2018, 1, 3, tzinfo=timezone.utc)
 
