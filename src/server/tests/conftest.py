@@ -91,7 +91,7 @@ def mock_s3():
 
 
 @pytest.fixture()
-def test_user(session, app) -> "User":
+def test_user(session, app) -> "ExtendedUser":
     username = "testuser-" + random_string()
     username, password = (username, "password1")
     return register_user(session, app, username, password, username + "@example.com")
@@ -168,7 +168,7 @@ test_data_path = path.join(path.dirname(__file__), "test-data")
 
 
 @dataclass
-class User(value_objects.User):
+class ExtendedUser(value_objects.User):
     """Expanded test subclass that holds some extra data"""
 
     password: str
@@ -190,7 +190,7 @@ def make_bookmark(**kwargs) -> sut.Bookmark:
     return sut.Bookmark(**{**bookmark_defaults, **kwargs})
 
 
-def sign_in_as(client, user: User):
+def sign_in_as(client, user: ExtendedUser):
     with client.session_transaction() as sess:
         sess["user_uuid"] = user.user_uuid
 
@@ -207,7 +207,7 @@ def register_user(
     password: str = "password",
     email: Optional[str] = None,
     timezone: Optional[str] = None,
-) -> "User":
+) -> "ExtendedUser":
     """Register a new user"""
     # Create a whole new application context because registration by it's
     # nature sets a bunch of state that callers don't want (in particular:
@@ -238,7 +238,7 @@ def register_user(
         .first()
     )
 
-    return User(
+    return ExtendedUser(
         username=username,
         password=password,
         api_key=api_key,

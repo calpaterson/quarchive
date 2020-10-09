@@ -11,7 +11,7 @@ from sqlalchemy import func
 
 import pytest
 
-from .conftest import make_bookmark, User, register_user, sign_in_as, random_string
+from .conftest import make_bookmark, ExtendedUser, register_user, sign_in_as, random_string
 from .utils import sync_bookmarks
 
 import quarchive as sut
@@ -125,7 +125,7 @@ def test_my_bookmarks_search(
 
 
 def make_fulltext_indexed_bookmark(
-    session: Session, user: User, bookmark: sut.Bookmark, full_text: str
+    session: Session, user: sut.User, bookmark: sut.Bookmark, full_text: str
 ):
     # FIXME: this really shows the need for a library of common db functions
     url_uuid = sut.set_bookmark(session, user.user_uuid, bookmark)

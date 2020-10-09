@@ -5,10 +5,10 @@ from quarchive import Bookmark
 from lxml import etree
 from lxml.cssselect import CSSSelector
 
-from .conftest import User
+from .conftest import ExtendedUser
 
 
-def sync_bookmarks(client, user: User, bookmarks: Iterable[Bookmark]):
+def sync_bookmarks(client, user: ExtendedUser, bookmarks: Iterable[Bookmark]):
     response = client.post(
         "/sync",
         json={"bookmarks": [bookmark.to_json() for bookmark in bookmarks]},
