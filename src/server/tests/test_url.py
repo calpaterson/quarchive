@@ -39,6 +39,19 @@ def test_to_string():
     assert url.to_string() == url_string
 
 
+@pytest.mark.parametrize(
+    "badly_canonicalised_url_string",
+    ["http://example.com", "http://example.com?", "http://example.com#"],
+)
+def test_coerce(badly_canonicalised_url_string):
+    expected = URL.from_string("http://example.com/")
+    actual = URL.from_string(
+        badly_canonicalised_url_string, coerce_canonicalisation=True
+    )
+    assert expected == actual
+
+
+# FIXME: this strategy isn't really up to much
 @given(url=urls())
 def test_url_uuid_stability(url):
     # This is not a piece of code as such but an important property - need to

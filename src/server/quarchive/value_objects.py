@@ -58,7 +58,7 @@ class URL:
         )
 
     @classmethod
-    def from_string(self, url_str: str) -> "URL":
+    def from_string(self, url_str: str, coerce_canonicalisation: bool = False) -> "URL":
         """Construct from a url string.
 
         Minimum canonicalisation requirements:
@@ -70,12 +70,21 @@ class URL:
         - http
         - https
 
+        coerce_canonicalisation=True skips checks and just forces the url into
+        shape
+
         """
         s, n, p, q, f = urlsplit(url_str)
         if s not in SCHEME_WHITELIST:
             raise DisallowedSchemeException(url_str)
         if p == "":
-            raise BadCanonicalisationException(url_str)
+            if coerce_canonicalisation:
+                p = "/"
+                # Need to overwrite this variable too, else the url_uuid will
+                # be wrong
+                url_str = urlunsplit((s, n, p, q, f))
+            else:
+                raise BadCanonicalisationException(url_str)
 
         url_uuid = uuid5(UUID_URL_NAMESPACE, url_str)
         url = URL(url_uuid, s, n, p, q, f)
@@ -83,7 +92,7 @@ class URL:
         # Make completely sure that we can regenerate this exact string from
         # our object - otherwise raise an exception to avoid any problem urls
         # being processed
-        if url_str != url.to_string():
+        if url_str != url.to_string() and not coerce_canonicalisation:
             raise BadCanonicalisationException(url_str)
 
         return url

@@ -399,7 +399,11 @@ def create_bookmark() -> flask.Response:
     user = get_current_user()
     creation_time = datetime.utcnow().replace(tzinfo=timezone.utc)
     tag_triples = tag_triples_from_form(form)
-    url = URL.from_string(form["url"])
+
+    # As it's a user entering this url, help them along with getting a
+    # sufficiently canonicalised url
+    url = URL.from_string(form["url"], coerce_canonicalisation=True)
+
     bookmark = Bookmark(
         url=url,
         title=form["title"],
@@ -638,6 +642,7 @@ def user_tag(username: str, tag: str) -> flask.Response:
 @blueprint.route("/user/<username>/netlocs/<netloc>")
 @sign_in_required
 def user_netloc(username: str, netloc: str) -> flask.Response:
+    # FIXME: This is not being paginated!
     user = get_current_user()
     bookmarks = bookmarks_with_netloc(db.session, user, netloc)
     return flask.make_response(

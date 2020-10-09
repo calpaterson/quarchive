@@ -11,7 +11,13 @@ from sqlalchemy import func
 
 import pytest
 
-from .conftest import make_bookmark, ExtendedUser, register_user, sign_in_as, random_string
+from .conftest import (
+    make_bookmark,
+    ExtendedUser,
+    register_user,
+    sign_in_as,
+    random_string,
+)
 from .utils import sync_bookmarks
 
 import quarchive as sut
