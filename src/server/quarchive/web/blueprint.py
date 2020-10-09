@@ -40,7 +40,7 @@ from quarchive.data.functions import (
     set_bookmark,
     tags_with_count,
     user_from_user_uuid,
-    user_from_username,
+    user_from_username_if_exists,
     set_user_timezone,
     username_exists,
 )
@@ -166,7 +166,7 @@ def api_key_required(handler: V) -> V:
 
         cache = get_cache()
         if is_correct_api_key(db.session, cache, username, bytes.fromhex(api_key_str)):
-            flask.g.user = user_from_username(db.session, cache, username)
+            flask.g.user = user_from_username_if_exists(db.session, cache, username)
             return handler()
         else:
             flask.current_app.logger.info("bad api credentials")
@@ -541,6 +541,9 @@ def sign_in() -> flask.Response:
         crypt_context = flask.current_app.config["CRYPT_CONTEXT"]
 
         username = flask.request.form.get("username")
+        # FIXME: This should be replaced with a quarchive.data.functions call -
+        # perhaps the type on user_from_username should be changed to an
+        # optional
         user = db.session.query(SQLUser).filter(SQLUser.username == username).first()
 
         if user is None:
@@ -579,9 +582,11 @@ def sign_out() -> flask.Response:
 @blueprint.route("/user/<username>", methods=["GET"])
 def user_page(username: str) -> flask.Response:
     cache = get_cache()
-    user = user_from_username(db.session, cache, username)
+    user = user_from_username_if_exists(db.session, cache, username)
     api_key: Optional[bytes]
-    if user == get_current_user():
+    if user is None:
+        flask.abort(404, "user not found")
+    elif user == get_current_user():
         api_key = get_api_key(db.session, cache, user.username)
     else:
         api_key = None
@@ -598,15 +603,21 @@ def user_page(username: str) -> flask.Response:
 
 @blueprint.route("/user/<username>", methods=["POST"])
 def user_page_post(username: str) -> Tuple[flask.Response, int]:
-    set_user_timezone(db.session, get_cache(), username, flask.request.form["timezone"])
-    db.session.commit()
-    put_user_in_g()
-    flask.flash("User updated successfully")
-    response = flask.make_response("Redirecting...")
-    response.headers["Location"] = flask.url_for(
-        "quarchive.user_page", username=username
-    )
-    return response, 303
+    user = user_from_username_if_exists(db.session, get_cache(), username)
+    if user is None:
+        flask.abort(404, "user not found")
+    elif user != get_current_user():
+        flask.abort(403, "not allowed to edit the profiles of others")
+    else:
+        set_user_timezone(db.session, get_cache(), user, flask.request.form["timezone"])
+        db.session.commit()
+        put_user_in_g()
+        flask.flash("User updated successfully")
+        response = flask.make_response("Redirecting...")
+        response.headers["Location"] = flask.url_for(
+            "quarchive.user_page", username=username
+        )
+        return response, 303
 
 
 @blueprint.route("/user/<username>/tags/<tag>")

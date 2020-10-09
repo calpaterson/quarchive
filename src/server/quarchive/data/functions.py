@@ -110,33 +110,41 @@ def username_exists(session: Session, username: str) -> bool:
     ).scalar()
 
 
-def set_user_timezone(session, cache: Cache, username: str, timezone_name: str) -> None:
+def set_user_timezone(session, cache: Cache, user: User, timezone_name: str) -> None:
     # Pass it through pytz to make sure the timezone does in fact exist
     timezone = pytz.timezone(timezone_name)
     timezone_name = timezone.zone
 
     # update the cache
-    user = user_from_username(session, cache, username)
     user.timezone = timezone
     put_user_in_cache(cache, user)
 
-    sql_user = session.query(SQLUser).filter(SQLUser.username == username).one()
+    sql_user = session.query(SQLUser).filter(SQLUser.user_uuid == user.user_uuid).one()
     sql_user.timezone = timezone_name
-    log.debug("set '%s' timezone to '%s'", username, timezone)
+    log.debug("set '%s' timezone to '%s'", user.username, timezone)
 
 
-def user_from_username(session, cache: Cache, username: str) -> User:
+def user_from_username_if_exists(
+    session, cache: Cache, username: str
+) -> Optional[User]:
     key = UsernameToUserKey(username)
     user = cache.get(key)
     if user is not None:
         return user
 
-    user_uuid, email, timezone = (
+    user_triple = (
         session.query(SQLUser.user_uuid, UserEmail.email_address, SQLUser.timezone)
         .outerjoin(UserEmail)
         .filter(SQLUser.username == username)
-        .one()
+        .first()
     )
+
+    # User doesn't exist
+    if user_triple is None:
+        return None
+
+    user_uuid, email, timezone = user_triple
+
     user = User(
         user_uuid=user_uuid,
         username=username,

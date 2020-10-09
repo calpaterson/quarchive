@@ -16,7 +16,7 @@ from .data.functions import (
     is_correct_api_key,
     get_api_key,
     username_exists,
-    user_from_username,
+    user_from_username_if_exists,
     user_from_user_uuid,
     create_user,
     get_bookmark_by_url,
