@@ -11,6 +11,45 @@ import pytest
 from .conftest import make_bookmark
 
 
+def test_check_api_key_user_does_not_exist(client, session):
+    response = client.post(
+        "/api/sync/check-api-key",
+        headers={"Quarchive-Username": "nobody", "Quarchive-API-Key": "deadbeef",},
+    )
+    assert response.status_code == 400
+    assert response.json == {"error": "user does not exist"}
+
+
+def test_check_api_key_no_credentials(client, session):
+    response = client.post("/api/sync/check-api-key")
+    assert response.status_code == 400
+    assert response.json == {"error": "no api credentials"}
+
+
+def test_check_api_key_wrong_api_key(client, session, test_user):
+    response = client.post(
+        "/api/sync/check-api-key",
+        headers={
+            "Quarchive-Username": test_user.username,
+            "Quarchive-API-Key": "deadbeef",
+        },
+    )
+    assert response.status_code == 400
+    assert response.json == {"error": "bad api key"}  # FIXME: error could be better
+
+
+def test_check_api_key_right_creds(client, session, test_user):
+    response = client.post(
+        "/api/sync/check-api-key",
+        headers={
+            "Quarchive-Username": test_user.username,
+            "Quarchive-API-Key": test_user.api_key.hex(),
+        },
+    )
+    assert response.status_code == 200
+    assert response.json == {}
+
+
 def test_no_credentials(client, session):
     response = client.post("/sync", json={"bookmarks": []},)
     assert response.status_code == 400

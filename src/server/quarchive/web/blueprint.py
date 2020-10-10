@@ -167,17 +167,29 @@ def api_key_required(handler: V) -> V:
 
         cache = get_cache()
         if is_correct_api_key(db.session, cache, username, bytes.fromhex(api_key_str)):
-            flask.g.user = user_from_username_if_exists(db.session, cache, username)
+            # We know at this point that the user does in fact exist, so cast
+            # away the Optional
+            user = cast(User, user_from_username_if_exists(db.session, cache, username))
+            flask.g.user = user
             return handler()
         else:
-            flask.current_app.logger.info("bad api credentials")
-            return flask.jsonify({"error": "bad api credentials"}), 400
+            # Something was wrong, let's figure out what
+            user_if_exists = user_from_username_if_exists(db.session, cache, username)
+            if user_if_exists is None:
+                flask.current_app.logger.warning("user does not exist: %s", username)
+                # user doesn't exist
+                return flask.jsonify({"error": "user does not exist"}), 400
+            else:
+                flask.current_app.logger.warning("wrong api key for %s", username)
+                # api key must have been wrong
+                return flask.jsonify({"error": "bad api key"}), 400
 
     return cast(V, wrapper)
 
 
 @blueprint.route("/favicon.ico")
 def favicon() -> flask.Response:
+    # Should set cache headers
     return flask.current_app.send_static_file("icons/favicon.ico")
 
 
@@ -686,7 +698,14 @@ def ok() -> flask.Response:
     return flask.json.jsonify({"ok": True})
 
 
-@blueprint.route("/sync", methods=["POST"])
+@blueprint.route("/api/sync/check-api-key", methods=["POST"])
+@api_key_required
+def sync_check_api_key() -> Tuple[flask.Response, int]:
+    return flask.jsonify({}), 200
+
+
+@blueprint.route("/api/sync", methods=["POST"])
+@blueprint.route("/sync", methods=["POST"])  # FIXME: Deprecated
 @api_key_required
 def sync() -> flask.Response:
     extension_version = flask.request.headers.get(
