@@ -10,7 +10,6 @@ module.exports = {
         "^.+\\.(ts|tsx)$": "ts-jest"
     },
     "setupFiles": [
-        "fake-indexeddb/auto"
     ],
     "testEnvironment": "node",
 }
