@@ -1,3 +1,4 @@
+import './crypto.mock'
 import { randomUUID } from "./quarchive-uuid"
 
 describe("uuid generator", function(){

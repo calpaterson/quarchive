@@ -14,5 +14,5 @@
     "include": [
         "src/**/*.ts"
     ],
-    "lib": ["ES2018"]
+    "lib": ["ES2018", "DOM"]
 }

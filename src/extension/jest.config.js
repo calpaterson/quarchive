@@ -11,5 +11,5 @@ module.exports = {
     },
     "setupFiles": [
     ],
-    "testEnvironment": "node",
+    "testEnvironment": "jsdom",
 }
