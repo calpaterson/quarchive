@@ -1,13 +1,13 @@
 "use strict";
 
-import { QuarchiveURL, Bookmark, DisallowedSchemeError } from "./value_objects.js"
+import { QuarchiveURL, Bookmark, DisallowedSchemeError } from "./quarchive-value-objects.js"
 
-const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 4;
 
 // An hour
 const PERIODIC_FULL_SYNC_INTERVAL_IN_MINUTES = 60;
 
-var db: IDBDatabase;
+export var db: IDBDatabase;
 
 let listenersEnabled = false;
 
@@ -32,6 +32,18 @@ class NoConfigurationError extends Error {
     }
 }
 
+async function setLastSync(): Promise<void> {
+    await browser.storage.sync.set(new Date());
+}
+
+export async function getLastSync(): Promise<Date|null> {
+    const lastSync = <Date|undefined> await browser.storage.sync.get("lastSync");
+    if (lastSync === undefined){
+        return null;
+    } else {
+        return lastSync
+    }
+}
 
 // Lookup the bookmark from browser.bookmarks
 async function lookupTreeNodeFromBrowser(browserId: string): Promise<browser.bookmarks.BookmarkTreeNode> {
@@ -358,7 +370,7 @@ export async function fullSync() {
     enableListeners()
 }
 
-export function enablePeriodicFullSync(){
+function enablePeriodicFullSync(){
     browser.alarms.create("periodicFullSync", {"periodInMinutes": PERIODIC_FULL_SYNC_INTERVAL_IN_MINUTES});
     browser.alarms.onAlarm.addListener(function(alarm) {
         console.log("alarm: %o", alarm);
@@ -491,8 +503,7 @@ function createIDBSchema(db: IDBDatabase) : void {
     }
 }
 
-// De facto Main method
-if (typeof window !== 'undefined') {
+export function main(){
     console.log("starting quarchive load");
     const dbOpenRequest = window.indexedDB.open("quarchive", SCHEMA_VERSION);
     dbOpenRequest.onerror = function(event){
@@ -521,8 +532,7 @@ if (typeof window !== 'undefined') {
             enableListeners();
             fullSync().then();  // do one immediately
             enablePeriodicFullSync();
+            console.log("quarchive loaded");
         });
     };
-
-    console.log("quarchive loaded");
-};
+}

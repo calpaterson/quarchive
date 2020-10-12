@@ -1,4 +1,4 @@
-import { QuarchiveURL, Bookmark, DisallowedSchemeError } from "./value_objects";
+import { QuarchiveURL, Bookmark, DisallowedSchemeError } from "./quarchive-value-objects";
 
 describe("url class", function(){
     test("disallowed scheme", function(){

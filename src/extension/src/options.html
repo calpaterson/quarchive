@@ -32,10 +32,20 @@
         <p>
           <input type="text" id="api-url"/>
         </p>
+        <p>
+          <button name="force-sync">Force sync</button>
+        </p>
+        <p>
+          <span id="last-sync">(Never synced before)</span>
+        </p>
       </fieldset>
-      <button type="submit">Save</button>
+      <p>
+        <button type="submit">Save preferences</button>
+        <button>Test preferences</button>
+      </p>
     </form>
     <script type="module" src="browser-polyfill.js"></script>
+    <script type="module" src="quarchive-sync.js"></script>
     <script type="module" src="quarchive-options.js"></script>
   </body>
 </html>
