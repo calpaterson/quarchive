@@ -42,7 +42,7 @@ dist/quarchive-$(ext_version)-firefox.zip: $(ext_path)/firefox-webextconfig.js $
 	mv $(ext_firefox_build_dir)/quarchive-$(ext_version).zip $@
 
 $(ext_firefox_js_files): $(ext_path)/tsconfig-firefox.json $(ts_files) $(tsc) | $(ext_firefox_build_dir)
-	$(tsc) --build $<
+	$(tsc) --build $(ext_path)/tsconfig-firefox.json
 
 $(ext_firefox_manifest): $(generate_manifest) $(ext_version_file) | $(ext_firefox_build_dir)
 	$(generate_manifest) firefox $(ext_version) > $@
@@ -58,7 +58,7 @@ dist/quarchive-$(ext_version)-chrome.zip: $(ext_path)/chrome-webextconfig.js $(w
 	mv $(ext_chrome_build_dir)/quarchive-$(ext_version).zip $@
 
 $(ext_chrome_js_files): $(ext_path)/tsconfig-chrome.json $(ts_files) $(tsc) | $(ext_chrome_build_dir)
-	$(tsc) --build $<
+	$(tsc) --build $(ext_path)/tsconfig-chrome.json
 
 $(ext_chrome_manifest): $(generate_manifest) $(ext_version_file) | $(ext_chrome_build_dir)
 	$(generate_manifest) chrome $(ext_version) > $@
