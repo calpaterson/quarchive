@@ -9,6 +9,9 @@ extension only**.
 
 ## Unreleased
 
+- Keep a unique internal client id
+  - This will be used to report to web users what clients are currently syncing
+
 ## [1.3.0] - 2020-09-26
 
 - Clear indexed db on upgrade
