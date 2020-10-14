@@ -12,4 +12,7 @@ module.exports = {
     "setupFiles": [
     ],
     "testEnvironment": "jsdom",
+    "moduleNameMapper": {
+        "./quarchive-uuid.js": "<rootDir>/src/quarchive-uuid.ts"
+    }
 }

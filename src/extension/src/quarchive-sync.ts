@@ -1,6 +1,7 @@
 "use strict";
 
 import { QuarchiveURL, Bookmark, DisallowedSchemeError } from "./quarchive-value-objects.js"
+import { getClientID } from "./quarchive-config.js"
 
 export const SCHEMA_VERSION = 4;
 
@@ -271,6 +272,7 @@ async function callSyncAPI(bookmark: Bookmark): Promise<Array<Bookmark>> {
     // FIXME: failure should be logged
     const url = new URL("/sync", APIURL).toString();
     const extensionVersion = browser.runtime.getManifest().version;
+    const clientID = await getClientID();
     const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -278,6 +280,7 @@ async function callSyncAPI(bookmark: Bookmark): Promise<Array<Bookmark>> {
             "Quarchive-Extension-Version": extensionVersion,
             "Quarchive-Username": username,
             "Quarchive-API-Key": APIKey,
+            "Quarchive-ClientID": clientID,
             // FIXME: the below headers are depreciated
             "X-QM-API-Username": username,
             "X-QM-API-Key": APIKey,
@@ -320,6 +323,7 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
     const url = new URL("/sync?full=true", APIURL).toString();
 
     const extensionVersion = browser.runtime.getManifest().version;
+    const clientID = await getClientID();
     const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -327,6 +331,7 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
             "Quarchive-Extension-Version": extensionVersion,
             "Quarchive-Username": username,
             "Quarchive-API-Key": APIKey,
+            "Quarchive-ClientID": clientID,
             // FIXME: the below headers are depreciated
             "X-QM-API-Username": username,
             "X-QM-API-Key": APIKey,

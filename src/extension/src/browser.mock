@@ -1,0 +1,32 @@
+const storage_contents = {};
+
+const browser = {
+    storage: {
+        sync: {
+            get: function(key){
+                // Only implements singluar keys (not lits)
+                return new Promise(function(resolve, reject) {
+                    console.log("contents = %o", storage_contents);
+                    if(storage_contents.hasOwnProperty(key)){
+                        resolve({[key]: storage_contents[key]});
+                    } else {
+                        resolve({});
+                    }
+                })
+            },
+            set: function(keyMap){
+                return new Promise(function(resolve, reject) {
+                    Object.assign(storage_contents, keyMap);
+                    console.log("contents = %o", storage_contents);
+                    resolve();
+                })
+            },
+            _contents: storage_contents,
+        }
+    }
+}
+
+Object.defineProperty(global, "browser", {
+    writable: true,
+    value: browser,
+});
