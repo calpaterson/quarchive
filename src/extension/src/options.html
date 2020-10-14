@@ -12,7 +12,7 @@
         <label for="username">Username</label>
       </p>
       <p>
-        <input type="text" id="username"/>
+        <input required type="text" id="username"/>
       </p>
       <p>
         <label for="api-key">API key</label>
@@ -21,22 +21,25 @@
         <small>Copy this from your user page</small>
       </p>
       <p>
-        <input type="text" size="60" id="api-key"/>
+        <input required type="text" size="60" id="api-key"/>
       </p>
       <fieldset>
         <legend>Advanced</legend>
-        <small>This area for developers only</small>
+        <small>This area for wizards only</small>
+        <p>
+          <label for="client-id">Client ID: </label><span id="client-id"></span>
+        </p>
         <p>
           <label for="api-url">API URL</label>
         </p>
         <p>
-          <input type="text" id="api-url"/>
+          <input required type="text" id="api-url"/>
         </p>
         <p>
-          <button name="force-sync">Force sync</button>
+          <button name="force-sync">Force full sync</button>
         </p>
         <p>
-          <span id="last-sync">(Never synced before)</span>
+          <span id="last-sync">(Never done a full sync before)</span>
         </p>
       </fieldset>
       <p>

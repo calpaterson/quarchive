@@ -1,3 +1,5 @@
+import { getClientID } from "./quarchive-config.js"
+
 var saveOptions = function(e){
     let APIURLInput = document.querySelector("#api-url") as HTMLInputElement;
     let usernameInput = document.querySelector("#username") as HTMLInputElement;
@@ -10,7 +12,7 @@ var saveOptions = function(e){
     e.preventDefault()
 }
 
-var restoreOptions = function(){
+async function restoreOptions(){
     var gettingUsername = browser.storage.sync.get("username");
     gettingUsername.then(function (result) {
         let input = document.querySelector("#username") as HTMLInputElement;
@@ -36,6 +38,9 @@ var restoreOptions = function(){
             input.value = result.APIURL;
         }
     })
+    const clientID = await getClientID()
+    const clientIDInput = document.querySelector("#client-id") as HTMLElement
+    clientIDInput.textContent = clientID
 }
 
 document.addEventListener('DOMContentLoaded', restoreOptions);
