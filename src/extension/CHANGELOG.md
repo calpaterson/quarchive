@@ -11,6 +11,9 @@ extension only**.
 
 - Keep a unique internal client id
   - This will be used to report to web users what clients are currently syncing
+  - It's displayed on the options page
+- Report the last full sync time on the options page
+  - This is purely for debugging and diagnosics
 
 ## [1.3.0] - 2020-09-26
 

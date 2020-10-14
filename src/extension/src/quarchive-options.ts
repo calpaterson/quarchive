@@ -1,4 +1,5 @@
 import { getClientID } from "./quarchive-config.js"
+import { getLastFullSync } from "./quarchive-sync.js"
 
 var saveOptions = function(e){
     let APIURLInput = document.querySelector("#api-url") as HTMLInputElement;
@@ -38,9 +39,16 @@ async function restoreOptions(){
             input.value = result.APIURL;
         }
     })
-    const clientID = await getClientID()
-    const clientIDInput = document.querySelector("#client-id") as HTMLElement
-    clientIDInput.textContent = clientID
+
+    const [clientID, lastFullSync] = await Promise.all([getClientID(), getLastFullSync()])
+
+    const clientIDSpan = document.querySelector("#client-id") as HTMLElement
+    clientIDSpan.textContent = clientID
+
+    if (lastFullSync !== null){
+        const lastSyncSpan = document.querySelector("#last-full-sync") as HTMLElement
+        lastSyncSpan.textContent = lastFullSync.toLocaleString()
+    }
 }
 
 document.addEventListener('DOMContentLoaded', restoreOptions);

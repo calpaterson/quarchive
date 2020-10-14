@@ -33,16 +33,16 @@ class NoConfigurationError extends Error {
     }
 }
 
-async function setLastSync(): Promise<void> {
-    await browser.storage.sync.set(new Date());
+async function setLastFullSync(): Promise<void> {
+    await browser.storage.sync.set({lastSync: new Date().toJSON()});
 }
 
-export async function getLastSync(): Promise<Date|null> {
-    const lastSync = <Date|undefined> await browser.storage.sync.get("lastSync");
-    if (lastSync === undefined){
+export async function getLastFullSync(): Promise<Date|null> {
+    const rv =  await browser.storage.sync.get("lastSync");
+    if (rv["lastSync"] === undefined){
         return null;
     } else {
-        return lastSync
+        return new Date(rv.lastSync);
     }
 }
 
@@ -372,6 +372,7 @@ export async function fullSync() {
         }
     }
     console.log("ended full sync");
+    setLastFullSync()
     enableListeners()
 }
 
