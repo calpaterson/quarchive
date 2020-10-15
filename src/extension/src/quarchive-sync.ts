@@ -208,7 +208,8 @@ async function updateBookmarkInLocalDb(bookmark: Bookmark): Promise<void> {
 }
 
 async function syncBrowserBookmarksToLocalDb() {
-    console.log("starting syncBrowserBookmarksToLocalDb");
+    const timer = "syncing browser bookmarks to local db"
+    console.time(timer);
     const treeNodes = await allTreeNodesFromBrowser();
     for (var treeNode of treeNodes) {
         let url;
@@ -251,7 +252,7 @@ async function syncBrowserBookmarksToLocalDb() {
             }
         }
     }
-    console.log("completed syncBrowserBookmarksToLocalDb");
+    console.timeEnd(timer);
 }
 
 // Syncs a bookmark with the API
@@ -303,7 +304,7 @@ async function callSyncAPI(bookmark: Bookmark): Promise<Array<Bookmark>> {
 }
 
 async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookmark>>{
-    var body = [];
+    const body = [];
     for (var bookmark of bookmarks) {
         body.push(JSON.stringify(bookmark.to_json()));
     }
@@ -324,6 +325,8 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
 
     const extensionVersion = browser.runtime.getManifest().version;
     const clientID = await getClientID();
+    const timerString = "POST " + url
+    console.time(timerString)
     const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -339,6 +342,7 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
         body: body.join("\n"),
     });
     const jsonlines = await response.text()
+    console.timeEnd(timerString);
     var returnValue = [];
     for (var jsonBookmark of jsonlines.split("\n")){
         // Handle trailing newline
@@ -352,12 +356,11 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
 }
 
 export async function fullSync() {
-    // FIXME: Use console timers here
-    console.log("starting full sync");
+    console.time("full sync");
     disableListeners();
     await syncBrowserBookmarksToLocalDb();
     const bookmarksFromServer = await callFullSyncAPI(await allBookmarksFromLocalDb());
-    for (var serverBookmark of bookmarksFromServer) {
+    for (const serverBookmark of bookmarksFromServer) {
         const localBookmark = await lookupBookmarkFromLocalDbByUrl(serverBookmark.url);
         if (localBookmark === null) {
             await insertBookmarkIntoLocalDb(serverBookmark);
@@ -371,16 +374,16 @@ export async function fullSync() {
             }
         }
     }
-    console.log("ended full sync");
+    console.timeEnd("full sync");
     setLastFullSync()
     enableListeners()
 }
 
 function enablePeriodicFullSync(){
     browser.alarms.create("periodicFullSync", {"periodInMinutes": PERIODIC_FULL_SYNC_INTERVAL_IN_MINUTES});
-    browser.alarms.onAlarm.addListener(function(alarm) {
+    browser.alarms.onAlarm.addListener(async function(alarm) {
         console.log("alarm: %o", alarm);
-        fullSync().then();
+        await fullSync()
     });
 }
 
