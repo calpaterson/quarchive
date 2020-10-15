@@ -29,7 +29,7 @@ export async function getClientID(): Promise<string> {
     let clientID;
     if (wrappedClientID["clientID"] !== undefined){
         clientID = wrappedClientID.clientID;
-        console.log("found the clientID: %s", clientID);
+        console.debug("found the clientID: %s", clientID);
         return clientID;
     } else {
         clientID = randomUUID();
