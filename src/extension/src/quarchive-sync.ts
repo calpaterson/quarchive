@@ -24,7 +24,6 @@ async function getHTTPConfig(): Promise<Array<string>> {
     }
 }
 
-
 class NoConfigurationError extends Error {
     constructor(message?: string) {
         super(message);
@@ -100,8 +99,11 @@ async function allBookmarksFromLocalDb(): Promise<Array<Bookmark>> {
         let transaction = db.transaction(["bookmarks"], "readonly");
         transaction.onerror = function(event){
             console.warn("allBookmarksFromLocalDb transaction failed: %o", event);
+            reject();
         }
         let objectStore = transaction.objectStore("bookmarks");
+        // FIXME: Should use openCursor instead but means switching type to
+        // iterator/generator
         let request = objectStore.getAll()
         request.onsuccess = function(event){
             let rv: Array<Bookmark> = [];
@@ -212,7 +214,7 @@ async function syncBrowserBookmarksToLocalDb() {
             url = new QuarchiveURL(treeNode.url);
         } catch (e) {
             if (e instanceof DisallowedSchemeError){
-                console.log("skipping %s - disallowed scheme", treeNode.url);
+                console.debug("skipping %s - disallowed scheme", treeNode.url);
                 continue;
             } else {
                 throw e;
@@ -352,15 +354,29 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
 
 export async function fullSync() {
     console.time("full sync");
-    disableListeners();
+
+    // First build/refresh our local database
     await syncBrowserBookmarksToLocalDb();
+
+    // Then retrieve the server's point of view
     const bookmarksFromServer = await callFullSyncAPI(await allBookmarksFromLocalDb());
+
+    // Next we need to disable our listeners as we're about to edit the browser
+    // bookmarks ourselves and we don't want to handle those events as usual
+    disableListeners();
+
+    // For each bookmark we got from the server
     for (const serverBookmark of bookmarksFromServer) {
+
+        // Look it up in our db
         const localBookmark = await lookupBookmarkFromLocalDbByUrl(serverBookmark.url);
+
         if (localBookmark === null) {
+            // and if it's new to that db, create it there and in the browser
             await insertBookmarkIntoLocalDb(serverBookmark);
             await upsertBookmarkIntoBrowser(serverBookmark);
         } else {
+            // otherwise merge it with what we already have and update both
             const mergedBookmark = localBookmark.merge(serverBookmark);
             mergedBookmark.browserId = localBookmark.browserId;
             if (!mergedBookmark.equals(localBookmark)) {
@@ -369,9 +385,9 @@ export async function fullSync() {
             }
         }
     }
+    enableListeners()
     console.timeEnd("full sync");
     setLastFullSync()
-    enableListeners()
 }
 
 function enablePeriodicFullSync(){
