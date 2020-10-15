@@ -8,14 +8,14 @@ export const SCHEMA_VERSION = 4;
 // An hour
 const PERIODIC_FULL_SYNC_INTERVAL_IN_MINUTES = 60;
 
-export var db: IDBDatabase;
+export let db: IDBDatabase;
 
 let listenersEnabled = false;
 
 async function getHTTPConfig(): Promise<Array<string>> {
-    var gettingKey = await browser.storage.sync.get("APIKey");
-    var gettingUsername = await browser.storage.sync.get("username");
-    var gettingURL = await browser.storage.sync.get("APIURL");
+    let gettingKey = await browser.storage.sync.get("APIKey");
+    let gettingUsername = await browser.storage.sync.get("username");
+    let gettingURL = await browser.storage.sync.get("APIURL");
     const returnValue = [gettingURL.APIURL, gettingUsername.username, gettingKey.APIKey];
     if (returnValue.includes(undefined)) {
         throw new NoConfigurationError();
@@ -58,8 +58,8 @@ async function lookupTreeNodeFromBrowser(browserId: string): Promise<browser.boo
 async function allTreeNodesFromBrowser(): Promise<Array<browser.bookmarks.BookmarkTreeNode>> {
     // cautiously create a new array rather than reusing because who knows what
     // will happen if we mutate the array returned by getTree
-    var unexplored = [(await browser.bookmarks.getTree())[0]];
-    var treeNodes = [];
+    let unexplored = [(await browser.bookmarks.getTree())[0]];
+    let treeNodes = [];
     while (unexplored.length > 0) {
         const treeNode = unexplored.pop();
         // Can't rely on treeNode.type - chrome doesn't populate that field
@@ -68,7 +68,7 @@ async function allTreeNodesFromBrowser(): Promise<Array<browser.bookmarks.Bookma
         }
         if (Object.prototype.hasOwnProperty.call(treeNode, 'children')
             && treeNode.children.length > 0) {
-            for (var child of treeNode.children) {
+            for (let child of treeNode.children) {
                 unexplored.push(child);
             }
         }
@@ -97,16 +97,15 @@ async function upsertBookmarkIntoBrowser(bookmark: Bookmark): Promise<void> {
 
 async function allBookmarksFromLocalDb(): Promise<Array<Bookmark>> {
     return new Promise(function(resolve, reject) {
-        var transaction = db.transaction(["bookmarks"], "readonly");
+        let transaction = db.transaction(["bookmarks"], "readonly");
         transaction.onerror = function(event){
             console.warn("allBookmarksFromLocalDb transaction failed: %o", event);
         }
-        var objectStore = transaction.objectStore("bookmarks");
-        var request = objectStore.getAll()
-        // eslint-disable-next-line no-unused-vars
+        let objectStore = transaction.objectStore("bookmarks");
+        let request = objectStore.getAll()
         request.onsuccess = function(event){
-            var rv: Array<Bookmark> = [];
-            for (var object of request.result){
+            let rv: Array<Bookmark> = [];
+            for (let object of request.result){
                 rv.push(Bookmark.from_json(object));
             }
             resolve(rv);
@@ -120,13 +119,12 @@ async function allBookmarksFromLocalDb(): Promise<Array<Bookmark>> {
 
 async function lookupBookmarkFromLocalDbByUrl(url: QuarchiveURL): Promise<Bookmark> {
     return new Promise(function(resolve, reject) {
-        var transaction = db.transaction(["bookmarks"], "readonly");
+        let transaction = db.transaction(["bookmarks"], "readonly");
         transaction.onerror = function(event){
             console.warn("lookupBookmarkFromLocalDbByUrl transaction failed: %o", event);
         }
-        var objectStore = transaction.objectStore("bookmarks");
-        var request = objectStore.get(url.toString())
-        // eslint-disable-next-line no-unused-vars
+        let objectStore = transaction.objectStore("bookmarks");
+        let request = objectStore.get(url.toString())
         request.onsuccess = function(event){
             if (request.result === undefined){
                 resolve(null);
@@ -145,14 +143,13 @@ async function lookupBookmarkFromLocalDbByUrl(url: QuarchiveURL): Promise<Bookma
 // Lookup the bookmark from local db
 async function lookupBookmarkFromLocalDbByBrowserId(browserId: string): Promise<Bookmark> {
     return new Promise(function(resolve, reject) {
-        var transaction = db.transaction(["bookmarks"], "readonly");
+        let transaction = db.transaction(["bookmarks"], "readonly");
         transaction.onerror = function(event){
             console.warn("lookupBookmarkFromLocalDbByBrowserId transaction failed: %o", event);
         }
-        var objectStore = transaction.objectStore("bookmarks");
-        var index = objectStore.index("browserId");
-        var request = index.get(browserId);
-        // eslint-disable-next-line no-unused-vars
+        let objectStore = transaction.objectStore("bookmarks");
+        let index = objectStore.index("browserId");
+        let request = index.get(browserId);
         request.onsuccess = function(event){
             if (request.result === undefined) {
                 resolve(null);
@@ -171,13 +168,12 @@ async function lookupBookmarkFromLocalDbByBrowserId(browserId: string): Promise<
 // Insert the bookmark into local db
 async function insertBookmarkIntoLocalDb(bookmark: Bookmark): Promise<void> {
     return new Promise(function(resolve, reject) {
-        var transaction = db.transaction(["bookmarks"], "readwrite");
+        let transaction = db.transaction(["bookmarks"], "readwrite");
         transaction.onerror = function(event){
             console.warn("insertBookmarkIntoLocalDb transaction failed: %o", event);
         }
-        var objectStore = transaction.objectStore("bookmarks");
-        var request = objectStore.add(bookmark.to_db_json())
-        // eslint-disable-next-line no-unused-vars
+        let objectStore = transaction.objectStore("bookmarks");
+        let request = objectStore.add(bookmark.to_db_json())
         request.onsuccess = function(event){
             resolve();
         }
@@ -190,13 +186,12 @@ async function insertBookmarkIntoLocalDb(bookmark: Bookmark): Promise<void> {
 
 async function updateBookmarkInLocalDb(bookmark: Bookmark): Promise<void> {
     return new Promise(function(resolve, reject) {
-        var transaction = db.transaction(["bookmarks"], "readwrite");
+        let transaction = db.transaction(["bookmarks"], "readwrite");
         transaction.onerror = function(event){
             console.warn("updateBookmarkInLocalDb transaction failed: %o", event);
         }
-        var objectStore = transaction.objectStore("bookmarks");
-        var request = objectStore.put(bookmark.to_db_json())
-        // eslint-disable-next-line no-unused-vars
+        let objectStore = transaction.objectStore("bookmarks");
+        let request = objectStore.put(bookmark.to_db_json())
         request.onsuccess = function(event){
             resolve();
         }
@@ -211,7 +206,7 @@ async function syncBrowserBookmarksToLocalDb() {
     const timer = "syncing browser bookmarks to local db"
     console.time(timer);
     const treeNodes = await allTreeNodesFromBrowser();
-    for (var treeNode of treeNodes) {
+    for (let treeNode of treeNodes) {
         let url;
         try {
             url = new QuarchiveURL(treeNode.url);
@@ -291,8 +286,8 @@ async function callSyncAPI(bookmark: Bookmark): Promise<Array<Bookmark>> {
 
     const jsonlines = await response.text()
     console.log("got: '%s'", jsonlines);
-    var returnValue = [];
-    for (var jsonBookmark of jsonlines.split("\n")){
+    let returnValue = [];
+    for (let jsonBookmark of jsonlines.split("\n")){
         // Handle trailing newline
         if (jsonBookmark.length > 0){
             const jsonData = JSON.parse(jsonBookmark);
@@ -305,7 +300,7 @@ async function callSyncAPI(bookmark: Bookmark): Promise<Array<Bookmark>> {
 
 async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookmark>>{
     const body = [];
-    for (var bookmark of bookmarks) {
+    for (let bookmark of bookmarks) {
         body.push(JSON.stringify(bookmark.to_json()));
     }
 
@@ -343,8 +338,8 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
     });
     const jsonlines = await response.text()
     console.timeEnd(timerString);
-    var returnValue = [];
-    for (var jsonBookmark of jsonlines.split("\n")){
+    let returnValue = [];
+    for (let jsonBookmark of jsonlines.split("\n")){
         // Handle trailing newline
         if (jsonBookmark.length > 0){
             const jsonData = JSON.parse(jsonBookmark);
@@ -505,7 +500,7 @@ function clearIDBSchema (db: IDBDatabase): void {
 
 function createIDBSchema(db: IDBDatabase) : void {
     console.log("creating idb schema for version %d", SCHEMA_VERSION);
-    var objectStore = db.createObjectStore("bookmarks", {keyPath: "idbKey"});
+    let objectStore = db.createObjectStore("bookmarks", {keyPath: "idbKey"});
     objectStore.createIndex("browserId", "browserId", {unique: true});
     objectStore.transaction.oncomplete = function(event){
         console.log("upgrade transaction complete: %o", event);
@@ -521,7 +516,7 @@ export function main(){
     dbOpenRequest.onupgradeneeded = function (event) {
         console.log("upgrade needed: %o", event);
         let target = <IDBOpenDBRequest> event.target;
-        var db = target.result;
+        let db = target.result;
         const oldVersion = event.oldVersion;
 
         console.log("running upgrade %d -> %d", oldVersion, db.version);
