@@ -2,7 +2,9 @@
     <img alt="quarchive logo" src="https://github.com/calpaterson/quarchive/raw/master/logo/128x128.png">
 </div>
 
-# Quarchive - a social bookmarking tool
+# Quarchive
+
+*Traditional social bookmarking, with small improvements*
 
 **Please beware that Quarchive is in an alpha state at the moment and has lots of bugs**
 
