@@ -47,13 +47,13 @@ async function restoreOptions(){
 
     const lastSyncSpan = document.querySelector("#last-full-sync") as HTMLElement
     if (lastFullSyncResult.status === SyncStatus.Never){
-        lastSyncSpan.textContent = "(Never done a full sync before)";
+        lastSyncSpan.textContent = "Never done one before";
     } else if (lastFullSyncResult.status === SyncStatus.InProgress) {
-        lastSyncSpan.textContent = `(Sync in progress, since ${lastFullSyncResult.at.toLocaleString()})`;
+        lastSyncSpan.textContent = `In progress since ${lastFullSyncResult.at.toLocaleString()}`;
     } else if (lastFullSyncResult.status === SyncStatus.Failed) {
-        lastSyncSpan.textContent = `(Failed at ${lastFullSyncResult.at.toLocaleString()})`;
+        lastSyncSpan.textContent = `Failed at ${lastFullSyncResult.at.toLocaleString()}`;
     } else {
-        lastSyncSpan.textContent = lastFullSyncResult.at.toLocaleString();
+        lastSyncSpan.textContent = `Completed successfully at ${lastFullSyncResult.at.toLocaleString()}`;
     }
 }
 

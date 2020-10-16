@@ -370,43 +370,57 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
     return returnValue;
 }
 
-export async function fullSync() {
-    console.time("full sync");
+export async function fullSync(): Promise<SyncResult> {
+    let status = {status: SyncStatus.InProgress, at: new Date()}
+    setLastFullSyncResult(status);
 
-    // First build/refresh our local database
-    await syncBrowserBookmarksToLocalDb();
+    // Very wide try-except here as in the event of an error we want to catch,
+    // log and record it rather than crash anything else.
+    try {
 
-    // Then retrieve the server's point of view
-    const bookmarksFromServer = await callFullSyncAPI(await allBookmarksFromLocalDb());
+        console.time("full sync");
 
-    // Next we need to disable our listeners as we're about to edit the browser
-    // bookmarks ourselves and we don't want to handle those events as usual
-    disableListeners();
+        // First build/refresh our local database
+        await syncBrowserBookmarksToLocalDb();
 
-    // For each bookmark we got from the server
-    for (const serverBookmark of bookmarksFromServer) {
+        // Then retrieve the server's point of view
+        const bookmarksFromServer = await callFullSyncAPI(await allBookmarksFromLocalDb());
 
-        // Look it up in our db
-        const localBookmark = await lookupBookmarkFromLocalDbByUrl(serverBookmark.url);
+        // Next we need to disable our listeners as we're about to edit the
+        // browser bookmarks ourselves and we don't want to handle those events
+        // as usual
+        disableListeners();
 
-        if (localBookmark === null) {
-            // and if it's new to that db, create it there and in the browser
-            await insertBookmarkIntoLocalDb(serverBookmark);
-            await upsertBookmarkIntoBrowser(serverBookmark);
-        } else {
-            // otherwise merge it with what we already have and update both
-            const mergedBookmark = localBookmark.merge(serverBookmark);
-            mergedBookmark.browserId = localBookmark.browserId;
-            if (!mergedBookmark.equals(localBookmark)) {
-                await updateBookmarkInLocalDb(mergedBookmark);
-                await upsertBookmarkIntoBrowser(mergedBookmark);
+        // For each bookmark we got from the server
+        for (const serverBookmark of bookmarksFromServer) {
+
+            // Look it up in our db
+            const localBookmark = await lookupBookmarkFromLocalDbByUrl(serverBookmark.url);
+
+            if (localBookmark === null) {
+                // and if it's new to that db, create it there and in the browser
+                await insertBookmarkIntoLocalDb(serverBookmark);
+                await upsertBookmarkIntoBrowser(serverBookmark);
+            } else {
+                // otherwise merge it with what we already have and update both
+                const mergedBookmark = localBookmark.merge(serverBookmark);
+                mergedBookmark.browserId = localBookmark.browserId;
+                if (!mergedBookmark.equals(localBookmark)) {
+                    await updateBookmarkInLocalDb(mergedBookmark);
+                    await upsertBookmarkIntoBrowser(mergedBookmark);
+                }
             }
         }
+        status = {status: SyncStatus.Successful, at: new Date()}
+    } catch (e) {
+        status = {status: SyncStatus.Failed, at: new Date()}
+        console.error("full sync failed: ", e);
+    } finally {
+        enableListeners()
+        console.timeEnd("full sync");
+        setLastFullSyncResult(status);
+        return status
     }
-    enableListeners()
-    console.timeEnd("full sync");
-    const status = {status: SyncStatus.Successful, at: new Date()}
-    setLastFullSyncResult(status);
 }
 
 function enablePeriodicFullSync(){
@@ -567,11 +581,10 @@ export function main(){
         db.onerror = function(event) {
             console.error("db error %o", event);
         }
-        fullSync().then(function() {
-            enableListeners();
-            fullSync().then();  // do one immediately
+        console.log("quarchive loaded");
+        fullSync().then(function(syncResult){
             enablePeriodicFullSync();
-            console.log("quarchive loaded");
+            console.log("done initial fullSync, will no do it periodically");
         });
     };
 }
