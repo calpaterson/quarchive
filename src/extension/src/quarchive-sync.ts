@@ -13,10 +13,10 @@ export let db: IDBDatabase;
 let listenersEnabled = false;
 
 export enum SyncStatus {
-    Never = 0,
-    InProgress = 1,
-    Successful = 2,
-    Failed = 3,
+    Never = "NEVER",
+    InProgress = "IN_PROGRESS",
+    Successful = "SUCCESSFUL",
+    Failed = "FAILED",
 }
 
 export interface SyncResult {
@@ -44,22 +44,22 @@ class NoConfigurationError extends Error {
     }
 }
 
-async function setLastFullSync(): Promise<void> {
-    await browser.storage.sync.set({lastSync: new Date().toJSON()});
-}
-
-export async function getLastFullSync(): Promise<Date|null> {
-    const rv =  await browser.storage.sync.get("lastSync");
-    if (rv["lastSync"] === undefined){
-        return null;
-    } else {
-        return new Date(rv.lastSync);
+async function setLastFullSyncResult(result: SyncResult): Promise<void> {
+    const storable = {
+        "status": result.status,
+        "at": result.at.toJSON()
     }
+    await browser.storage.sync.set({lastFullSyncResult: storable});
 }
 
-export async function getLastFullSyncStatus(): Promise<SyncResult> {
-    return {"status": SyncStatus.Never, at: new Date("1970-01-01T00:00:00Z")}
-;
+export async function getLastFullSyncResult(): Promise<SyncResult> {
+    const rv = await browser.storage.sync.get("lastFullSyncResult");
+    if (rv["lastFullSyncResult"] === undefined){
+        return {"status": SyncStatus.Never, at: new Date("1970-01-01T00:00:00Z")}
+    } else {
+        const stored = rv["lastFullSyncResult"]
+        return {status: stored.status, at: new Date(stored.at)}
+    }
 }
 
 
@@ -405,7 +405,8 @@ export async function fullSync() {
     }
     enableListeners()
     console.timeEnd("full sync");
-    setLastFullSync()
+    const status = {status: SyncStatus.Successful, at: new Date()}
+    setLastFullSyncResult(status);
 }
 
 function enablePeriodicFullSync(){

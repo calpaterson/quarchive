@@ -6,7 +6,7 @@ const browser = {
             get: function(key){
                 // Only implements singluar keys (not lits)
                 return new Promise(function(resolve, reject) {
-                    console.log("contents = %o", storage_contents);
+                    console.debug("contents = %o", storage_contents);
                     if(storage_contents.hasOwnProperty(key)){
                         resolve({[key]: storage_contents[key]});
                     } else {
@@ -17,7 +17,7 @@ const browser = {
             set: function(keyMap){
                 return new Promise(function(resolve, reject) {
                     Object.assign(storage_contents, keyMap);
-                    console.log("contents = %o", storage_contents);
+                    console.debug("contents = %o", storage_contents);
                     resolve();
                 })
             },

@@ -1,5 +1,5 @@
 import { getClientID } from "./quarchive-config.js"
-import { getLastFullSync } from "./quarchive-sync.js"
+import { getLastFullSyncResult, SyncStatus } from "./quarchive-sync.js"
 
 var saveOptions = function(e){
     let APIURLInput = document.querySelector("#api-url") as HTMLInputElement;
@@ -40,14 +40,20 @@ async function restoreOptions(){
         }
     })
 
-    const [clientID, lastFullSync] = await Promise.all([getClientID(), getLastFullSync()])
+    const [clientID, lastFullSyncResult] = await Promise.all([getClientID(), getLastFullSyncResult()])
 
     const clientIDSpan = document.querySelector("#client-id") as HTMLElement
     clientIDSpan.textContent = clientID
 
-    if (lastFullSync !== null){
-        const lastSyncSpan = document.querySelector("#last-full-sync") as HTMLElement
-        lastSyncSpan.textContent = lastFullSync.toLocaleString()
+    const lastSyncSpan = document.querySelector("#last-full-sync") as HTMLElement
+    if (lastFullSyncResult.status === SyncStatus.Never){
+        lastSyncSpan.textContent = "(Never done a full sync before)";
+    } else if (lastFullSyncResult.status === SyncStatus.InProgress) {
+        lastSyncSpan.textContent = `(Sync in progress, since ${lastFullSyncResult.at.toLocaleString()})`;
+    } else if (lastFullSyncResult.status === SyncStatus.Failed) {
+        lastSyncSpan.textContent = `(Failed at ${lastFullSyncResult.at.toLocaleString()})`;
+    } else {
+        lastSyncSpan.textContent = lastFullSyncResult.at.toLocaleString();
     }
 }
 
