@@ -1,5 +1,5 @@
 <div align="center">
-    <img alt="quarchive logo" src="https://github.com/calpaterson/quarchive/raw/master/img/128x128.png"/>
+    <img alt="quarchive logo" src="https://github.com/calpaterson/quarchive/raw/master/logo/128x128.png">
 </div>
 
 # Quarchive - a social bookmarking tool
