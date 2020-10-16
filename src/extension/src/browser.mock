@@ -21,6 +21,14 @@ const browser = {
                     resolve();
                 })
             },
+            clear: function(){
+                return new Promise(function(resolve, reject) {
+                    for(const propName of Object.getOwnPropertyNames(storage_contents)){
+                        delete storage_contents[propName];
+                    }
+                    resolve();
+                })
+            },
             _contents: storage_contents,
         }
     }

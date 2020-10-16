@@ -12,6 +12,18 @@ export let db: IDBDatabase;
 
 let listenersEnabled = false;
 
+export enum SyncStatus {
+    Never = 0,
+    InProgress = 1,
+    Successful = 2,
+    Failed = 3,
+}
+
+export interface SyncResult {
+    status: SyncStatus;
+    at: Date;
+}
+
 async function getHTTPConfig(): Promise<Array<string>> {
     let gettingKey = await browser.storage.sync.get("APIKey");
     let gettingUsername = await browser.storage.sync.get("username");
@@ -44,6 +56,12 @@ export async function getLastFullSync(): Promise<Date|null> {
         return new Date(rv.lastSync);
     }
 }
+
+export async function getLastFullSyncStatus(): Promise<SyncResult> {
+    return {"status": SyncStatus.Never, at: new Date("1970-01-01T00:00:00Z")}
+;
+}
+
 
 // Lookup the bookmark from browser.bookmarks
 async function lookupTreeNodeFromBrowser(browserId: string): Promise<browser.bookmarks.BookmarkTreeNode> {
