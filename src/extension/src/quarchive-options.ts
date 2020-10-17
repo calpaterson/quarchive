@@ -1,5 +1,5 @@
 import { getClientID } from "./quarchive-config.js"
-import { getLastFullSyncResult, SyncStatus } from "./quarchive-sync.js"
+import { getLastFullSyncResult, SyncStatus, fullSync, SyncResult, openIDB } from "./quarchive-sync.js"
 
 var saveOptions = function(e){
     let APIURLInput = document.querySelector("#api-url") as HTMLInputElement;
@@ -44,18 +44,35 @@ async function restoreOptions(){
 
     const clientIDSpan = document.querySelector("#client-id") as HTMLElement
     clientIDSpan.textContent = clientID
+    updateLastSync(lastFullSyncResult);
 
+}
+
+function updateLastSync(result: SyncResult): void {
     const lastSyncSpan = document.querySelector("#last-full-sync") as HTMLElement
-    if (lastFullSyncResult.status === SyncStatus.Never){
+    if (result.status === SyncStatus.Never){
         lastSyncSpan.textContent = "Never done one before";
-    } else if (lastFullSyncResult.status === SyncStatus.InProgress) {
-        lastSyncSpan.textContent = `In progress since ${lastFullSyncResult.at.toLocaleString()}`;
-    } else if (lastFullSyncResult.status === SyncStatus.Failed) {
-        lastSyncSpan.textContent = `Failed at ${lastFullSyncResult.at.toLocaleString()}`;
+    } else if (result.status === SyncStatus.InProgress) {
+        lastSyncSpan.textContent = `In progress since ${result.at.toLocaleString()}`;
+    } else if (result.status === SyncStatus.Failed) {
+        lastSyncSpan.textContent = `Failed at ${result.at.toLocaleString()}`;
     } else {
-        lastSyncSpan.textContent = `Completed successfully at ${lastFullSyncResult.at.toLocaleString()}`;
+        lastSyncSpan.textContent = `Completed successfully at ${result.at.toLocaleString()}`;
     }
+}
+
+async function forceFullSync(): Promise<void> {
+    // First just mark it as in progress (too hard and quite unnecessary to get
+    // all the co-ordination working perfectly here)
+    updateLastSync({"status": SyncStatus.InProgress, "at": new Date()});
+
+    await openIDB();
+
+    // Then do it
+    const syncResult = await fullSync();
+    updateLastSync(syncResult);
 }
 
 document.addEventListener('DOMContentLoaded', restoreOptions);
 document.querySelector("form").addEventListener("submit", saveOptions);
+document.querySelector("#force-sync").addEventListener("click", forceFullSync);

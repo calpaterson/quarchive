@@ -8,7 +8,9 @@ export const SCHEMA_VERSION = 4;
 // An hour
 const PERIODIC_FULL_SYNC_INTERVAL_IN_MINUTES = 60;
 
-export let db: IDBDatabase;
+// FIXME: This needs to be a var which is less than brilliant.  Is there a
+// better way to do this?
+export var db: IDBDatabase = null;
 
 let listenersEnabled = false;
 
@@ -377,7 +379,6 @@ export async function fullSync(): Promise<SyncResult> {
     // Very wide try-except here as in the event of an error we want to catch,
     // log and record it rather than crash anything else.
     try {
-
         console.time("full sync");
 
         // First build/refresh our local database
@@ -556,35 +557,50 @@ function createIDBSchema(db: IDBDatabase) : void {
     }
 }
 
+export async function openIDB(): Promise<void> {
+    return new Promise(function (resolve, reject) {
+        if(db !== null) {
+            console.debug("idb already opened - not reopening")
+            resolve()
+        } else {
+            const dbOpenRequest = window.indexedDB.open("quarchive", SCHEMA_VERSION);
+            dbOpenRequest.onerror = function(event){
+                console.warn("unable to open database: %o", event);
+                reject()
+            }
+            dbOpenRequest.onupgradeneeded = function (event) {
+                console.log("upgrade needed: %o", event);
+                let target = <IDBOpenDBRequest> event.target;
+                let db = target.result;
+                const oldVersion = event.oldVersion;
+
+                console.log("running upgrade %d -> %d", oldVersion, db.version);
+                if (oldVersion < 4) {
+                    clearIDBSchema(db);
+                }
+                createIDBSchema(db);
+            }
+            dbOpenRequest.onsuccess = function(event){
+                console.log("opened database: %o, %o", event, dbOpenRequest.result);
+                db = dbOpenRequest.result;
+                db.onerror = function(event) {
+                    console.error("db error %o", event);
+                    reject()
+                }
+                console.log("opened idb");
+                resolve();
+            }
+        }
+    });
+}
+
 export function main(){
     console.log("starting quarchive load");
-    const dbOpenRequest = window.indexedDB.open("quarchive", SCHEMA_VERSION);
-    dbOpenRequest.onerror = function(event){
-        console.warn("unable to open database: %o", event);
-    }
-    dbOpenRequest.onupgradeneeded = function (event) {
-        console.log("upgrade needed: %o", event);
-        let target = <IDBOpenDBRequest> event.target;
-        let db = target.result;
-        const oldVersion = event.oldVersion;
-
-        console.log("running upgrade %d -> %d", oldVersion, db.version);
-        if (oldVersion < 4) {
-            clearIDBSchema(db);
-        }
-        createIDBSchema(db);
-
-    }
-    dbOpenRequest.onsuccess = function(event){
-        console.log("opened database: %o, %o", event, dbOpenRequest.result);
-        db = dbOpenRequest.result;
-        db.onerror = function(event) {
-            console.error("db error %o", event);
-        }
+    openIDB().then(function(){
         console.log("quarchive loaded");
         fullSync().then(function(syncResult){
             enablePeriodicFullSync();
             console.log("done initial fullSync, will no do it periodically");
         });
-    };
+    });
 }
