@@ -1,5 +1,12 @@
 import { getClientID } from "./quarchive-config.js"
-import { getLastFullSyncResult, SyncStatus, fullSync, SyncResult, openIDB } from "./quarchive-sync.js"
+import {
+    SyncResult,
+    SyncStatus,
+    fullSync,
+    getLastFullSyncResult,
+    openIDB,
+    registerLastFullSyncResultChangeHandler,
+} from "./quarchive-sync.js"
 
 var saveOptions = function(e){
     let APIURLInput = document.querySelector("#api-url") as HTMLInputElement;
@@ -62,17 +69,13 @@ function updateLastSync(result: SyncResult): void {
 }
 
 async function forceFullSync(): Promise<void> {
-    // First just mark it as in progress (too hard and quite unnecessary to get
-    // all the co-ordination working perfectly here)
-    updateLastSync({"status": SyncStatus.InProgress, "at": new Date()});
-
     await openIDB();
-
-    // Then do it
-    const syncResult = await fullSync();
-    updateLastSync(syncResult);
+    await fullSync();
 }
 
 document.addEventListener('DOMContentLoaded', restoreOptions);
+document.addEventListener('DOMContentLoaded', async function(){
+    await registerLastFullSyncResultChangeHandler(updateLastSync);
+});
 document.querySelector("form").addEventListener("submit", saveOptions);
 document.querySelector("#force-sync").addEventListener("click", forceFullSync);

@@ -64,6 +64,16 @@ export async function getLastFullSyncResult(): Promise<SyncResult> {
     }
 }
 
+export async function registerLastFullSyncResultChangeHandler(cb: (SyncResult) => void): Promise<void> {
+    var last = await getLastFullSyncResult();
+    browser.storage.onChanged.addListener(async function(changes, areaName) {
+        if (areaName === "sync" && changes.hasOwnProperty("lastFullSyncResult")){
+            console.debug("lastFullSyncResult changed, firing handler");
+            cb(changes.lastFullSyncResult.newValue);
+        }
+    });
+}
+
 
 // Lookup the bookmark from browser.bookmarks
 async function lookupTreeNodeFromBrowser(browserId: string): Promise<browser.bookmarks.BookmarkTreeNode> {
