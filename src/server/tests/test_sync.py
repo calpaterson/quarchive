@@ -8,13 +8,14 @@ import quarchive as sut
 
 import pytest
 
-from .conftest import make_bookmark
+from .conftest import make_bookmark, random_string
 
 
 def test_check_api_key_user_does_not_exist(client, session):
+    username = random_string()
     response = client.post(
         "/api/sync/check-api-key",
-        headers={"Quarchive-Username": "nobody", "Quarchive-API-Key": "deadbeef",},
+        headers={"Quarchive-Username": username, "Quarchive-API-Key": "deadbeef",},
     )
     assert response.status_code == 400
     assert response.json == {"error": "user does not exist"}

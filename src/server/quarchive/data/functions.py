@@ -85,10 +85,12 @@ def is_correct_api_key(
     session: Session, cache: Cache, username: str, api_key: bytes
 ) -> bool:
     api_key_from_db = get_api_key(session, cache, username)
+    if api_key_from_db is None:
+        return False
     return secrets.compare_digest(api_key, api_key_from_db)
 
 
-def get_api_key(session, cache: Cache, username: str) -> bytes:
+def get_api_key(session, cache: Cache, username: str) -> Optional[bytes]:
     cache_key = UsernameToApiKey(username)
     api_key = cache.get(cache_key)
     if api_key is not None:

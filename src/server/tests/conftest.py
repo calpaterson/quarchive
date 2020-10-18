@@ -110,10 +110,18 @@ def patch_out_secrets_module():
     machine.
 
     """
+
+    def fake_compare_digest(a, b):
+        # We need to check types first (because the real implemention does).
+        # It wants with str or bytes but we will narrow that to bytes
+        if (not isinstance(a, bytes)) or (not isinstance(b, bytes)):
+            raise RuntimeError("want bytes")
+        return a == b
+
     with contextlib.ExitStack() as stack:
         mock_cd = stack.enter_context(mock.patch.object(secrets, "compare_digest"))
         mock_tb = stack.enter_context(mock.patch.object(secrets, "token_bytes"))
-        mock_cd.side_effect = lambda a, b: a == b
+        mock_cd.side_effect = fake_compare_digest
         mock_tb.side_effect = lambda n: bytes(random.randint(0, 255) for _ in range(n))
         yield
 
