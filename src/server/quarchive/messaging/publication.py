@@ -41,6 +41,7 @@ def get_producer():
     global _producer
     if _producer is None:
         _producer = kombu.Producer(get_channel())
+        log.debug("created producer %s", _producer)
     return _producer
 
 

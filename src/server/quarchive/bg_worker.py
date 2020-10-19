@@ -9,7 +9,6 @@ import missive
 import missive.dlq.sqlite
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
-from quarchive.messaging.publication import get_connection
 from quarchive.logging import configure_logging, LOG_LEVELS
 from quarchive import crawler, file_storage
 from quarchive.data.functions import get_url_by_url_uuid, record_index_error, is_crawled
@@ -116,6 +115,6 @@ def bg_worker(log_level):
         PickleMessage,
         processor,
         [environ["QM_RABBITMQ_BG_WORKER_TOPIC"]],
-        url_or_conn=get_connection(),
+        url_or_conn=environ["QM_RABBITMQ_URL"],
     )
     adapted_processor.run()
