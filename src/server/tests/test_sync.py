@@ -36,7 +36,19 @@ def test_check_api_key_wrong_api_key(client, session, test_user):
         },
     )
     assert response.status_code == 400
-    assert response.json == {"error": "bad api key"}  # FIXME: error could be better
+    assert response.json == {"error": "wrong api key"}
+
+
+def test_check_api_key_junk_api_key(client, session, test_user):
+    response = client.post(
+        "/api/sync/check-api-key",
+        headers={
+            "Quarchive-Username": test_user.username,
+            "Quarchive-API-Key": "batman",
+        },
+    )
+    assert response.status_code == 400
+    assert response.json == {"error": "invalid api key (should be hexadecimal)"}
 
 
 def test_check_api_key_right_creds(client, session, test_user):

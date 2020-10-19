@@ -166,7 +166,17 @@ def api_key_required(handler: V) -> V:
             return flask.jsonify({"error": "no api credentials"}), 400
 
         cache = get_cache()
-        if is_correct_api_key(db.session, cache, username, bytes.fromhex(api_key_str)):
+
+        try:
+            api_key = bytes.fromhex(api_key_str)
+        except ValueError:
+            flask.current_app.logger.warning("invalid api key: %s", username)
+            return (
+                flask.jsonify({"error": "invalid api key (should be hexadecimal)"}),
+                400,
+            )
+
+        if is_correct_api_key(db.session, cache, username, api_key):
             # We know at this point that the user does in fact exist, so cast
             # away the Optional
             user = cast(User, user_from_username_if_exists(db.session, cache, username))
@@ -182,7 +192,7 @@ def api_key_required(handler: V) -> V:
             else:
                 flask.current_app.logger.warning("wrong api key for %s", username)
                 # api key must have been wrong
-                return flask.jsonify({"error": "bad api key"}), 400
+                return flask.jsonify({"error": "wrong api key"}), 400
 
     return cast(V, wrapper)
 
