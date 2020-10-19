@@ -1,16 +1,20 @@
 {
     "compilerOptions": {
+        "alwaysStrict": true,
         "esModuleInterop": true,
         "module": "ES6",
         "moduleResolution": "node",
         "noEmitOnError": true,
         "noFallthroughCasesInSwitch": true,
         "noImplicitReturns": true,
+        "noImplicitThis": true,
         "noUnusedLocals": true,
         "outDir": "firefox-build/",
         "rootDir": "src/",
         "sourceMap": true,
         "sourceRoot": ".",
+        "strictBindCallApply": true,
+        "strictFunctionTypes": true,
         "target": "ES2019"
     },
     "include": [
