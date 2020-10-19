@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: File a bug report to help us improve
 title: ''
 labels: ''
 assignees: ''
@@ -11,12 +11,16 @@ assignees: ''
 
 # Steps to reproduce
 
-1.
-2.
-3.
+1. Do X
+2. Then Y
+3. And Z
 
 # Expected result
 
+An A
+
 # Actual result
+
+But in fact B
 
 # Additional details
