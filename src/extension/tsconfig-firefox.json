@@ -1,14 +1,17 @@
 {
     "compilerOptions": {
-        "noEmitOnError": true,
-        "target": "ES2019",
-        "moduleResolution": "node",
-        "module": "ES6",
         "esModuleInterop": true,
-        "sourceMap": true,
-        "rootDir": "src/",
+        "module": "ES6",
+        "moduleResolution": "node",
+        "noEmitOnError": true,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitReturns": true,
+        "noUnusedLocals": true,
         "outDir": "firefox-build/",
-        "sourceRoot": "."
+        "rootDir": "src/",
+        "sourceMap": true,
+        "sourceRoot": ".",
+        "target": "ES2019"
     },
     "include": [
         "src/**/*.ts"

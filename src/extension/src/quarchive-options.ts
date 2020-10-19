@@ -33,10 +33,6 @@ async function testOptions(e): Promise<void> {
 
     const note_elem = document.querySelector("#test-or-save-note");
 
-    function handleError(reason){
-
-    }
-
     await fetch(url, {
         method: "POST",
         headers: {

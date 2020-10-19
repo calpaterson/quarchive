@@ -64,8 +64,7 @@ export async function getLastFullSyncResult(): Promise<SyncResult> {
     }
 }
 
-export async function registerLastFullSyncResultChangeHandler(cb: (SyncResult) => void): Promise<void> {
-    var last = await getLastFullSyncResult();
+export function registerLastFullSyncResultChangeHandler(cb: (SyncResult) => void): void {
     browser.storage.onChanged.addListener(async function(changes, areaName) {
         if (areaName === "sync" && changes.hasOwnProperty("lastFullSyncResult")){
             console.debug("lastFullSyncResult changed, firing handler");

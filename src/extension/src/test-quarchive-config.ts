@@ -1,6 +1,5 @@
 import './crypto.mock'
 import './browser.mock'
-import {randomUUID} from "./quarchive-uuid"
 import {getClientID} from "./quarchive-config"
 
 describe("client id", function(){

@@ -1,5 +1,5 @@
 import './browser.mock'
-import {getLastFullSyncResult, SyncResult, SyncStatus} from './quarchive-sync'
+import {getLastFullSyncResult, SyncStatus} from './quarchive-sync'
 
 describe("sync statuses", function(){
     test("getting the last sync status when there's never been one before", async function(){
