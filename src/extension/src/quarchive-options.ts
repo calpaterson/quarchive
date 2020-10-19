@@ -8,7 +8,7 @@ import {
     registerLastFullSyncResultChangeHandler,
 } from "./quarchive-sync.js"
 
-var saveOptions = function(e){
+function saveOptions(e){
     let APIURLInput = document.querySelector("#api-url") as HTMLInputElement;
     let usernameInput = document.querySelector("#username") as HTMLInputElement;
     let APIKeyInput = document.querySelector("#api-key") as HTMLInputElement;
@@ -17,6 +17,54 @@ var saveOptions = function(e){
         username: usernameInput.value,
         APIKey: APIKeyInput.value,
     });
+    e.preventDefault()
+}
+
+async function testOptions(e): Promise<void> {
+    let APIURLInput = document.querySelector("#api-url") as HTMLInputElement;
+    let usernameInput = document.querySelector("#username") as HTMLInputElement;
+    let APIKeyInput = document.querySelector("#api-key") as HTMLInputElement;
+
+    const url = new URL("/api/sync/check-api-key", APIURLInput.value).toString();
+    const username = usernameInput.value;
+    const APIKey = APIKeyInput.value;
+    const extensionVersion = browser.runtime.getManifest().version;
+    const clientID = await getClientID();
+
+    const note_elem = document.querySelector("#test-or-save-note");
+
+    function handleError(reason){
+
+    }
+
+    await fetch(url, {
+        method: "POST",
+        headers: {
+            "Quarchive-Extension-Version": extensionVersion,
+            "Quarchive-Username": username,
+            "Quarchive-API-Key": APIKey,
+            "Quarchive-ClientID": clientID,
+        }
+    }).then(
+        async function(response){
+            if (response.ok){
+                note_elem.textContent = "Success!";
+            } else {
+                // FIXME: handle garbage returned
+                await response.json().then(
+                    function(json){
+                        note_elem.textContent = json.error;
+                    },
+                    function(reason){
+                        note_elem.textContent = "unreadable response from api";
+                    })
+            }
+        },
+        function(reason){
+            console.error("network level error trying to test credentials");
+            note_elem.textContent = "network level error";
+        }
+    );
     e.preventDefault()
 }
 
@@ -79,3 +127,4 @@ document.addEventListener('DOMContentLoaded', async function(){
 });
 document.querySelector("form").addEventListener("submit", saveOptions);
 document.querySelector("#force-sync").addEventListener("click", forceFullSync);
+document.querySelector("#test-preferences").addEventListener("click", testOptions);
