@@ -588,7 +588,9 @@ def sign_in() -> flask.Response:
         is_correct_password: bool = crypt_context.verify(password, user.password)
         if is_correct_password:
             flask.current_app.logger.info("successful sign in")
-            api_key = get_api_key(db.session, get_cache(), user.username)
+
+            # In this context the user exists to the api key must too
+            api_key = cast(bytes, get_api_key(db.session, get_cache(), user.username))
 
             flask.g.user = user
             set_sign_in_cookies(user, api_key)
