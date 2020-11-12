@@ -26,6 +26,7 @@ from sqlalchemy import func
 from werkzeug import exceptions as exc
 
 from quarchive.messaging import message_lib
+from quarchive.archive import get_archive_links, Archive
 from quarchive.messaging.publication import publish_message
 from quarchive.cache import get_cache
 from quarchive.data.functions import (
@@ -367,6 +368,28 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
 
     return flask.make_response(
         flask.render_template("edit_bookmark.html", **template_kwargs)
+    )
+
+
+@blueprint.route("/bookmark/<uuid:url_uuid>/archives", methods=["GET"])
+@sign_in_required
+def bookmark_archives(url_uuid: UUID) -> flask.Response:
+    bookmark = get_bookmark_by_url_uuid(
+        db.session, get_current_user().user_uuid, url_uuid
+    )
+    if bookmark is None:
+        flask.abort(404, description="bookmark not found")
+
+    archive_links = get_archive_links(bookmark.url, circa=bookmark.created)
+
+    return flask.make_response(
+        flask.render_template(
+            "archives.html",
+            page_title=f'Archives of "{bookmark.title}"',
+            bookmark=bookmark,
+            archive_links=archive_links,
+            Archive=Archive,
+        )
     )
 
 

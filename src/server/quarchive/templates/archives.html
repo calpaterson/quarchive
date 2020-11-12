@@ -1,0 +1,32 @@
+{# -*- mode: jinja2 -*- #}
+{% extends "base.html" %}
+
+{% block main %}
+  <h1>Archives of "{{bookmark.title}}"</h1>
+
+  <p>Sometimes, if a webpage you bookmarked is offline, no longer working or
+  has changed you can find a workable copy in some web archives.</p>
+
+  <p>The below links try to get a archival copy as close to your bookmark's created timestamp as possible (<em>{{bookmark.created|datetimeformat(format="long")}}</em>) - except where otherwise noted).</p>
+
+  <ul>
+    <li><a href="{{archive_links[Archive.WAYBACK].to_string()}}">The Wayback Machine</a></li>
+    <li><a href="{{archive_links[Archive.ARCHIVE_TODAY].to_string()}}">archive.today</a></li>
+    <li><a href="{{archive_links[Archive.GOOGLE_CACHE].to_string()}}">Google's cache</a> (whatever they currently hold)</li>
+  </ul>
+
+  <h2>Why try multiple archives?</h2>
+  <p>
+    They all have different collection and retention policies.
+  </p>
+
+  <p><strong>The Wayback Machine</strong>, run by the Internet Archive, run a
+  broad web crawl, picking up a lot, but sometimes remove pages.</p>
+
+  <p><strong>archive.today</strong> (previously
+  called <strong>archive.is</strong>) only store what people have requested
+  but then only remove archived pages occasionally.</p>
+
+  <p><strong>Google</strong>'s cache can sometimes be useful if a page has gone
+  offline shortly after being put up - before the others have archived it</p>
+{% endblock %}
