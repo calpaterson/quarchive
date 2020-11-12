@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Type, cast, Sequence
 from logging import getLogger
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 import click
 import missive
 import missive.dlq.sqlite
@@ -35,7 +35,7 @@ proc: missive.Processor[PickleMessage] = missive.Processor()
 
 @proc.before_processing
 def create_session_cls(proc_ctx: missive.ProcessingContext[PickleMessage]):
-    proc_ctx.state.Session = get_session_cls()
+    proc_ctx.state.sessionmaker = get_session_cls()
 
 
 @proc.before_handling
@@ -43,7 +43,9 @@ def create_session(
     proc_ctx: missive.ProcessingContext[PickleMessage],
     handling_ctx: missive.HandlingContext[PickleMessage],
 ):
-    handling_ctx.state.db_session = proc_ctx.state.Session()
+    maker: sessionmaker = proc_ctx.state.sessionmaker
+    db_session: Session = maker()
+    handling_ctx.state.db_session = db_session
 
 
 @proc.after_handling

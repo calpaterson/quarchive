@@ -17,9 +17,8 @@ from sqlalchemy.dialects.postgresql import (
     array as pg_array,
     insert as pg_insert,
 )
-from sqlalchemy.orm import Session, scoped_session, sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 
-from quarchive.cache import get_cache
 from quarchive.value_objects import (
     URL,
     Bookmark,
@@ -43,11 +42,12 @@ from .models import (
 log = getLogger(__name__)
 
 
-def get_session_cls() -> Session:
+def get_session_cls() -> sessionmaker:
+    """Return a Session class (in fact, a sessionmaker instance) - used to get
+    database sessions."""
     url: str = environ["QM_SQL_URL"]
     engine = create_engine(url)
-    session_factory = sessionmaker(bind=engine)
-    Session = scoped_session(session_factory)
+    Session = sessionmaker(bind=engine)
     log.info("using engine: %s", engine)
     return Session
 
