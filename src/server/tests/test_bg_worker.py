@@ -4,7 +4,6 @@ import pytest
 from missive import TestAdapter
 
 from quarchive.messaging.receipt import PickleMessage
-from quarchive.bg_worker import processor
 from quarchive.messaging.message_lib import HelloEvent
 
 

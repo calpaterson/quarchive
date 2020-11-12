@@ -43,13 +43,6 @@ def get_client() -> requests.Session:
 _session = None
 
 
-def get_session_hack() -> Session:
-    global _session
-    if _session is None:
-        _session = get_session_cls()
-    return _session
-
-
 ## END temporary hacks
 
 REQUESTS_TIMEOUT = 30

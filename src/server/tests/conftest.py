@@ -9,6 +9,7 @@ import random
 import contextlib
 import string
 
+import missive
 import responses
 import flask
 import moto
@@ -128,11 +129,12 @@ def patch_out_secrets_module():
 
 @pytest.fixture(scope="session")
 def bg_client():
-    yield bg_worker_module.processor.test_client()
+    with bg_worker_module.proc.test_client() as tc:
+        yield tc
 
 
 @pytest.fixture
-def bg_worker(bg_client):
+def bg_worker(bg_client: missive.TestAdapter):
     """Replace the kombu publish method with a direct call into missive
     mechanisms - make bg_worker run the event right now.
 

@@ -1,17 +1,22 @@
 from os import environ
 from uuid import uuid4
 from datetime import datetime, timezone
-from typing import Type, cast, Sequence, Union
-from logging import getLogger, INFO
+from typing import Type, cast, Sequence
+from logging import getLogger
 
+from sqlalchemy.orm import Session
 import click
 import missive
 import missive.dlq.sqlite
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
 from quarchive.logging import configure_logging, LOG_LEVELS
-from quarchive import crawler, file_storage
-from quarchive.data.functions import get_url_by_url_uuid, record_index_error, is_crawled
+from quarchive import crawler
+from quarchive.data.functions import (
+    get_url_by_url_uuid,
+    is_crawled,
+    get_session_cls,
+)
 from quarchive.messaging.publication import publish_message
 from quarchive.messaging.message_lib import (
     Event,
@@ -25,7 +30,35 @@ from quarchive.messaging.receipt import PickleMessage
 log = getLogger(__name__)
 
 
-processor: missive.Processor[PickleMessage] = missive.Processor()
+proc: missive.Processor[PickleMessage] = missive.Processor()
+
+
+@proc.before_processing
+def create_session_cls(proc_ctx: missive.ProcessingContext[PickleMessage]):
+    proc_ctx.state.Session = get_session_cls()
+
+
+@proc.before_handling
+def create_session(
+    proc_ctx: missive.ProcessingContext[PickleMessage],
+    handling_ctx: missive.HandlingContext[PickleMessage],
+):
+    handling_ctx.state.db_session = proc_ctx.state.Session()
+
+
+@proc.after_handling
+def close_session(
+    proc_ctx: missive.ProcessingContext[PickleMessage],
+    handling_ctx: missive.HandlingContext[PickleMessage],
+):
+    handling_ctx.state.db_session.close()
+
+
+def get_session(ctx: missive.HandlingContext) -> Session:
+    """Helper function for getting the current db session.
+
+    Present only to provide type hints."""
+    return ctx.state.db_session
 
 
 class ClassMatcher:
@@ -44,7 +77,7 @@ class LogicalOrMatcher:
         return any(matcher(message) for matcher in self.matchers)
 
 
-@processor.handle_for(ClassMatcher(HelloEvent))
+@proc.handle_for(ClassMatcher(HelloEvent))
 def print_hellos(message: PickleMessage, ctx: missive.HandlingContext):
     event: HelloEvent = cast(HelloEvent, message.get_obj())
     time_taken_ms = (datetime.now(timezone.utc) - event.created).total_seconds() * 1000
@@ -53,10 +86,10 @@ def print_hellos(message: PickleMessage, ctx: missive.HandlingContext):
         round(time_taken_ms, 3),
         event.message,
     )
-    ctx.ack(message)
+    ctx.ack()
 
 
-@processor.handle_for(ClassMatcher(BookmarkCreated))
+@proc.handle_for(ClassMatcher(BookmarkCreated))
 def on_bookmark_created(message: PickleMessage, ctx: missive.HandlingContext):
     """When a new bookmark is created, we want to:
 
@@ -65,7 +98,7 @@ def on_bookmark_created(message: PickleMessage, ctx: missive.HandlingContext):
 
     """
     event = cast(BookmarkCreated, message.get_obj())
-    session = crawler.get_session_hack()
+    session = get_session(ctx)
     url = get_url_by_url_uuid(session, event.url_uuid)
     if url is None:
         raise RuntimeError("url requested to crawl does not exist in the db")
@@ -76,13 +109,13 @@ def on_bookmark_created(message: PickleMessage, ctx: missive.HandlingContext):
         )
     session.commit()
 
-    ctx.ack(message)
+    ctx.ack()
 
 
-@processor.handle_for(ClassMatcher(CrawlRequested))
+@proc.handle_for(ClassMatcher(CrawlRequested))
 def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
     event = cast(CrawlRequested, message.get_obj())
-    session = crawler.get_session_hack()
+    session = get_session(ctx)
     url = get_url_by_url_uuid(session, event.url_uuid)
     if url is None:
         raise RuntimeError("url crawled to crawl does not exist in the db")
@@ -92,29 +125,29 @@ def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
     publish_message(
         IndexRequested(crawl_uuid=crawl_uuid), environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
     )
-    ctx.ack(message)
+    ctx.ack()
 
 
-@processor.handle_for(ClassMatcher(IndexRequested))
+@proc.handle_for(ClassMatcher(IndexRequested))
 def on_full_text_requested(message: PickleMessage, ctx: missive.HandlingContext):
     event = cast(IndexRequested, message.get_obj())
-    session = crawler.get_session_hack()
+    session = get_session(ctx)
     crawler.add_to_fulltext_index(session, event.crawl_uuid)
     session.commit()
-    ctx.ack(message)
+    ctx.ack()
 
 
 @click.command()
 @click.option("--log-level", type=click.Choice(LOG_LEVELS), default="INFO")
 def bg_worker(log_level):
-    processor.set_dlq(
+    proc.set_dlq(
         missive.dlq.sqlite.SQLiteDLQ(environ["QM_MISSIVE_SQLITE_DQL_CONNSTRING"])
     )
     configure_logging(log_level)
-    adapted_processor = RabbitMQAdapter(
+    adapted_proc = RabbitMQAdapter(
         PickleMessage,
-        processor,
+        proc,
         [environ["QM_RABBITMQ_BG_WORKER_TOPIC"]],
         url_or_conn=environ["QM_RABBITMQ_URL"],
     )
-    adapted_processor.run()
+    adapted_proc.run()
