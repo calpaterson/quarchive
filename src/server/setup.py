@@ -29,6 +29,7 @@ setup(
         "pyhash~=0.9.3",
         "python-dateutil~=2.8.1",
         "python-magic~=0.4.15",
+        "systemd-python==234",
         "pytz",
         "requests~=2.22.0",
         "sqlalchemy~=1.3.11",
