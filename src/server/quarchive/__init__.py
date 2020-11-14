@@ -1,3 +1,8 @@
+import mimetypes
+
+# Load expanded list of mimetypes from the OS
+mimetypes.init()
+
 from .value_objects import (
     Bookmark,
     URL,

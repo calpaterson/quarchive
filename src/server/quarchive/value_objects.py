@@ -52,6 +52,9 @@ class URL:
     query: str
     fragment: str
 
+    def __repr__(self):
+        return f"URL({self.to_string()}, {self.url_uuid})"
+
     def to_string(self) -> str:
         return urlunsplit(
             (self.scheme, self.netloc, self.path, self.query, self.fragment)

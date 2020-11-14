@@ -36,7 +36,6 @@ def request_indexes_for_unindexed_urls(session: Session) -> None:
 
 @lru_cache(1)
 def known_content_types() -> FrozenSet[str]:
-    mimetypes.init()
     return frozenset(mimetypes.types_map.values())
 
 
@@ -134,8 +133,8 @@ def ensure_fulltext(session: Session, crawl_uuid: UUID) -> None:
     if fileobj is None:
         fileobj = file_storage.download_file(bucket, str(crawl_metadata.body_uuid))
 
-    # FIXME: charset should be handed to extract_full_text_from_html
-    metadata = extract_metadata_from_html(fileobj)
+    # FIXME: charset should be handed to this function
+    metadata = extract_metadata_from_html(crawl_metadata.url, fileobj)
 
-    upsert_metadata(session, crawl_metadata.url, crawl_uuid, metadata)
+    upsert_metadata(session, crawl_uuid, metadata)
     log.info("indexed %s (%s)", crawl_metadata.url.to_string(), crawl_uuid)

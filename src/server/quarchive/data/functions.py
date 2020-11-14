@@ -581,9 +581,7 @@ def get_crawl_metadata(session: Session, crawl_uuid: UUID) -> CrawlMetadata:
     )
 
 
-def upsert_metadata(
-    session: Session, url: URL, crawl_uuid: UUID, metadata: HTMLMetadata
-) -> None:
+def upsert_metadata(session: Session, crawl_uuid: UUID, metadata: HTMLMetadata) -> None:
     # FIXME: Not idempotent
     if metadata.text:
         if metadata.meta_desc is not None:
@@ -591,7 +589,7 @@ def upsert_metadata(
         else:
             combined_text = metadata.text
         fulltext_obj = FullText(
-            url_uuid=url.url_uuid,
+            url_uuid=metadata.url.url_uuid,
             crawl_uuid=crawl_uuid,
             inserted=datetime.utcnow().replace(tzinfo=timezone.utc),
             full_text=combined_text,
