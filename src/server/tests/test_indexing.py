@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import func
 from freezegun import freeze_time
 
-from quarchive import file_storage, crawler
+from quarchive import file_storage, crawler, indexing
 from quarchive.data.models import (
     SQLAUrl,
     CrawlRequest,
@@ -58,7 +58,7 @@ def put_simple_website_into_bucket(body_uuid: UUID):
 def test_indexing_for_fresh(session, mock_s3):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
 
-    crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
+    indexing.index(session, crawl_req.crawl_uuid)
 
     fulltext_obj = session.query(FullText).get(sqla_url.url_uuid)
     assert fulltext_obj.url_uuid == sqla_url.url_uuid
@@ -81,7 +81,7 @@ def test_indexing_idempotent(session, mock_s3):
     session.add(fulltext)
     session.commit()
 
-    crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
+    indexing.index(session, crawl_req.crawl_uuid)
 
     fulltext_count = (
         session.query(FullText).filter(FullText.url_uuid == sqla_url.url_uuid).count()
@@ -100,7 +100,7 @@ def test_indexing_non_html(session, mock_s3):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
     crawl_resp.headers["content-type"] = "application/pdf"  # type: ignore
 
-    crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
+    indexing.index(session, crawl_req.crawl_uuid)
 
     fulltext_count = (
         session.query(FullText)
@@ -122,7 +122,7 @@ def test_indexing_with_content_type_problems(session, mock_s3, headers):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
     crawl_resp.headers = headers
 
-    crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
+    indexing.index(session, crawl_req.crawl_uuid)
 
     fulltext_obj = session.query(FullText).get(sqla_url.url_uuid)
     assert fulltext_obj.url_uuid == sqla_url.url_uuid
@@ -137,9 +137,9 @@ def test_index_throws_an_error(session, mock_s3):
     session.commit()
 
     # First time, error thrown and recorded
-    with mock.patch.object(crawler, "extract_metadata_from_html") as mock_gmd:
+    with mock.patch.object(indexing, "extract_metadata_from_html") as mock_gmd:
         mock_gmd.side_effect = RuntimeError
-        crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
+        indexing.index(session, crawl_req.crawl_uuid)
 
     error_count = (
         session.query(IndexingError)
@@ -149,7 +149,7 @@ def test_index_throws_an_error(session, mock_s3):
     assert error_count == 1
 
     # Second time, it's skipped
-    crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
+    indexing.index(session, crawl_req.crawl_uuid)
     assert error_count == 1
 
 
@@ -158,7 +158,7 @@ def test_enqueue_fulltext_indexing(session, mock_s3, bg_worker):
     sqla_url, crawl_req, crawl_resp = make_crawl_with_response(session)
     session.commit()
 
-    crawler.request_indexes_for_unindexed_urls(session)
+    indexing.request_indexes_for_unindexed_urls(session)
 
     fulltext_obj = session.query(FullText).get(sqla_url.url_uuid)
     assert fulltext_obj.url_uuid == sqla_url.url_uuid

@@ -11,7 +11,7 @@ import missive.dlq.sqlite
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
 from quarchive.logging import configure_logging, LOG_LEVELS
-from quarchive import crawler
+from quarchive import crawler, indexing
 from quarchive.data.functions import (
     get_url_by_url_uuid,
     is_crawled,
@@ -134,7 +134,7 @@ def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
 def on_full_text_requested(message: PickleMessage, ctx: missive.HandlingContext):
     event = cast(IndexRequested, message.get_obj())
     session = get_session(ctx)
-    crawler.add_to_fulltext_index(session, event.crawl_uuid)
+    indexing.index(session, event.crawl_uuid)
     session.commit()
     ctx.ack()
 
