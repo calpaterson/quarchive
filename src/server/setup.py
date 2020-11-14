@@ -51,7 +51,7 @@ setup(
             "alembic~=1.3.1",
             "black~=19.10b0",
             "bpython~=0.18",
-            "mypy~=0.750",
+            "mypy==0.790",
             "sqlalchemy-stubs~=0.3",
             "wheel~=0.33.6",
         ],
