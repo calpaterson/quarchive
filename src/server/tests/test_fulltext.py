@@ -22,8 +22,6 @@ from quarchive.value_objects import URL
 
 from .conftest import test_data_path, random_string
 
-WORDS_REGEX = re.compile(r"\w+")
-
 
 def make_crawl_with_response(session) -> Tuple[SQLAUrl, CrawlRequest, CrawlResponse]:
     # FIXME: This should probably return a CrawlMetadata
@@ -54,25 +52,6 @@ def put_simple_website_into_bucket(body_uuid: UUID):
     bucket = file_storage.get_response_body_bucket()
     with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
         file_storage.upload_file(bucket, html_f, str(body_uuid))
-
-
-def test_simple():
-    with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
-        full_text = crawler.extract_full_text_from_html(html_f)
-
-    words = set(WORDS_REGEX.findall(full_text))
-    assert "Simple" in words
-    assert {"This", "is", "a", "basic", "html", "document"} <= words
-    assert {"meta", "description"} <= words
-
-
-def test_calpaterson():
-    with open(path.join(test_data_path, "calpaterson.html"), "rb") as html_f:
-        full_text = crawler.extract_full_text_from_html(html_f)
-
-    words = WORDS_REGEX.findall(full_text)
-    # pass/fail
-    assert len(words) > 0
 
 
 @freeze_time("2018-01-03")
@@ -150,7 +129,7 @@ def test_index_throws_an_error(session, mock_s3):
     session.commit()
 
     # First time, error thrown and recorded
-    with mock.patch.object(crawler, "get_meta_descriptions") as mock_gmd:
+    with mock.patch.object(crawler, "extract_metadata_from_html") as mock_gmd:
         mock_gmd.side_effect = RuntimeError
         crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
 

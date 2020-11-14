@@ -19,6 +19,7 @@ from sqlalchemy.dialects.postgresql import (
 )
 from sqlalchemy.orm import sessionmaker, Session
 
+from quarchive.html_metadata import HTMLMetadata
 from quarchive.value_objects import (
     URL,
     Bookmark,
@@ -580,15 +581,23 @@ def get_crawl_metadata(session: Session, crawl_uuid: UUID) -> CrawlMetadata:
     )
 
 
-def add_fulltext(session: Session, url: URL, crawl_uuid: UUID, text: str) -> None:
-    fulltext_obj = FullText(
-        url_uuid=url.url_uuid,
-        crawl_uuid=crawl_uuid,
-        inserted=datetime.utcnow().replace(tzinfo=timezone.utc),
-        full_text=text,
-        tsvector=func.to_tsvector(text),
-    )
-    session.add(fulltext_obj)
+def upsert_metadata(
+    session: Session, url: URL, crawl_uuid: UUID, metadata: HTMLMetadata
+) -> None:
+    # FIXME: Not idempotent
+    if metadata.text:
+        if metadata.meta_desc is not None:
+            combined_text = " ".join([metadata.meta_desc, metadata.text])
+        else:
+            combined_text = metadata.text
+        fulltext_obj = FullText(
+            url_uuid=url.url_uuid,
+            crawl_uuid=crawl_uuid,
+            inserted=datetime.utcnow().replace(tzinfo=timezone.utc),
+            full_text=combined_text,
+            tsvector=func.to_tsvector(combined_text),
+        )
+        session.add(fulltext_obj)
 
 
 def record_index_error(session: Session, crawl_uuid: UUID, message: str) -> None:

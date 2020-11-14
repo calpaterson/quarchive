@@ -14,19 +14,19 @@ import lxml
 import lxml.html
 
 from quarchive import file_storage
+from quarchive.html_metadata import extract_metadata_from_html
 from quarchive.messaging.message_lib import CrawlRequested, IndexRequested
 from quarchive.messaging.publication import publish_message
 from quarchive.value_objects import URL
 from quarchive.data.functions import (
     get_crawl_metadata,
-    get_session_cls,
     is_crawled,
     create_crawl_request,
     mark_crawl_request_with_response,
     add_crawl_response,
     get_uncrawled_urls,
     get_unindexed_urls,
-    add_fulltext,
+    upsert_metadata,
     record_index_error,
 )
 
@@ -103,24 +103,6 @@ def request_indexes_for_unindexed_urls(session):
         )
         log.info("requested index: %s", url.to_string())
     log.info("requested %d indexes", index)
-
-
-def get_meta_descriptions(root: lxml.html.HtmlElement) -> List[str]:
-    meta_description_elements = root.xpath("//meta[@name='description']")
-    if len(meta_description_elements) == 0:
-        return []
-    else:
-        return [e.attrib.get("content", "") for e in meta_description_elements]
-
-
-def extract_full_text_from_html(filelike: Union[BinaryIO, gzip.GzipFile]) -> str:
-    # union required as gzip.GzipFile doesn't implement the full API required
-    # by BinaryIO - we only need the shared subset
-    document = lxml.html.parse(filelike)
-    root = document.getroot()
-    meta_descs = get_meta_descriptions(root)
-    text_content: str = root.text_content()
-    return " ".join(meta_descs + [text_content])
 
 
 @lru_cache(1)
@@ -224,7 +206,7 @@ def ensure_fulltext(session, crawl_uuid) -> None:
         fileobj = file_storage.download_file(bucket, str(crawl_metadata.body_uuid))
 
     # FIXME: charset should be handed to extract_full_text_from_html
-    text = extract_full_text_from_html(fileobj)
+    metadata = extract_metadata_from_html(fileobj)
 
-    add_fulltext(session, crawl_metadata.url, crawl_uuid, text)
+    upsert_metadata(session, crawl_metadata.url, crawl_uuid, metadata)
     log.info("indexed %s (%s)", crawl_metadata.url.to_string(), crawl_uuid)
