@@ -9,6 +9,7 @@ import random
 import contextlib
 import string
 
+import requests
 import missive
 import responses
 import flask
@@ -169,6 +170,11 @@ def requests_mock(requests_mock_session):
     requests_mock_session.reset()
     requests_mock_session.start()
     yield requests_mock_session
+
+
+@pytest.fixture(scope="function")
+def http_client():
+    return requests.Session()
 
 
 # Everything below this line should be moved to .utils

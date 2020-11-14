@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Type, cast, Sequence
 from logging import getLogger
 
+import requests
 from sqlalchemy.orm import Session, sessionmaker
 import click
 import missive
@@ -38,6 +39,16 @@ def create_session_cls(proc_ctx: missive.ProcessingContext[PickleMessage]):
     proc_ctx.state.sessionmaker = get_session_cls()
 
 
+@proc.before_processing
+def create_http_client(proc_ctx):
+    proc_ctx.state.http_client = requests.Session()
+
+
+@proc.before_handling
+def place_http_client(proc_ctx, handling_ctx):
+    handling_ctx.state.http_client = proc_ctx.state.http_client
+
+
 @proc.before_handling
 def create_session(
     proc_ctx: missive.ProcessingContext[PickleMessage],
@@ -61,6 +72,10 @@ def get_session(ctx: missive.HandlingContext) -> Session:
 
     Present only to provide type hints."""
     return ctx.state.db_session
+
+
+def get_http_client(ctx: missive.HandlingContext) -> requests.Session:
+    return ctx.state.http_client
 
 
 class ClassMatcher:
@@ -118,11 +133,12 @@ def on_bookmark_created(message: PickleMessage, ctx: missive.HandlingContext):
 def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
     event = cast(CrawlRequested, message.get_obj())
     session = get_session(ctx)
+    http_client = get_http_client(ctx)
     url = get_url_by_url_uuid(session, event.url_uuid)
     if url is None:
         raise RuntimeError("url crawled to crawl does not exist in the db")
     crawl_uuid = uuid4()
-    crawler.crawl_url(session, crawl_uuid, url)
+    crawler.crawl_url(session, http_client, crawl_uuid, url)
     session.commit()
     publish_message(
         IndexRequested(crawl_uuid=crawl_uuid), environ["QM_RABBITMQ_BG_WORKER_TOPIC"]

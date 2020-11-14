@@ -9,20 +9,13 @@ import cgi
 
 import magic
 from sqlalchemy.orm import Session
-import requests
 
 from quarchive import file_storage
 from quarchive.html_metadata import extract_metadata_from_html
-from quarchive.messaging.message_lib import CrawlRequested, IndexRequested
+from quarchive.messaging.message_lib import IndexRequested
 from quarchive.messaging.publication import publish_message
-from quarchive.value_objects import URL
 from quarchive.data.functions import (
     get_crawl_metadata,
-    is_crawled,
-    create_crawl_request,
-    mark_crawl_request_with_response,
-    add_crawl_response,
-    get_uncrawled_urls,
     get_unindexed_urls,
     upsert_metadata,
     record_index_error,
@@ -31,7 +24,7 @@ from quarchive.data.functions import (
 log = getLogger(__name__)
 
 
-def request_indexes_for_unindexed_urls(session):
+def request_indexes_for_unindexed_urls(session: Session) -> None:
     index = 0
     for index, (url, crawl_uuid) in enumerate(get_unindexed_urls(session), start=1):
         publish_message(
@@ -54,7 +47,7 @@ def infer_content_type(fileobj: Union[BinaryIO, gzip.GzipFile]) -> str:
     return content_type
 
 
-def index(session, crawl_uuid) -> None:
+def index(session: Session, crawl_uuid: UUID) -> None:
     try:
         ensure_fulltext(session, crawl_uuid)
     except file_storage.FileStorageException as e:
@@ -67,7 +60,7 @@ def index(session, crawl_uuid) -> None:
         record_index_error(session, crawl_uuid, str(e))
 
 
-def ensure_fulltext(session, crawl_uuid) -> None:
+def ensure_fulltext(session: Session, crawl_uuid: UUID) -> None:
     """Use the artefacts from the given crawl uuid for the fulltext index of
     it's url.
 

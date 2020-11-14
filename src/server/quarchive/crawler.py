@@ -1,67 +1,47 @@
 from os import environ
 from logging import getLogger
 from uuid import uuid4, UUID
-from functools import lru_cache
-from typing import BinaryIO, Union, FrozenSet
-import gzip
-import mimetypes
-import cgi
 
-import magic
 from sqlalchemy.orm import Session
 import requests
 
 from quarchive import file_storage
-from quarchive.html_metadata import extract_metadata_from_html
-from quarchive.messaging.message_lib import CrawlRequested, IndexRequested
+from quarchive.messaging.message_lib import CrawlRequested
 from quarchive.messaging.publication import publish_message
 from quarchive.value_objects import URL
 from quarchive.data.functions import (
-    get_crawl_metadata,
     is_crawled,
     create_crawl_request,
     mark_crawl_request_with_response,
     add_crawl_response,
     get_uncrawled_urls,
-    get_unindexed_urls,
-    upsert_metadata,
-    record_index_error,
 )
 
 log = getLogger(__name__)
 
-## BEGIN temporary hacks until missive has proper processor state
-
-
-@lru_cache(1)
-def get_client() -> requests.Session:
-    return requests.Session()
-
-
-_session = None
-
-
-## END temporary hacks
 
 REQUESTS_TIMEOUT = 30
 
 
-def ensure_url_is_crawled(session: Session, url: URL):
+def ensure_url_is_crawled(session: Session, http_client: requests.Session, url: URL):
     if is_crawled(session, url):
         log.info("%s already crawled")
         return
     else:
         crawl_uuid = uuid4()
-        crawl_url(session, crawl_uuid, url)
+        crawl_url(session, http_client, crawl_uuid, url)
 
 
-def crawl_url(session: Session, crawl_uuid: UUID, url: URL) -> None:
-    client = get_client()
+def crawl_url(
+    session: Session, http_client: requests.Session, crawl_uuid: UUID, url: URL
+) -> None:
     bucket = file_storage.get_response_body_bucket()
     create_crawl_request(session, crawl_uuid, url)
 
     try:
-        response = client.get(url.to_string(), stream=True, timeout=REQUESTS_TIMEOUT)
+        response = http_client.get(
+            url.to_string(), stream=True, timeout=REQUESTS_TIMEOUT
+        )
     except requests.exceptions.RequestException as e:
         log.warning("unable to request %s - %s", url, e)
         return

@@ -24,7 +24,9 @@ pytestmark = pytest.mark.crawler
 
 @freeze_time("2018-01-03")
 @pytest.mark.parametrize("status_code", [200, 404, 500])
-def test_crawl_when_response_is_recieved(session, status_code, mock_s3, requests_mock):
+def test_crawl_when_response_is_recieved(
+    session, http_client, status_code, mock_s3, requests_mock
+):
     url = URL.from_string("http://example.com/" + random_string())
     upsert_url(session, url)
 
@@ -33,7 +35,7 @@ def test_crawl_when_response_is_recieved(session, status_code, mock_s3, requests
     )
 
     crawl_uuid = uuid4()
-    crawler.crawl_url(session, crawl_uuid, url)
+    crawler.crawl_url(session, http_client, crawl_uuid, url)
 
     request = session.query(CrawlRequest).get(crawl_uuid)
     response = session.query(CrawlResponse).get(crawl_uuid)
@@ -53,7 +55,7 @@ def test_crawl_when_response_is_recieved(session, status_code, mock_s3, requests
     assert response_body == gzip.compress(b"hello")
 
 
-def test_crawl_when_no_response(session, requests_mock):
+def test_crawl_when_no_response(session, http_client, requests_mock):
     url = URL.from_string("http://example.com/" + random_string())
     upsert_url(session, url)
 
@@ -64,7 +66,7 @@ def test_crawl_when_no_response(session, requests_mock):
     )
 
     crawl_uuid = uuid4()
-    crawler.crawl_url(session, crawl_uuid, url)
+    crawler.crawl_url(session, http_client, crawl_uuid, url)
 
     request = session.query(CrawlRequest).get(crawl_uuid)
     response = session.query(CrawlResponse).get(crawl_uuid)
@@ -72,13 +74,13 @@ def test_crawl_when_no_response(session, requests_mock):
     assert response is None
 
 
-def test_ensure_crawled_only_runs_once(session, mock_s3, requests_mock):
+def test_ensure_crawled_only_runs_once(session, http_client, mock_s3, requests_mock):
     url = URL.from_string("http://example.com/" + random_string())
     upsert_url(session, url)
 
     requests_mock.add(responses.GET, url.to_string(), body=b"hello", stream=True)
 
-    crawler.ensure_url_is_crawled(session, url)
+    crawler.ensure_url_is_crawled(session, http_client, url)
 
     s, n, p, q, f = urlsplit(url.to_string())
     resp_query = (
@@ -94,7 +96,7 @@ def test_ensure_crawled_only_runs_once(session, mock_s3, requests_mock):
         )
     )
     assert resp_query.count() == 1
-    crawler.ensure_url_is_crawled(session, url)
+    crawler.ensure_url_is_crawled(session, http_client, url)
 
     # Assert again
     assert resp_query.count() == 1
