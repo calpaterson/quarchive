@@ -79,6 +79,7 @@ def test_indexing_idempotent(session, mock_s3):
     )
 
     session.add(fulltext)
+    session.commit()
 
     crawler.add_to_fulltext_index(session, crawl_req.crawl_uuid)
 
@@ -86,6 +87,13 @@ def test_indexing_idempotent(session, mock_s3):
         session.query(FullText).filter(FullText.url_uuid == sqla_url.url_uuid).count()
     )
     assert fulltext_count == 1
+
+    error_count = (
+        session.query(IndexingError)
+        .filter(IndexingError.crawl_uuid == crawl_req.crawl_uuid)
+        .count()
+    )
+    assert error_count == 0
 
 
 def test_indexing_non_html(session, mock_s3):
