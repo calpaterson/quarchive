@@ -2,8 +2,8 @@ import itertools
 from dataclasses import dataclass
 from datetime import datetime
 from logging import getLogger
-from typing import Any, FrozenSet, Mapping, Optional, Set, Tuple, cast
-from urllib.parse import urlsplit, urlunsplit
+from typing import Any, FrozenSet, Mapping, Optional, Set, Tuple
+from urllib.parse import urlsplit, urlunsplit, urljoin
 from uuid import NAMESPACE_URL as UUID_URL_NAMESPACE, UUID, uuid5
 
 import pytz
@@ -58,6 +58,13 @@ class URL:
     def to_string(self) -> str:
         return urlunsplit(
             (self.scheme, self.netloc, self.path, self.query, self.fragment)
+        )
+
+    def follow(self, link_href: str, coerce_canonicalisation: bool = False) -> "URL":
+        """Allow for following (possibly relative) links from this URL."""
+        return URL.from_string(
+            urljoin(self.to_string(), link_href),
+            coerce_canonicalisation=coerce_canonicalisation,
         )
 
     @classmethod

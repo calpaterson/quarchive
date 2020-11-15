@@ -18,8 +18,10 @@ WORDS_REGEX = re.compile(r"\w+")
 
 
 def test_simple():
-    url = URL.from_string("http://example.com/simple-website.html")
-    with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
+    url = URL.from_string("http://example.com/webpage-with-full-metadata.html")
+    with open(
+        path.join(test_data_path, "webpage-with-full-metadata.html"), "rb"
+    ) as html_f:
         metadata = extract_metadata_from_html(url, html_f)
 
     text_words = set(WORDS_REGEX.findall(metadata.text))  # type: ignore
@@ -27,7 +29,20 @@ def test_simple():
     assert {"This", "is", "a", "basic", "html", "document"} <= text_words
 
     meta_words = set(WORDS_REGEX.findall(metadata.meta_desc))  # type: ignore
-    assert {"meta", "description"} <= meta_words
+    assert {"some", "meta", "description"} == meta_words
+
+    assert metadata.url == url
+    assert metadata.icons == [
+        Icon(
+            url=URL.from_string("http://example.com/favicon.png"),
+            scope=IconScope.PAGE,
+            metadata={"type": "image/png"},
+        )
+    ]
+    assert metadata.canonical == URL.from_string("http://example.com/simple")
+    assert metadata.title == "Simple"
+    assert metadata.links == {URL.from_string("http://example.com/other")}
+    assert metadata.meta_desc == "some meta description"
 
 
 def test_calpaterson():

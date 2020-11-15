@@ -66,3 +66,20 @@ def test_url_from_non_minimal_canonicalisation_fails(problem_url):
         URL.from_string(problem_url)
 
     assert e.value.url_string == problem_url
+
+
+@pytest.mark.parametrize(
+    "base_url, relative_url, expected",
+    [
+        ("http://example.com/", "/a.html", "http://example.com/a.html"),
+        ("http://example.com/subdir/", "/a.html", "http://example.com/a.html"),
+        ("http://example.com/subdir/", "a.html", "http://example.com/subdir/a.html"),
+        (
+            "http://example.com/subdir/",
+            "http://somewhere-else.com/a.html",
+            "http://somewhere-else.com/a.html",
+        ),
+    ],
+)
+def test_follow(base_url, relative_url, expected):
+    assert URL.from_string(base_url).follow(relative_url) == URL.from_string(expected)

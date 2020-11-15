@@ -50,7 +50,9 @@ def make_crawl_with_response(session) -> Tuple[SQLAUrl, CrawlRequest, CrawlRespo
 
 def put_simple_website_into_bucket(body_uuid: UUID):
     bucket = file_storage.get_response_body_bucket()
-    with open(path.join(test_data_path, "simple-website.html"), "rb") as html_f:
+    with open(
+        path.join(test_data_path, "webpage-with-full-metadata.html"), "rb"
+    ) as html_f:
         file_storage.upload_file(bucket, html_f, str(body_uuid))
 
 
@@ -64,7 +66,7 @@ def test_indexing_for_fresh(session, mock_s3):
     assert fulltext_obj.url_uuid == sqla_url.url_uuid
     assert fulltext_obj.crawl_uuid == crawl_req.crawl_uuid
     assert fulltext_obj.inserted == datetime(2018, 1, 3, tzinfo=timezone.utc)
-    assert len(fulltext_obj.tsvector.split(" ")) == 6
+    assert len(fulltext_obj.tsvector.split(" ")) == 10
     assert len(fulltext_obj.full_text) > 0
 
 
@@ -128,7 +130,7 @@ def test_indexing_with_content_type_problems(session, mock_s3, headers):
     assert fulltext_obj.url_uuid == sqla_url.url_uuid
     assert fulltext_obj.crawl_uuid == crawl_req.crawl_uuid
     assert fulltext_obj.inserted == datetime(2018, 1, 3, tzinfo=timezone.utc)
-    assert len(fulltext_obj.tsvector.split(" ")) == 6
+    assert len(fulltext_obj.tsvector.split(" ")) == 10
     assert len(fulltext_obj.full_text) > 0
 
 
@@ -164,5 +166,5 @@ def test_enqueue_fulltext_indexing(session, mock_s3, bg_worker):
     assert fulltext_obj.url_uuid == sqla_url.url_uuid
     assert fulltext_obj.crawl_uuid == crawl_req.crawl_uuid
     assert fulltext_obj.inserted == datetime(2018, 1, 3, tzinfo=timezone.utc)
-    assert len(fulltext_obj.tsvector.split(" ")) == 6
+    assert len(fulltext_obj.tsvector.split(" ")) == 10
     assert len(fulltext_obj.full_text) > 0
