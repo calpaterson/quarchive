@@ -44,6 +44,10 @@ class URL:
     (scheme, netloc, path, query, fragment).  URL UUID's are calculated from
     within the URL UUID namespace."""
 
+    # Using slots reduces the size of this dataclass from 152 bytes to 88 bytes
+    # (>40%).  Indexing can create quite a lot of these concurrently.
+    __slots__ = ["url_uuid", "scheme", "netloc", "path", "query", "fragment"]
+
     url_uuid: UUID
 
     scheme: str

@@ -83,3 +83,9 @@ def test_url_from_non_minimal_canonicalisation_fails(problem_url):
 )
 def test_follow(base_url, relative_url, expected):
     assert URL.from_string(base_url).follow(relative_url) == URL.from_string(expected)
+
+
+def test_slots():
+    url = URL.from_string("https://example.com/")
+    assert getattr(url, "__slots__") is not None
+    assert getattr(url, "__dict__", None) is None
