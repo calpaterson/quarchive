@@ -43,6 +43,10 @@ def test_simple():
     assert metadata.title == "Simple"
     assert metadata.links == {URL.from_string("http://example.com/other")}
     assert metadata.meta_desc == "some meta description"
+    assert metadata.headings != {
+        "h1": ["This document"],
+        "h2": ["Other documents"],
+    }
 
 
 def test_calpaterson():

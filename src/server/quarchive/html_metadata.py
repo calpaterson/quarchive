@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 import mimetypes
 from logging import getLogger
+from collections import defaultdict
 
 import lxml
 import lxml.html
@@ -16,7 +17,7 @@ log = getLogger(__name__)
 Buffer = Union[BinaryIO, gzip.GzipFile]
 
 
-class Header(Enum):
+class Heading(Enum):
     h1 = 1
     h2 = 2
     h3 = 3
@@ -73,7 +74,7 @@ class HTMLMetadata:
     icons: Sequence[Icon] = field(default_factory=list)
     canonical: Optional[URL] = None
     title: Optional[str] = None
-    headings: Mapping[Header, Sequence[str]] = field(default_factory=dict)
+    headings: Mapping[Heading, Sequence[str]] = field(default_factory=dict)
     meta_desc: Optional[str] = None
     links: Set[URL] = field(default_factory=set)
     text: Optional[str] = None
@@ -112,6 +113,7 @@ def extract_metadata_from_html(url: URL, filelike: Buffer) -> HTMLMetadata:
     metadata.canonical = extract_canonical_link(root, url)
     metadata.title = extract_title(root)
     metadata.links = extract_links(root, url)
+    metadata.headings = extract_headings(root)
     return metadata
 
 
@@ -146,6 +148,14 @@ def extract_links(root, url: URL) -> Set[URL]:
                 rv.add(url.follow(href, coerce_canonicalisation=True))
             except URLException:
                 log.debug("bad link: %s (from: %s)", href, url)
+    return rv
+
+
+def extract_headings(root) -> Mapping[Heading, Sequence[str]]:
+    headings_elements = root.xpath("//h1 | //h2 | //h3 | //h4 | //h5 | //h6")
+    rv = defaultdict(lambda: [])
+    for elem in headings_elements:
+        rv[Heading[elem.tag]].append(elem.text_content())
     return rv
 
 
