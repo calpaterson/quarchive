@@ -1,3 +1,4 @@
+from uuid import uuid4
 from os import environ
 from logging import getLogger
 from uuid import uuid4, UUID
@@ -23,18 +24,17 @@ log = getLogger(__name__)
 REQUESTS_TIMEOUT = 30
 
 
-def ensure_url_is_crawled(session: Session, http_client: requests.Session, url: URL):
+def ensure_url_is_crawled(
+    session: Session, http_client: requests.Session, url: URL
+) -> None:
     if is_crawled(session, url):
         log.info("%s already crawled")
-        return
     else:
-        crawl_uuid = uuid4()
-        crawl_url(session, http_client, crawl_uuid, url)
+        crawl_url(session, http_client, url)
 
 
-def crawl_url(
-    session: Session, http_client: requests.Session, crawl_uuid: UUID, url: URL
-) -> None:
+def crawl_url(session: Session, http_client: requests.Session, url: URL) -> UUID:
+    crawl_uuid = uuid4()
     bucket = file_storage.get_response_body_bucket()
     create_crawl_request(session, crawl_uuid, url)
 
@@ -44,7 +44,7 @@ def crawl_url(
         )
     except requests.exceptions.RequestException as e:
         log.warning("unable to request %s - %s", url, e)
-        return
+        return crawl_uuid
 
     mark_crawl_request_with_response(session, crawl_uuid)
 
@@ -61,6 +61,7 @@ def crawl_url(
 
     file_storage.upload_file(bucket, response.raw, str(body_uuid))
     log.info("crawled %s", url)
+    return crawl_uuid
 
 
 def request_crawls_for_uncrawled_urls(session):

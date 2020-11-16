@@ -34,8 +34,7 @@ def test_crawl_when_response_is_recieved(
         responses.GET, url.to_string(), body=b"hello", status=status_code, stream=True
     )
 
-    crawl_uuid = uuid4()
-    crawler.crawl_url(session, http_client, crawl_uuid, url)
+    crawl_uuid = crawler.crawl_url(session, http_client, url)
 
     request = session.query(CrawlRequest).get(crawl_uuid)
     response = session.query(CrawlResponse).get(crawl_uuid)
@@ -65,8 +64,7 @@ def test_crawl_when_no_response(session, http_client, requests_mock):
         body=requests.exceptions.ConnectTimeout("connect timeout"),
     )
 
-    crawl_uuid = uuid4()
-    crawler.crawl_url(session, http_client, crawl_uuid, url)
+    crawl_uuid = crawler.crawl_url(session, http_client, url)
 
     request = session.query(CrawlRequest).get(crawl_uuid)
     response = session.query(CrawlResponse).get(crawl_uuid)

@@ -137,8 +137,7 @@ def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
     url = get_url_by_url_uuid(session, event.url_uuid)
     if url is None:
         raise RuntimeError("url crawled to crawl does not exist in the db")
-    crawl_uuid = uuid4()
-    crawler.crawl_url(session, http_client, crawl_uuid, url)
+    crawl_uuid = crawler.crawl_url(session, http_client, url)
     session.commit()
     publish_message(
         IndexRequested(crawl_uuid=crawl_uuid), environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
