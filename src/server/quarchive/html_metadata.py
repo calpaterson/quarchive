@@ -165,6 +165,7 @@ def extract_full_text(root) -> str:
 
 
 def extract_icons(root, url: URL) -> Sequence[Icon]:
+    # "shortcut icon" is common too but non-standard, consider including it
     icon_elements = root.xpath("//link[@rel='icon']")
     icons = []
     for icon_element in icon_elements:
