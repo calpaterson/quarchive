@@ -33,8 +33,8 @@ log = getLogger(__name__)
 
 
 @pytest.fixture(scope="session", autouse=True)
-def reduce_boto_logging():
-    q_logging.reduce_boto_logging()
+def reduce_noisy_logging():
+    q_logging.turn_down_noisy_loggers()
 
 
 @pytest.fixture(scope="session", autouse=True)

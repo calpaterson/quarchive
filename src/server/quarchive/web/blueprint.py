@@ -719,6 +719,11 @@ def user_tags(username: str) -> flask.Response:
     )
 
 
+@blueprint.route("/icons/<uuid:icon_uuid>.png")
+def icon_by_uuid(icon_uuid: UUID) -> flask.Response:
+    flask.abort(501, "not implemented")
+
+
 @blueprint.route("/faq")
 def faq() -> flask.Response:
     here = path.dirname(path.realpath(__file__))

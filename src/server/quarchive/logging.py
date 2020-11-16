@@ -15,11 +15,11 @@ LOG_LEVELS = [
 ]
 
 
-def reduce_boto_logging():
-    # AWS provided libraries have extremely verbose debug logs
-    boto_loggers = ["boto3", "botocore", "s3transfer"]
-    for boto_logger in boto_loggers:
-        logging.getLogger(boto_logger).setLevel(logging.INFO)
+def turn_down_noisy_loggers():
+    # Some libraries (particularly Amazon's) have extremely verbose debug logs
+    noisy_loggers = ["boto3", "botocore", "s3transfer", "PIL.Image"]
+    for logger in noisy_loggers:
+        logging.getLogger(logger).setLevel(logging.INFO)
 
 
 def configure_logging(level: str = "INFO"):
@@ -34,4 +34,4 @@ def configure_logging(level: str = "INFO"):
         kwargs["format"] = "%(asctime)s %(levelname)-8s %(name)-35s - %(message)s"
         kwargs["stream"] = stderr
     logging.basicConfig(**kwargs)
-    reduce_boto_logging()
+    turn_down_noisy_loggers()

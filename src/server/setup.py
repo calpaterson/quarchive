@@ -10,6 +10,7 @@ setup(
     zip_safe=False,
     install_requires=[
         "Flask-Babel~=1.0.0",
+        "Pillow~=8.0.1",
         "PyYaml~=5.3.1",
         "argon2_cffi~=20.1.0",
         "attrs~=20.2.0",
@@ -29,10 +30,10 @@ setup(
         "pyhash~=0.9.3",
         "python-dateutil~=2.8.1",
         "python-magic~=0.4.15",
-        "systemd-python==234",
         "pytz",
         "requests~=2.22.0",
         "sqlalchemy~=1.3.11",
+        "systemd-python==234",
     ],
     extras_require={
         "tests": [
