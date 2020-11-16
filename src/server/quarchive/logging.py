@@ -17,7 +17,7 @@ LOG_LEVELS = [
 
 def turn_down_noisy_loggers():
     # Some libraries (particularly Amazon's) have extremely verbose debug logs
-    noisy_loggers = ["boto3", "botocore", "s3transfer", "PIL.Image"]
+    noisy_loggers = ["boto3", "botocore", "s3transfer", "PIL"]
     for logger in noisy_loggers:
         logging.getLogger(logger).setLevel(logging.INFO)
 

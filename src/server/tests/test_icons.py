@@ -17,7 +17,15 @@ def test_get_icon(client):
     assert response.status_code == 501
 
 
-@pytest.mark.parametrize("image_file_name", ["wikipedia.ico"])
+@pytest.mark.parametrize(
+    "image_file_name",
+    [
+        "wikipedia.ico",
+        "wikipedia-16px.png",
+        "wikipedia-32px.png",
+        "wikipedia-48px.png",
+    ],
+)
 def test_convert_icon(image_file_name):
     with open(path.join(test_data_path, image_file_name), "rb") as ico_f:
         converted_icon = convert_icon(ico_f)
