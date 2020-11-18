@@ -1,7 +1,10 @@
-from uuid import uuid4
 from os import environ
+import io
 from logging import getLogger
 from uuid import uuid4, UUID
+from typing import Tuple, BinaryIO, cast
+import hashlib
+from tempfile import TemporaryFile
 
 from sqlalchemy.orm import Session
 import requests
@@ -60,8 +63,61 @@ def crawl_url(session: Session, http_client: requests.Session, url: URL) -> UUID
     response.raw.decode_content = True
 
     file_storage.upload_file(bucket, response.raw, str(body_uuid))
+    response.close()
     log.info("crawled %s", url)
     return crawl_uuid
+
+
+class CrawlException(Exception):
+    pass
+
+
+def crawl_icon(
+    session: Session, http_client: requests.Session, icon_url: URL
+) -> Tuple[hashlib.blake2b, BinaryIO]:
+    # FIXME: Lots of duplicated code here
+    """Crawl an icon, returning a hash and the bytes themselves"""
+    crawl_uuid = uuid4()
+    create_crawl_request(session, crawl_uuid, icon_url)
+
+    try:
+        response = requests.get(
+            icon_url.to_string(), stream=True, timeout=REQUESTS_TIMEOUT
+        )
+    except requests.exceptions.RequestException as e:
+        log.warning("unable to request %s - %s", icon_url, e)
+        raise CrawlException()
+    log.info("crawled %s", icon_url)
+
+    mark_crawl_request_with_response(session, crawl_uuid)
+
+    body_uuid = uuid4()
+
+    lowered_headers = dict(response.headers.lower_items())
+    add_crawl_response(
+        session, crawl_uuid, body_uuid, lowered_headers, response.status_code
+    )
+
+    # Otherwise we'll get the raw stream (often gzipped) rather than the
+    # raw payload (usually html bytes)
+    response.raw.decode_content = True
+
+    temp_filelike = cast(BinaryIO, TemporaryFile())
+    hashobj = hashlib.blake2b()
+
+    while True:
+        buff = response.raw.read(io.DEFAULT_BUFFER_SIZE)
+        if not buff:
+            break
+        temp_filelike.write(buff)
+        hashobj.update(buff)
+
+    temp_filelike.seek(0)
+    bucket = file_storage.get_response_body_bucket()
+    file_storage.upload_file(bucket, temp_filelike, str(body_uuid))
+
+    temp_filelike.seek(0)
+    return hashobj, temp_filelike
 
 
 def request_crawls_for_uncrawled_urls(session):

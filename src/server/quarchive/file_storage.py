@@ -1,3 +1,4 @@
+from uuid import UUID
 from os import environ
 from logging import getLogger
 from functools import lru_cache
@@ -52,6 +53,12 @@ def get_response_body_bucket():
     return bucket
 
 
+def get_icon_bucket():
+    bucket = get_s3().Bucket(environ["QM_ICON_BUCKET_NAME"])
+    log.debug("constructed response body bucket")
+    return bucket
+
+
 def upload_file(bucket, filelike: BinaryIO, filename: str) -> None:
     """Upload a fileobj into the bucket (compressed)"""
     with tempfile.TemporaryFile(mode="w+b") as temp_file:
@@ -61,6 +68,17 @@ def upload_file(bucket, filelike: BinaryIO, filename: str) -> None:
         temp_file.seek(0)
         bucket.upload_fileobj(temp_file, Key=filename)
     log.debug("uploaded '%s' to '%s'", filename, bucket.name)
+
+
+def upload_icon(bucket, icon_uuid: UUID, filelike: BinaryIO) -> None:
+    """Upload an icon into the bucket.
+
+    Icon's aren't compressed (they're already pngs) and they have their
+    Content-Type set."""
+    bucket.upload_fileobj(
+        filelike, Key=f"{icon_uuid}.png", ExtraArgs=dict(ContentType="image/png")
+    )
+    log.debug("uploaded icon %s", icon_uuid)
 
 
 def download_file(bucket, filename: str) -> gzip.GzipFile:

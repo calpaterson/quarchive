@@ -1,8 +1,9 @@
+from uuid import uuid4
 from os import environ
 from logging import getLogger
-from uuid import uuid4, UUID
+from uuid import UUID
 from functools import lru_cache
-from typing import BinaryIO, Union, FrozenSet
+from typing import BinaryIO, Union, FrozenSet, Optional, cast
 import gzip
 import mimetypes
 import cgi
@@ -10,6 +11,7 @@ import cgi
 import magic
 from sqlalchemy.orm import Session
 
+from quarchive.value_objects import URL
 from quarchive import file_storage
 from quarchive.html_metadata import extract_metadata_from_html
 from quarchive.messaging.message_lib import IndexRequested
@@ -19,6 +21,9 @@ from quarchive.data.functions import (
     get_unindexed_urls,
     upsert_metadata,
     record_index_error,
+    have_icon_by_hash,
+    record_page_icon,
+    record_domain_icon,
 )
 
 log = getLogger(__name__)
@@ -44,6 +49,32 @@ def infer_content_type(fileobj: Union[BinaryIO, gzip.GzipFile]) -> str:
     content_type = magic.from_buffer(fileobj.read(2048), mime=True)
     fileobj.seek(0)
     return content_type
+
+
+def index_icon(
+    session: Session,
+    icon_url: URL,
+    filelike: BinaryIO,
+    blake2b,
+    page_url: Optional[URL],
+) -> None:
+    is_domain_icon = page_url is None
+    if have_icon_by_hash(session, blake2b.digest()):
+        log.info("already have icon: %s (hash: %s)", icon_url, blake2b.hexdigest())
+        return
+    else:
+        icon_uuid = uuid4()
+        if is_domain_icon:
+            record_domain_icon(session, icon_url, blake2b.digest(), 32)
+        else:
+            record_page_icon(session, cast(URL, page_url), blake2b.digest(), 32)
+        bucket = file_storage.get_icon_bucket()
+        file_storage.upload_icon(bucket, icon_uuid, filelike)
+
+    if is_domain_icon:
+        log.info("indexed domain icon: %s (hash: %s)", icon_url, blake2b.hexdigest())
+    else:
+        log.info("indexed page icon: %s (hash: %s)", page_url, blake2b.hexdigest())
 
 
 def index(session: Session, crawl_uuid: UUID) -> None:

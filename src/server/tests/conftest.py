@@ -51,6 +51,7 @@ def config():
             "QM_SQL_URL": environ["QM_SQL_URL_TEST"],
             "QM_SECRET_KEY": "secret_key",
             "QM_RESPONSE_BODY_BUCKET_NAME": "test_body_bucket",
+            "QM_ICON_BUCKET_NAME": "test_icon_bucket",
             "QM_AWS_SECRET_ACCESS_KEY": "123",
             "QM_AWS_ACCESS_KEY": "abc",
             "QM_AWS_REGION_NAME": "moon",
@@ -87,6 +88,10 @@ def mock_s3():
         s3_resource = file_storage.get_s3()
         s3_resource.create_bucket(
             Bucket=environ["QM_RESPONSE_BODY_BUCKET_NAME"],
+            CreateBucketConfiguration={"LocationConstraint": "moon",},
+        )
+        s3_resource.create_bucket(
+            Bucket=environ["QM_ICON_BUCKET_NAME"],
             CreateBucketConfiguration={"LocationConstraint": "moon",},
         )
         yield s3_resource

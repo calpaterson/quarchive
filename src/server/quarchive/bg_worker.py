@@ -1,7 +1,7 @@
 from os import environ
 from uuid import uuid4
 from datetime import datetime, timezone
-from typing import Type, cast, Sequence
+from typing import Type, cast, Sequence, BinaryIO
 from logging import getLogger
 
 import requests
@@ -25,6 +25,7 @@ from quarchive.messaging.message_lib import (
     BookmarkCreated,
     CrawlRequested,
     IndexRequested,
+    NewIconFound,
 )
 from quarchive.messaging.receipt import PickleMessage
 
@@ -142,6 +143,30 @@ def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
     publish_message(
         IndexRequested(crawl_uuid=crawl_uuid), environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
     )
+    ctx.ack()
+
+
+@proc.handle_for(ClassMatcher(NewIconFound))
+def on_new_icon_found(message: PickleMessage, ctx: missive.HandlingContext):
+    event = cast(NewIconFound, message.get_obj())
+    session = get_session(ctx)
+    http_client = get_http_client(ctx)
+
+    icon_url = get_url_by_url_uuid(session, event.icon_url_uuid)
+    if icon_url is None:
+        raise RuntimeError("icon url not in db")
+
+    if event.page_url_uuid is not None:
+        page_url = get_url_by_url_uuid(session, event.page_url_uuid)
+    else:
+        page_url = None
+
+    # FIXME: Check we don't already have it (by url) before crawling
+    blake2b_hash, crawled_filelike = crawler.crawl_icon(session, http_client, icon_url)
+    indexing.index_icon(
+        session, icon_url, crawled_filelike, blake2b_hash, page_url=page_url
+    )
+    session.commit()
     ctx.ack()
 
 

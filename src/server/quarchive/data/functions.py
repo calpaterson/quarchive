@@ -29,15 +29,18 @@ from quarchive.value_objects import (
 from .models import (
     APIKey,
     BookmarkTag,
+    CrawlRequest,
+    CrawlResponse,
+    DomainIcon,
+    FullText,
+    Icon,
+    IndexingError,
     SQLABookmark,
     SQLAUrl,
     SQLUser,
     Tag,
+    URLIcon,
     UserEmail,
-    CrawlRequest,
-    CrawlResponse,
-    FullText,
-    IndexingError,
 )
 
 log = getLogger(__name__)
@@ -279,8 +282,12 @@ def upsert_url(session: Session, url: URL) -> UUID:
 
 def get_url_by_url_uuid(session: Session, url_uuid: UUID) -> Optional[URL]:
     """Get a URL object by url uuid"""
-    sql_url = session.query(SQLAUrl).filter(SQLAUrl.url_uuid == url_uuid).first()
-    return sql_url.to_url()
+    sqla_url: Optional[SQLAUrl] = session.query(SQLAUrl).filter(
+        SQLAUrl.url_uuid == url_uuid
+    ).first()
+    if sqla_url is not None:
+        return sqla_url.to_url()
+    return None
 
 
 def set_bookmark(session: Session, user_uuid: UUID, bookmark: Bookmark) -> UUID:
@@ -600,3 +607,29 @@ def upsert_metadata(session: Session, crawl_uuid: UUID, metadata: HTMLMetadata) 
 
 def record_index_error(session: Session, crawl_uuid: UUID, message: str) -> None:
     session.add(IndexingError(crawl_uuid=crawl_uuid, description=message))
+
+
+def have_icon_by_url(session: Session, url: URL) -> bool:
+    ...
+
+
+def have_icon_by_hash(session: Session, hash_bytes: bytes) -> bool:
+    return session.query(
+        session.query(Icon).filter(Icon.original_blake2b_hash == hash_bytes).exists()
+    ).scalar()
+
+
+def record_page_icon(session: Session, url: URL, hash_bytes: bytes, size: int) -> None:
+    ...
+
+
+def record_domain_icon(
+    session: Session, icon_url: URL, hash_bytes: bytes, size: int
+) -> UUID:
+    icon_uuid = uuid4()
+    domain_icon = DomainIcon(
+        scheme=icon_url.scheme, netloc=icon_url.netloc, icon_uuid=icon_uuid
+    )
+    icon = Icon(icon_uuid=icon_uuid, original_blake2b_hash=hash_bytes, pixel_size=size)
+    session.add_all([icon, domain_icon])
+    return icon_uuid

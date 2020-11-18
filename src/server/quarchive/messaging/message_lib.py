@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
 import attr
@@ -32,6 +33,20 @@ class CrawlRequested(Event):
     user action."""
 
     url_uuid: UUID
+
+
+@attr.s(auto_attribs=True)
+class NewIconFound(Event):
+    """A new icon has been found as part of indexing.
+
+    In the case of a domain icon (a root level favicon.ico), this icon may not
+    exist but will not have been tried yet.
+
+    In the case of a page icon (eg: rel=icon link in meta) page_url_uuid will
+    be populated."""
+
+    icon_url_uuid: UUID
+    page_url_uuid: Optional[UUID] = None
 
 
 @attr.s(auto_attribs=True)

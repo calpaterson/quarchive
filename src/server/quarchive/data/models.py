@@ -225,3 +225,36 @@ class Tag(Base):
             == remote(SQLABookmark.user_uuid),
         ),
     )
+
+
+class DomainIcon(Base):
+    __tablename__ = "domain_icons"
+
+    scheme = Column(satypes.String, nullable=False, primary_key=True)
+    netloc = Column(satypes.String, nullable=False, primary_key=True)
+    icon_uuid = Column(
+        PGUUID, ForeignKey("icons.icon_uuid"), nullable=False, index=True
+    )
+
+    icon: "RelationshipProperty[Icon]" = relationship("Icon", backref="domains")
+
+
+class URLIcon(Base):
+    __tablename__ = "url_icons"
+
+    url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), primary_key=True)
+    icon_uuid = Column(
+        PGUUID, ForeignKey("icons.icon_uuid"), nullable=False, index=True
+    )
+
+    icon: "RelationshipProperty[Icon]" = relationship("Icon", backref="urls")
+
+
+class Icon(Base):
+    __tablename__ = "icons"
+
+    icon_uuid = Column(PGUUID, primary_key=True)
+    original_blake2b_hash = Column(
+        BYTEA(length=64), nullable=False, unique=True, index=True
+    )
+    pixel_size = Column(satypes.SmallInteger, nullable=False)
