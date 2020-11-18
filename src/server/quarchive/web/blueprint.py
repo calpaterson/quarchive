@@ -748,6 +748,7 @@ def sync_check_api_key() -> Tuple[flask.Response, int]:
 @blueprint.route("/sync", methods=["POST"])  # FIXME: Deprecated
 @api_key_required
 def sync() -> flask.Response:
+    start_time = datetime.utcnow()
     extension_version = flask.request.headers.get(
         "Quarchive-Extension-Version", "unknown"
     )
@@ -786,7 +787,9 @@ def sync() -> flask.Response:
             environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
         )
 
-    if "full" in flask.request.args:
+    is_full_sync = "full" in flask.request.args
+
+    if is_full_sync:
         response_bookmarks = all_bookmarks(db.session, get_current_user().user_uuid)
     else:
         response_bookmarks = merge_result.changed
@@ -802,6 +805,13 @@ def sync() -> flask.Response:
             for b in response_bookmarks:
                 yield json.dumps(b.to_json())
                 yield "\n"
+            if is_full_sync:
+                duration = datetime.utcnow() - start_time
+                log.info(
+                    "completed full sync for %s in %ds",
+                    user.username,
+                    duration.total_seconds(),
+                )
 
         return flask.Response(
             flask.stream_with_context(generator()), mimetype="application/x-ndjson",
