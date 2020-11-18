@@ -57,7 +57,7 @@ class URL:
     fragment: str
 
     def __repr__(self):
-        return f"URL({self.to_string()}, {self.url_uuid})"
+        return f"URL('{self.to_string()}', {self.url_uuid})"
 
     def to_string(self) -> str:
         return urlunsplit(
