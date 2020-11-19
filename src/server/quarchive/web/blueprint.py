@@ -25,6 +25,7 @@ import yaml
 from sqlalchemy import func
 from werkzeug import exceptions as exc
 
+from quarchive import file_storage
 from quarchive.messaging import message_lib
 from quarchive.archive import get_archive_links, Archive
 from quarchive.messaging.publication import publish_message
@@ -721,7 +722,11 @@ def user_tags(username: str) -> flask.Response:
 
 @blueprint.route("/icons/<uuid:icon_uuid>.png")
 def icon_by_uuid(icon_uuid: UUID) -> flask.Response:
-    flask.abort(501, "not implemented")
+    # This endpoint is added for completeness.  In production icons should not
+    # be served by nginx instead of Python.
+    bucket = file_storage.get_icon_bucket()
+    icon_filelike = file_storage.download_icon(bucket, icon_uuid)
+    return flask.Response(icon_filelike, mimetype="image/png")
 
 
 @blueprint.route("/faq")

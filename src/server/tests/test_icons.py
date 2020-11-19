@@ -1,20 +1,32 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 from os import path
 
 from PIL import Image
 import flask
 import pytest
 
+from quarchive import file_storage
 from quarchive.icons import convert_icon
 
 from .conftest import test_data_path
 
 
-def test_get_icon(client):
-    response = client.get(
-        flask.url_for("quarchive.icon_by_uuid", icon_uuid=UUID("f" * 32))
-    )
-    assert response.status_code == 501
+def test_get_icon(client, mock_s3):
+    icon_uuid = uuid4()
+    with open(
+        path.join(test_data_path, "wikipedia-32px.png"), "r+b"
+    ) as wikipedia_icon_f:
+        file_storage.upload_icon(
+            file_storage.get_icon_bucket(), icon_uuid, wikipedia_icon_f
+        )
+
+    response = client.get(flask.url_for("quarchive.icon_by_uuid", icon_uuid=icon_uuid))
+    assert response.status_code == 200
+
+
+@pytest.mark.xfail(reason="not implemented")
+def test_get_icon_404(client, mock_s3):
+    assert False
 
 
 @pytest.mark.parametrize(

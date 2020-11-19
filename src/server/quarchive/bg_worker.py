@@ -1,7 +1,6 @@
 from os import environ
-from uuid import uuid4
 from datetime import datetime, timezone
-from typing import Type, cast, Sequence, BinaryIO
+from typing import Type, cast, Sequence, Optional
 from logging import getLogger
 
 import requests
@@ -11,9 +10,12 @@ import missive
 import missive.dlq.sqlite
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
+from quarchive.html_metadata import Icon, best_icon, HTMLMetadata, IconScope
 from quarchive.logging import configure_logging, LOG_LEVELS
 from quarchive import crawler, indexing
 from quarchive.data.functions import (
+    upsert_url,
+    have_icon_by_url,
     get_url_by_url_uuid,
     is_crawled,
     get_session_cls,
@@ -170,13 +172,34 @@ def on_new_icon_found(message: PickleMessage, ctx: missive.HandlingContext):
     ctx.ack()
 
 
+def icon_message_if_necessary(
+    session: Session, metadata: HTMLMetadata
+) -> Optional[NewIconFound]:
+    icon = best_icon(metadata)
+    if not have_icon_by_url(session, icon.url):
+        upsert_url(session, icon.url)
+        message = NewIconFound(icon.url.url_uuid)
+        if icon.scope == IconScope.PAGE:
+            message.page_url_uuid = metadata.url.url_uuid
+        return message
+    else:
+        log.debug("already have icon for %s", metadata.url)
+        return None
+
+
 @proc.handle_for(ClassMatcher(IndexRequested))
 def on_full_text_requested(message: PickleMessage, ctx: missive.HandlingContext):
     event = cast(IndexRequested, message.get_obj())
     session = get_session(ctx)
-    indexing.index(session, event.crawl_uuid)
+    metadata = indexing.index(session, event.crawl_uuid)
+    if metadata:
+        icon_message = icon_message_if_necessary(session, metadata)
+    else:
+        icon_message = None
     session.commit()
     ctx.ack()
+    if icon_message:
+        publish_message(icon_message, environ["QM_RABBITMQ_BG_WORKER_TOPIC"])
 
 
 @click.command()

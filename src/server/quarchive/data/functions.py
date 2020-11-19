@@ -610,7 +610,11 @@ def record_index_error(session: Session, crawl_uuid: UUID, message: str) -> None
 
 
 def have_icon_by_url(session: Session, url: URL) -> bool:
-    ...
+    """Return True if we think we already have an icon by that URL.
+
+    Either as a domain level icon, or as a page level icon."""
+    # FIXME: For now this is unimplemented
+    return False
 
 
 def have_icon_by_hash(session: Session, hash_bytes: bytes) -> bool:

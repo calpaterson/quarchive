@@ -2,7 +2,7 @@ from uuid import UUID
 from os import environ
 from logging import getLogger
 from functools import lru_cache
-from typing import BinaryIO, IO
+from typing import BinaryIO, IO, Optional
 import tempfile
 import shutil
 import gzip
@@ -70,17 +70,6 @@ def upload_file(bucket, filelike: BinaryIO, filename: str) -> None:
     log.debug("uploaded '%s' to '%s'", filename, bucket.name)
 
 
-def upload_icon(bucket, icon_uuid: UUID, filelike: IO[bytes]) -> None:
-    """Upload an icon into the bucket.
-
-    Icon's aren't compressed (they're already pngs) and they have their
-    Content-Type set."""
-    bucket.upload_fileobj(
-        filelike, Key=f"{icon_uuid}.png", ExtraArgs=dict(ContentType="image/png")
-    )
-    log.debug("uploaded icon %s", icon_uuid)
-
-
 def download_file(bucket, filename: str) -> gzip.GzipFile:
     """Download a fileobj from a bucket (decompressed)"""
     temp_file = tempfile.TemporaryFile(mode="w+b")
@@ -92,3 +81,21 @@ def download_file(bucket, filename: str) -> gzip.GzipFile:
     gzip_fileobj = gzip.GzipFile(mode="r+b", fileobj=temp_file)
     log.debug("downloaded '%s' from '%s'", filename, bucket.name)
     return gzip_fileobj
+
+
+def upload_icon(bucket, icon_uuid: UUID, filelike: IO[bytes]) -> None:
+    """Upload an icon into the bucket.
+
+    Icon's aren't compressed (they're already pngs) and they have their
+    Content-Type set."""
+    bucket.upload_fileobj(
+        filelike, Key=f"{icon_uuid}.png", ExtraArgs=dict(ContentType="image/png")
+    )
+    log.debug("uploaded icon %s", icon_uuid)
+
+
+def download_icon(bucket, icon_uuid: UUID) -> Optional[IO[bytes]]:
+    temp_file = tempfile.TemporaryFile()
+    bucket.download_fileobj(f"{icon_uuid}.png", temp_file)
+    temp_file.seek(0)
+    return temp_file

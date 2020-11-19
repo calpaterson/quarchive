@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from quarchive.icons import convert_icon
 from quarchive.value_objects import URL
 from quarchive import file_storage
-from quarchive.html_metadata import extract_metadata_from_html
+from quarchive.html_metadata import extract_metadata_from_html, HTMLMetadata
 from quarchive.messaging.message_lib import IndexRequested
 from quarchive.messaging.publication import publish_message
 from quarchive.data.functions import (
@@ -80,20 +80,22 @@ def index_icon(
         log.info("indexed page icon: %s (hash: %s)", page_url, blake2b.hexdigest())
 
 
-def index(session: Session, crawl_uuid: UUID) -> None:
+def index(session: Session, crawl_uuid: UUID) -> Optional[HTMLMetadata]:
     try:
-        ensure_fulltext(session, crawl_uuid)
+        return ensure_fulltext(session, crawl_uuid)
     except file_storage.FileStorageException as e:
         log.error(e.message)
         session.rollback()
         record_index_error(session, crawl_uuid, e.message)
+        return None
     except Exception as e:
         log.exception("indexing error")
         session.rollback()
         record_index_error(session, crawl_uuid, str(e))
+        return None
 
 
-def ensure_fulltext(session: Session, crawl_uuid: UUID) -> None:
+def ensure_fulltext(session: Session, crawl_uuid: UUID) -> Optional[HTMLMetadata]:
     """Use the artefacts from the given crawl uuid for the fulltext index of
     it's url.
 
@@ -113,7 +115,7 @@ def ensure_fulltext(session: Session, crawl_uuid: UUID) -> None:
             crawl_metadata.url.to_string(),
             crawl_uuid,
         )
-        return
+        return None
 
     if crawl_metadata.fulltext_inserted is not None:
         log.info(
@@ -121,7 +123,7 @@ def ensure_fulltext(session: Session, crawl_uuid: UUID) -> None:
             crawl_metadata.url.to_string(),
             crawl_uuid,
         )
-        return
+        return None
 
     bucket = file_storage.get_response_body_bucket()
     # Try to avoid downloading the content unless we need it
@@ -161,7 +163,7 @@ def ensure_fulltext(session: Session, crawl_uuid: UUID) -> None:
             crawl_uuid,
             content_type,
         )
-        return
+        return None
 
     # If we didn't download it before, we should now
     if fileobj is None:
@@ -172,3 +174,4 @@ def ensure_fulltext(session: Session, crawl_uuid: UUID) -> None:
 
     upsert_metadata(session, crawl_uuid, metadata)
     log.info("indexed %s (%s)", crawl_metadata.url.to_string(), crawl_uuid)
+    return metadata
