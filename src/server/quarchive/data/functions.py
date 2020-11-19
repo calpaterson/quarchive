@@ -620,7 +620,11 @@ def have_icon_by_hash(session: Session, hash_bytes: bytes) -> bool:
 
 
 def record_page_icon(session: Session, url: URL, hash_bytes: bytes, size: int) -> UUID:
-    ...
+    icon_uuid = uuid4()
+    url_icon = URLIcon(url_uuid=url.url_uuid, icon_uuid=icon_uuid)
+    icon = Icon(icon_uuid=icon_uuid, original_blake2b_hash=hash_bytes, pixel_size=size)
+    session.add_all([icon, url_icon])
+    return icon_uuid
 
 
 def record_domain_icon(

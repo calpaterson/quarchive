@@ -67,7 +67,9 @@ def index_icon(
         if is_domain_icon:
             icon_uuid = record_domain_icon(session, icon_url, blake2b.digest(), 32)
         else:
-            icon_uuid = record_page_icon(session, cast(URL, page_url), blake2b.digest(), 32)
+            icon_uuid = record_page_icon(
+                session, cast(URL, page_url), blake2b.digest(), 32
+            )
         bucket = file_storage.get_icon_bucket()
         converted = convert_icon(filelike)
         file_storage.upload_icon(bucket, icon_uuid, converted)

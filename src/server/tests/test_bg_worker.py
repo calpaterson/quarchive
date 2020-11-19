@@ -11,10 +11,7 @@ from missive import TestAdapter
 
 from quarchive import file_storage
 from quarchive.value_objects import URL
-from quarchive.data.models import (
-    Icon,
-    DomainIcon,
-)
+from quarchive.data.models import Icon, DomainIcon, URLIcon
 from quarchive.data.functions import upsert_url
 from quarchive.messaging.receipt import PickleMessage
 from quarchive.messaging.message_lib import HelloEvent, NewIconFound
@@ -53,8 +50,7 @@ def test_hello_event(bg_client: TestAdapter[PickleMessage], caplog):
 def test_new_icon_found_domain(
     session, requests_mock, bg_client: TestAdapter[PickleMessage], mock_s3
 ):
-    random_prefix = random_string()
-    icon_url = URL.from_string(f"http://{random_prefix}.example.com/favicon.ico")
+    icon_url = URL.from_string(f"http://{random_string()}.example.com/favicon.ico")
     image_buff = random_image_fileobj()
     hash_bytes = hashlib.blake2b(image_buff.read()).digest()
     image_buff.seek(0)
@@ -88,7 +84,49 @@ def test_new_icon_found_domain(
     assert domain_icon.netloc == icon_url.netloc
 
     icon_bucket = file_storage.get_icon_bucket()
-    s3_obj, = list(icon_bucket.objects.filter(Prefix=f"{icon.icon_uuid}.png"))
+    (s3_obj,) = list(icon_bucket.objects.filter(Prefix=f"{icon.icon_uuid}.png"))
+    assert s3_obj.key == f"{icon.icon_uuid}.png"
+    response = s3_obj.get()
+    assert response["ResponseMetadata"]["HTTPHeaders"]["content-type"] == "image/png"
+
+
+def test_new_icon_found_for_url_icon(
+    session, requests_mock, bg_client: TestAdapter[PickleMessage], mock_s3
+):
+    url = URL.from_string(f"http://{random_string()}.example.com/")
+    icon_url = url.follow("/favicon.ico")
+    image_buff = random_image_fileobj()
+    hash_bytes = hashlib.blake2b(image_buff.read()).digest()
+    image_buff.seek(0)
+    requests_mock.add(
+        responses.GET,
+        url=icon_url.to_string(),
+        body=image_buff.read(),
+        status=200,
+        stream=True,
+    )
+    requests_mock.start()
+
+    upsert_url(session, url)
+    upsert_url(session, icon_url)
+    session.commit()
+
+    event = NewIconFound(icon_url_uuid=icon_url.url_uuid, page_url_uuid=url.url_uuid)
+    bg_client.send(PickleMessage.from_obj(event))
+
+    icon, url_icon = (
+        session.query(Icon, URLIcon)
+        .join(URLIcon)
+        .filter(URLIcon.url_uuid == url.url_uuid)
+        .first()
+    )
+    assert icon.original_blake2b_hash == hash_bytes
+    assert icon.pixel_size == 32
+
+    assert url_icon.url_uuid == url.url_uuid
+
+    icon_bucket = file_storage.get_icon_bucket()
+    (s3_obj,) = list(icon_bucket.objects.filter(Prefix=f"{icon.icon_uuid}.png"))
     assert s3_obj.key == f"{icon.icon_uuid}.png"
     response = s3_obj.get()
     assert response["ResponseMetadata"]["HTTPHeaders"]["content-type"] == "image/png"
