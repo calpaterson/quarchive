@@ -11,6 +11,7 @@ import cgi
 import magic
 from sqlalchemy.orm import Session
 
+from quarchive.icons import convert_icon
 from quarchive.value_objects import URL
 from quarchive import file_storage
 from quarchive.html_metadata import extract_metadata_from_html
@@ -68,7 +69,8 @@ def index_icon(
         else:
             icon_uuid = record_page_icon(session, cast(URL, page_url), blake2b.digest(), 32)
         bucket = file_storage.get_icon_bucket()
-        file_storage.upload_icon(bucket, icon_uuid, filelike)
+        converted = convert_icon(filelike)
+        file_storage.upload_icon(bucket, icon_uuid, converted)
 
     if is_domain_icon:
         log.info("indexed domain icon: %s (hash: %s)", icon_url, blake2b.hexdigest())

@@ -2,7 +2,7 @@ from uuid import UUID
 from os import environ
 from logging import getLogger
 from functools import lru_cache
-from typing import BinaryIO
+from typing import BinaryIO, IO
 import tempfile
 import shutil
 import gzip
@@ -70,7 +70,7 @@ def upload_file(bucket, filelike: BinaryIO, filename: str) -> None:
     log.debug("uploaded '%s' to '%s'", filename, bucket.name)
 
 
-def upload_icon(bucket, icon_uuid: UUID, filelike: BinaryIO) -> None:
+def upload_icon(bucket, icon_uuid: UUID, filelike: IO[bytes]) -> None:
     """Upload an icon into the bucket.
 
     Icon's aren't compressed (they're already pngs) and they have their

@@ -619,7 +619,7 @@ def have_icon_by_hash(session: Session, hash_bytes: bytes) -> bool:
     ).scalar()
 
 
-def record_page_icon(session: Session, url: URL, hash_bytes: bytes, size: int) -> None:
+def record_page_icon(session: Session, url: URL, hash_bytes: bytes, size: int) -> UUID:
     ...
 
 
