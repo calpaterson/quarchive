@@ -88,6 +88,30 @@ p.bookmark-date {
     margin-bottom: 1em;
 }
 
+.bookmark-row {
+    display: flex;
+}
+
+.bookmark-rest-column {
+    flex: 1;
+}
+
+.bookmark-icon {
+    margin-top: 0.2em;
+    margin-right: 0.5em;
+    margin-left: 0.5em;
+}
+
+.bookmark-icon > img {
+    width: 1em;
+    height: 1em;
+}
+
+.fallback-icon {
+    width: 1em;
+    height: 1em;
+}
+
 .bookmark-link {
     margin-top: 0;
     margin-bottom: 0;

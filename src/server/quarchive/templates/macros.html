@@ -4,31 +4,54 @@
    href="{{ url_for('quarchive.user_tag', username=user.username, tag=tag) }}"
    >{{ tag }}</a>{% endmacro %}
 
-{% macro render_bookmark(user, bookmark) -%}
+{% macro render_bookmark(user, bookmark_view) -%}
+  {% set bookmark = bookmark_view.bookmark %}
   <div class="bookmark">
-    <p class="bookmark-link">
-      <a class="bookmark-title" href="{{bookmark.url.to_string()}}">{{bookmark.title}}</a>
-      <a
-        class="netloc"
-        href="{{ url_for('quarchive.user_netloc', username=user.username, netloc=bookmark.url.netloc) }}"
-        >{{ bookmark.url.netloc }}</a>
-    </p>
-    <p class="bookmark-url">
-      <a href="{{bookmark.url.to_string()}}">{{bookmark.url.to_string()}}</a>
-    </p>
-    {% if bookmark.description|length > 0 %}
-      <blockquote class="bookmark-description">
-        {{ bookmark.description }}
-      </blockquote>
-    {% endif %}
-    <p class="bookmark-details">
-      <em>at <span class="bookmark-created" title="{{bookmark.created}}">{{bookmark.created|timeformat('h:mm a')}}</span></em> {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
-      <a class="bookmark-meta" href="{{ url_for('quarchive.edit_bookmark', url_uuid=bookmark.url.url_uuid) }}">edit</a>
-      <a class="bookmark-meta" href="{{ url_for('quarchive.bookmark_archives', url_uuid=bookmark.url.url_uuid) }}">archives</a>
-      {# FIXME: Removed for now as it is useless #}
-      {# <a class="bookmark-meta" href="{{ url_for('quarchive.view_url', url_uuid=url.url_uuid) }}">url metadata</a> #}
-      {% for tag in bookmark.current_tags()|sort %}{{ render_tag(user, tag) }}{% if not loop.last %},{% endif %}
-      {% endfor %}
-    </p>
+    <div class="bookmark-row">
+      <div class="bookmark-icon-column">
+        {{ render_icon(bookmark_view.bookmark.url, bookmark_view.icon_uuid) }}
+      </div>
+      <div class="bookmark-rest-column">
+        <p class="bookmark-link">
+          <a class="bookmark-title" href="{{bookmark.url.to_string()}}">{{bookmark.title}}</a>
+          <a
+            class="netloc"
+            href="{{ url_for('quarchive.user_netloc', username=user.username, netloc=bookmark.url.netloc) }}"
+            >{{ bookmark.url.netloc }}</a>
+        </p>
+        <p class="bookmark-url">
+          <a href="{{bookmark.url.to_string()}}">{{bookmark.url.to_string()}}</a>
+        </p>
+        {% if bookmark.description|length > 0 %}
+          <blockquote class="bookmark-description">
+            {{ bookmark.description }}
+          </blockquote>
+        {% endif %}
+        <p class="bookmark-details">
+          <em>at <span class="bookmark-created" title="{{bookmark.created}}">{{bookmark.created|timeformat('h:mm a')}}</span></em> {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
+          <a class="bookmark-meta"
+             href="{{ url_for('quarchive.edit_bookmark', url_uuid=bookmark.url.url_uuid) }}">edit</a>
+          <a class="bookmark-meta" href="{{ url_for('quarchive.bookmark_archives', url_uuid=bookmark.url.url_uuid) }}">archives</a>
+          {# FIXME: Removed for now as it is useless #}
+          {# <a class="bookmark-meta" href="{{ url_for('quarchive.view_url', url_uuid=url.url_uuid) }}">url metadata</a> #}
+          {% for tag in bookmark.current_tags()|sort %}{{ render_tag(user, tag) }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+        </p>
+      </div>
+    </div>
+  </div>
+{% endmacro %}
+
+
+{% macro render_icon(url, icon_uuid) -%}
+  <div class="bookmark-icon">
+      {% if icon_uuid %}
+        <img
+          src="{{url_for('quarchive.icon_by_uuid', icon_uuid=icon_uuid)}}"
+          alt=""
+          >
+      {% else %}
+        <div class="fallback-icon"></div>
+      {% endif %}
   </div>
 {% endmacro %}

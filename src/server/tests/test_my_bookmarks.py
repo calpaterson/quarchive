@@ -29,7 +29,7 @@ def get_bookmark_titles(response) -> List[str]:
     html_parser = etree.HTMLParser()
     root = etree.fromstring(response.get_data(), html_parser)
     # Perhaps there should be a class used in the html for this
-    bookmarks = CSSSelector("div.bookmark>p:nth-child(1)>a:nth-child(1)")(root)
+    bookmarks = CSSSelector(".bookmark-title")(root)
     return [b.text for b in bookmarks]
 
 

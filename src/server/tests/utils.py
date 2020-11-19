@@ -24,5 +24,5 @@ def get_bookmarks_from_response(response) -> List[Tuple[str, str]]:
     html_parser = etree.HTMLParser()
     root = etree.fromstring(response.get_data(), html_parser)
     # Perhaps there should be a class used in the html for this
-    bookmarks = CSSSelector("div.bookmark>p:nth-child(1)>a:nth-child(1)")(root)
+    bookmarks = CSSSelector(".bookmark-title")(root)
     return [(e.attrib["href"], e.text) for e in bookmarks]

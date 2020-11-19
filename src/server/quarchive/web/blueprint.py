@@ -8,6 +8,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Iterable,
     List,
     Mapping,
     Optional,
@@ -22,7 +23,7 @@ from uuid import UUID
 import pytz
 import flask
 import yaml
-from sqlalchemy import func
+from sqlalchemy import func, and_
 from werkzeug import exceptions as exc
 
 from quarchive import file_storage
@@ -31,6 +32,7 @@ from quarchive.archive import get_archive_links, Archive
 from quarchive.messaging.publication import publish_message
 from quarchive.cache import get_cache
 from quarchive.data.functions import (
+    BookmarkView,
     all_bookmarks,
     bookmarks_with_tag,
     bookmarks_with_netloc,
@@ -46,7 +48,14 @@ from quarchive.data.functions import (
     set_user_timezone,
     username_exists,
 )
-from quarchive.data.models import FullText, SQLABookmark, SQLAUrl, SQLUser
+from quarchive.data.models import (
+    FullText,
+    SQLABookmark,
+    SQLAUrl,
+    SQLUser,
+    URLIcon,
+    DomainIcon,
+)
 from quarchive.data.functions import bookmark_from_sqla
 from quarchive.search import parse_search_str
 from quarchive.value_objects import (
@@ -228,8 +237,21 @@ def my_bookmarks() -> flask.Response:
     page = int(flask.request.args.get("page", "1"))
     offset = (page - 1) * page_size
     user = get_current_user()
-    query = db.session.query(SQLABookmark).filter(
-        SQLABookmark.user_uuid == user.user_uuid
+    query = (
+        db.session.query(
+            SQLAUrl,
+            SQLABookmark,
+            func.coalesce(URLIcon.icon_uuid, DomainIcon.icon_uuid),
+        )
+        .join(SQLABookmark)
+        .outerjoin(URLIcon)
+        .outerjoin(
+            DomainIcon,
+            and_(
+                DomainIcon.scheme == SQLAUrl.scheme, DomainIcon.netloc == SQLAUrl.netloc
+            ),
+        )
+        .filter(SQLABookmark.user_uuid == user.user_uuid)
     )
 
     if "q" in flask.request.args:
@@ -269,15 +291,18 @@ def my_bookmarks() -> flask.Response:
         query.order_by(SQLABookmark.created.desc()).offset(offset + page_size).exists()
     ).scalar()
 
-    bookmarks = []
-    for sqla_obj in sqla_objs:
-        url = sqla_obj.url_obj.to_url()
-        bookmarks.append((url, bookmark_from_sqla(url.to_string(), sqla_obj)))
+    bookmark_views: Iterable[BookmarkView] = (
+        BookmarkView(
+            bookmark=bookmark_from_sqla(sqla_url.to_url(), sqla_bookmark),
+            icon_uuid=icon_uuid,
+        )
+        for sqla_url, sqla_bookmark, icon_uuid in sqla_objs
+    )
     return flask.make_response(
         flask.render_template(
             "my_bookmarks.html",
             page_title=page_title,
-            bookmarks=bookmarks,
+            bookmark_views=bookmark_views,
             page=page,
             prev_page_exists=prev_page_exists,
             next_page_exists=next_page_exists,
@@ -682,11 +707,11 @@ def user_page_post(username: str) -> Tuple[flask.Response, int]:
 @sign_in_required
 def user_tag(username: str, tag: str) -> flask.Response:
     user = get_current_user()
-    bookmarks = bookmarks_with_tag(db.session, user, tag)
+    bookmark_views: Iterable[BookmarkView] = bookmarks_with_tag(db.session, user, tag)
     return flask.make_response(
         flask.render_template(
             "user_tag.html",
-            bookmarks=bookmarks,
+            bookmark_views=bookmark_views,
             tag=tag,
             page_title="Tagged as '%s'" % tag,
         )
@@ -698,11 +723,13 @@ def user_tag(username: str, tag: str) -> flask.Response:
 def user_netloc(username: str, netloc: str) -> flask.Response:
     # FIXME: This is not being paginated!
     user = get_current_user()
-    bookmarks = bookmarks_with_netloc(db.session, user, netloc)
+    bookmark_views: Iterable[BookmarkView] = bookmarks_with_netloc(
+        db.session, user, netloc
+    )
     return flask.make_response(
         flask.render_template(
             "user_netloc.html",
-            bookmarks=bookmarks,
+            bookmark_views=bookmark_views,
             netloc=netloc,
             page_title="Bookmarks from '%s'" % netloc,
         )
@@ -724,9 +751,16 @@ def user_tags(username: str) -> flask.Response:
 def icon_by_uuid(icon_uuid: UUID) -> flask.Response:
     # This endpoint is added for completeness.  In production icons should not
     # be served by nginx instead of Python.
+
     bucket = file_storage.get_icon_bucket()
     icon_filelike = file_storage.download_icon(bucket, icon_uuid)
-    return flask.Response(icon_filelike, mimetype="image/png")
+    response = flask.Response(icon_filelike, mimetype="image/png")
+
+    # But if we're going to serve these, just serve them once
+    ONE_YEAR = 366 * 24 * 60 * 60
+    response.cache_control.max_age = ONE_YEAR
+    response.cache_control.public = True
+    return response
 
 
 @blueprint.route("/faq")

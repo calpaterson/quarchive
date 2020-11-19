@@ -22,13 +22,13 @@
   {{ render_pagination(page) }}
 
   <div class="bookmarks">
-    {% for url, bookmark in bookmarks %}
-      {% if loop.first or loop.previtem[1].created.date() != bookmark.created.date()  %}
+    {% for view in bookmark_views %}
+      {% if loop.first or loop.previtem.bookmark.created.date() != view.bookmark.created.date()  %}
         <p class="bookmark-date">
-          <span>{{bookmark.created.date()|dateformat('full')}}</span>
+          <span>{{view.bookmark.created.date()|dateformat('full')}}</span>
         </p>
       {% endif %}
-      {{ macros.render_bookmark(g.user, bookmark) }}
+      {{ macros.render_bookmark(g.user, view) }}
     {% endfor %}
   </div>
 

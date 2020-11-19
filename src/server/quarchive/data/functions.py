@@ -80,6 +80,15 @@ class UsernameToApiKey(Key[bytes]):
         return [self._username, "api_key"]
 
 
+@dataclass
+class BookmarkView:
+    """A bookmark with all the associated metadata to allow it to be displayed
+     on the web: eg icon_uuid, (eventually) links, discussions, etc."""
+
+    bookmark: Bookmark
+    icon_uuid: Optional[UUID]
+
+
 def put_user_in_cache(cache: Cache, user: User):
     cache.set(UserUUIDToUserKey(user.user_uuid), user)
     cache.set(UsernameToUserKey(user.username), user)
@@ -241,7 +250,7 @@ def get_bookmark_by_url(
     )
     if sqla_bookmark is None:
         return None
-    return bookmark_from_sqla(url_string, sqla_bookmark)
+    return bookmark_from_sqla(url, sqla_bookmark)
 
 
 def get_bookmark_by_url_uuid(
@@ -254,7 +263,7 @@ def get_bookmark_by_url_uuid(
     )
     if sqla_bookmark is None:
         return None
-    url = sqla_bookmark.url_obj.to_url_string()
+    url = sqla_bookmark.url_obj.to_url()
     return bookmark_from_sqla(url, sqla_bookmark)
 
 
@@ -365,47 +374,70 @@ def merge_bookmarks(
 
 
 def all_bookmarks(session, user_uuid: UUID) -> Iterable[Bookmark]:
-    query = session.query(SQLABookmark).filter(SQLABookmark.user_uuid == user_uuid)
+    query = (
+        session.query(SQLABookmark)
+        .join(SQLAUrl)
+        .filter(SQLABookmark.user_uuid == user_uuid)
+    )
     for sqla_bookmark in query:
         url_obj = sqla_bookmark.url_obj
-        url = urlunsplit(
-            [
-                url_obj.scheme,
-                url_obj.netloc,
-                url_obj.path,
-                url_obj.query,
-                url_obj.fragment,
-            ]
+        yield bookmark_from_sqla(url_obj.to_url(), sqla_bookmark)
+
+
+def bookmarks_with_tag(session, user: User, tag: str) -> Iterable[BookmarkView]:
+    query: Iterable[Tuple[SQLAUrl, SQLABookmark, Optional[UUID]]] = (
+        session.query(
+            SQLAUrl,
+            SQLABookmark,
+            func.coalesce(URLIcon.icon_uuid, DomainIcon.icon_uuid),
         )
-        yield bookmark_from_sqla(url, sqla_bookmark)
-
-
-def bookmarks_with_tag(session, user: User, tag: str) -> Iterable[Bookmark]:
-    query = (
-        session.query(SQLAUrl, SQLABookmark)
         .join(SQLABookmark)
         .join(BookmarkTag)
         .join(Tag)
+        .outerjoin(URLIcon)
+        .outerjoin(
+            DomainIcon,
+            and_(
+                DomainIcon.scheme == SQLAUrl.scheme, DomainIcon.netloc == SQLAUrl.netloc
+            ),
+        )
         .filter(SQLABookmark.user_uuid == user.user_uuid)
         .filter(~SQLABookmark.deleted)
         .filter(Tag.tag_name == tag)
         .order_by(SQLABookmark.created.desc())
     )
-    for sqla_url, sqla_bookmark in query:
-        yield bookmark_from_sqla(sqla_url.to_url_string(), sqla_bookmark)
+    for sqla_url, sqla_bookmark, icon_uuid in query:
+        yield BookmarkView(
+            bookmark=bookmark_from_sqla(sqla_url.to_url(), sqla_bookmark),
+            icon_uuid=icon_uuid,
+        )
 
 
-def bookmarks_with_netloc(session, user: User, netloc: str) -> Iterable[Bookmark]:
+def bookmarks_with_netloc(session, user: User, netloc: str) -> Iterable[BookmarkView]:
     query = (
-        session.query(SQLAUrl, SQLABookmark)
+        session.query(
+            SQLAUrl,
+            SQLABookmark,
+            func.coalesce(URLIcon.icon_uuid, DomainIcon.icon_uuid),
+        )
         .join(SQLABookmark)
+        .outerjoin(URLIcon)
+        .outerjoin(
+            DomainIcon,
+            and_(
+                DomainIcon.scheme == SQLAUrl.scheme, DomainIcon.netloc == SQLAUrl.netloc
+            ),
+        )
         .filter(SQLABookmark.user_uuid == user.user_uuid)
         .filter(~SQLABookmark.deleted)
         .filter(SQLAUrl.netloc == netloc)
         .order_by(SQLABookmark.created.desc())
     )
-    for sqla_url, sqla_bookmark in query:
-        yield bookmark_from_sqla(sqla_url.to_url_string(), sqla_bookmark)
+    for sqla_url, sqla_bookmark, icon_uuid in query:
+        yield BookmarkView(
+            bookmark=bookmark_from_sqla(sqla_url.to_url(), sqla_bookmark),
+            icon_uuid=icon_uuid,
+        )
 
 
 def tags_with_count(session, user: User) -> Iterable[Tuple[str, int]]:
@@ -427,9 +459,9 @@ def tags_with_count(session, user: User) -> Iterable[Tuple[str, int]]:
     yield from query
 
 
-def bookmark_from_sqla(url: str, sqla_obj: SQLABookmark) -> Bookmark:
+def bookmark_from_sqla(url: URL, sqla_obj: SQLABookmark) -> Bookmark:
     return Bookmark(
-        url=URL.from_string(url),
+        url=url,
         created=sqla_obj.created,
         description=sqla_obj.description,
         updated=sqla_obj.updated,
