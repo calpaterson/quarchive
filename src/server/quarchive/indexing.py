@@ -63,11 +63,10 @@ def index_icon(
         log.info("already have icon: %s (hash: %s)", icon_url, blake2b.hexdigest())
         return
     else:
-        icon_uuid = uuid4()
         if is_domain_icon:
-            record_domain_icon(session, icon_url, blake2b.digest(), 32)
+            icon_uuid = record_domain_icon(session, icon_url, blake2b.digest(), 32)
         else:
-            record_page_icon(session, cast(URL, page_url), blake2b.digest(), 32)
+            icon_uuid = record_page_icon(session, cast(URL, page_url), blake2b.digest(), 32)
         bucket = file_storage.get_icon_bucket()
         file_storage.upload_icon(bucket, icon_uuid, filelike)
 

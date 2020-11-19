@@ -1,6 +1,7 @@
 import logging
-from typing import Tuple
+from typing import Tuple, IO
 import random
+import hashlib
 
 from tempfile import TemporaryFile
 from PIL import Image
@@ -8,6 +9,7 @@ import responses
 from missive import TestAdapter
 
 
+from quarchive import file_storage
 from quarchive.value_objects import URL
 from quarchive.data.models import (
     Icon,
@@ -31,6 +33,13 @@ def random_image(size: Tuple[int, int] = (32, 32)):
     return image
 
 
+def random_image_fileobj(size: Tuple[int, int] = (32, 32), format="ico") -> IO[bytes]:
+    image_buff = TemporaryFile()
+    random_image().save(image_buff, format="ico")
+    image_buff.seek(0)
+    return image_buff
+
+
 def test_hello_event(bg_client: TestAdapter[PickleMessage], caplog):
     caplog.set_level(logging.INFO, logger="quarchive.bg_worker")
     event = HelloEvent("greetings earthling")
@@ -46,8 +55,8 @@ def test_new_icon_found_domain(
 ):
     random_prefix = random_string()
     icon_url = URL.from_string(f"http://{random_prefix}.example.com/favicon.ico")
-    image_buff = TemporaryFile()
-    random_image().save(image_buff, format="ico")
+    image_buff = random_image_fileobj()
+    hash_bytes = hashlib.blake2b(image_buff.read()).digest()
     image_buff.seek(0)
     requests_mock.add(
         responses.GET,
@@ -72,5 +81,14 @@ def test_new_icon_found_domain(
         )
         .first()
     )
-    assert icon is not None
-    # FIXME: test that the icon is in s3
+    assert icon.original_blake2b_hash == hash_bytes
+    assert icon.pixel_size == 32
+
+    assert domain_icon.scheme == icon_url.scheme
+    assert domain_icon.netloc == icon_url.netloc
+
+    icon_bucket = file_storage.get_icon_bucket()
+    s3_obj, = list(icon_bucket.objects.filter(Prefix=f"{icon.icon_uuid}.png"))
+    assert s3_obj.key == f"{icon.icon_uuid}.png"
+    response = s3_obj.get()
+    assert response["ResponseMetadata"]["HTTPHeaders"]["content-type"] == "image/png"
