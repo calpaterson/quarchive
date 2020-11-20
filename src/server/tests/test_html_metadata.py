@@ -112,7 +112,7 @@ def test_calpaterson():
                 ),
             ],
             Icon(
-                url=URL.from_string("http://example.com/favicon.svg"),
+                url=URL.from_string("http://example.com/favicon.png"),
                 scope=IconScope.PAGE,
             ),
             id="explicit svg and png",
@@ -130,9 +130,8 @@ def test_calpaterson():
                 ),
             ],
             Icon(
-                url=URL.from_string("http://example.com/favicon_b"),
+                url=URL.from_string("http://example.com/favicon_a"),
                 scope=IconScope.PAGE,
-                metadata={"sizes": "any"},
             ),
             id="explicit svg and png",
         ),

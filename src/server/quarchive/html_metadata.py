@@ -46,13 +46,14 @@ class Icon:
             # no idea how big it is, assume tiny
             return 1
         elif sizes == "any":
-            # it's a vector, so return a big number
-            return 10_000
+            # PIL doesn't support vectors, so ignore them
+            return -1
         else:
             match = sizes_regex.match(sizes)
             if match is not None:
                 return int(match.groups()[0])
             else:
+                # junk size, assume tiny
                 return -1
 
     def mimetype_rank(self):
@@ -63,7 +64,7 @@ class Icon:
             mimetype, _ = mimetypes.guess_type(self.url.to_string())
         ranks: Mapping = {
             "image/png": 2,
-            "image/svg+xml": 3,
+            "image/svg+xml": 1,
         }
         return ranks.get(mimetype, 0)
 
