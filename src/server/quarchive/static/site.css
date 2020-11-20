@@ -103,13 +103,15 @@ p.bookmark-date {
 }
 
 .bookmark-icon > img {
-    width: 1em;
-    height: 1em;
+    width: 2em;
+    height: 2em;
 }
 
 .fallback-icon {
-    width: 1em;
-    height: 1em;
+    width: 2em;
+    height: 2em;
+    /* FIXME: Need to actually load a fallback image from the server... */
+    background: var(--main);
 }
 
 .bookmark-link {
