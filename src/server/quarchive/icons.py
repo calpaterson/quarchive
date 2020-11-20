@@ -11,7 +11,7 @@ log = getLogger(__name__)
 DEVNULL = open(os.devnull, "w")
 
 
-def convert_icon(filelike: IO[bytes]) -> IO[bytes]:
+def convert_icon(filelike: IO[bytes], pixel_size: int) -> IO[bytes]:
     """Convert the input image (often ICO format) into a (crushed) 32x32 PNG.
 
     Crushing is important because there will be a lot of these images and we
@@ -25,7 +25,7 @@ def convert_icon(filelike: IO[bytes]) -> IO[bytes]:
             mode="r+b", delete=False, prefix="quarchive-tmp-icon-", suffix=".png"
         )
 
-        resized = image.resize((32, 32), resample=Image.LANCZOS)
+        resized = image.resize((pixel_size, pixel_size), resample=Image.LANCZOS)
         resized.save(temp_file, format="png")
         initial_size = temp_file.tell()
 

@@ -40,7 +40,7 @@ def test_get_icon_404(client, mock_s3):
 )
 def test_convert_icon(image_file_name):
     with open(path.join(test_data_path, image_file_name), "rb") as ico_f:
-        converted_icon = convert_icon(ico_f)
+        converted_icon = convert_icon(ico_f, 32)
 
     image = Image.open(converted_icon)
     assert image.size == (32, 32)

@@ -29,6 +29,10 @@ from quarchive.data.functions import (
 
 log = getLogger(__name__)
 
+# Size of an icon.  100px wide for an image of ~1cm wide gives ~250dpi - enough
+# even for good screens
+ICON_SIZE = 100
+
 
 def request_indexes_for_unindexed_urls(session: Session) -> None:
     index = 0
@@ -65,13 +69,15 @@ def index_icon(
         return
     else:
         if is_domain_icon:
-            icon_uuid = record_domain_icon(session, icon_url, blake2b.digest(), 32)
+            icon_uuid = record_domain_icon(
+                session, icon_url, blake2b.digest(), ICON_SIZE
+            )
         else:
             icon_uuid = record_page_icon(
-                session, cast(URL, page_url), blake2b.digest(), 32
+                session, cast(URL, page_url), blake2b.digest(), ICON_SIZE
             )
         bucket = file_storage.get_icon_bucket()
-        converted = convert_icon(filelike)
+        converted = convert_icon(filelike, ICON_SIZE)
         file_storage.upload_icon(bucket, icon_uuid, converted)
 
     if is_domain_icon:
