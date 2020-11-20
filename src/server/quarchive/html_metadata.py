@@ -31,17 +31,19 @@ class IconScope(Enum):
     PAGE = "page"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Icon:
     """Represents a page "icon", like a favicon"""
 
     url: URL
     scope: IconScope
-    metadata: Mapping[str, str] = field(default_factory=dict)
+    rel_text: str
+    sizes: Optional[str] = None
+    type: Optional[str] = None
 
     def size_rank(self):
         sizes_regex = re.compile(r"(?P<dim>\d+)x(?P=dim)")
-        sizes = self.metadata.get("sizes")
+        sizes = self.sizes
         if sizes is None:
             # no idea how big it is, assume tiny
             return 1
@@ -58,8 +60,8 @@ class Icon:
 
     def mimetype_rank(self):
         mimetype: Optional[str]
-        if "type" in self.metadata:
-            mimetype = self.metadata["type"]
+        if self.type is not None:
+            mimetype = self.type
         else:
             mimetype, _ = mimetypes.guess_type(self.url.to_string())
         ranks: Mapping = {
@@ -84,12 +86,6 @@ class HTMLMetadata:
 def best_icon(metadata: HTMLMetadata) -> Icon:
     """Will return the most suitable icon for our purposes, falling back to the
     domain level favicon.ico if nothing else is available."""
-    url = metadata.url
-    fallback_icon = Icon(
-        url=URL.from_string(f"{url.scheme}://{url.netloc}/favicon.ico"),
-        scope=IconScope.DOMAIN,
-    )
-
     if len(metadata.icons) > 0:
         best_icon = sorted(
             metadata.icons,
@@ -98,8 +94,17 @@ def best_icon(metadata: HTMLMetadata) -> Icon:
         )[0]
         if best_icon.size_rank() > 0:
             # If the size is wonky, skip it
+            log.debug("picked %s as icon for %s", best_icon, metadata.url)
             return best_icon
 
+    url = metadata.url
+    fallback_icon = Icon(
+        url=URL.from_string(f"{url.scheme}://{url.netloc}/favicon.ico"),
+        rel_text="shortcut icon",
+        scope=IconScope.DOMAIN,
+    )
+
+    log.debug("no icons found on %s, falling back favicon.ico", metadata.url)
     return fallback_icon
 
 
@@ -166,20 +171,20 @@ def extract_full_text(root) -> str:
 
 
 def extract_icons(root, url: URL) -> Sequence[Icon]:
-    # "shortcut icon" is common too but non-standard, consider including it
-    icon_elements = root.xpath("//link[@rel='icon']")
+    icon_elements = root.xpath(
+        "//link[(@rel='icon' or @rel='shortcut icon' or @rel='apple-touch-icon')]"
+    )
     icons = []
     for icon_element in icon_elements:
-        metadata = {}
-        if "type" in icon_element.attrib:
-            metadata["type"] = icon_element.attrib["type"]
         icons.append(
             Icon(
                 url=url.follow(
                     icon_element.attrib.get("href"), coerce_canonicalisation=True
                 ),
                 scope=IconScope.PAGE,
-                metadata=metadata,
+                type=icon_element.attrib.get("type"),
+                rel_text=icon_element.attrib["rel"],
+                sizes=icon_element.attrib.get("sizes"),
             )
         )
     return icons

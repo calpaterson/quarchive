@@ -32,13 +32,27 @@ def test_simple():
     assert {"some", "meta", "description"} == meta_words
 
     assert metadata.url == url
-    assert metadata.icons == [
-        Icon(
-            url=URL.from_string("http://example.com/favicon.png"),
-            scope=IconScope.PAGE,
-            metadata={"type": "image/png"},
-        )
-    ]
+    assert set(metadata.icons) == set(
+        [
+            Icon(
+                url=URL.from_string("http://example.com/favicon.png"),
+                scope=IconScope.PAGE,
+                type="image/png",
+                rel_text="icon",
+            ),
+            Icon(
+                url=URL.from_string("http://example.com/favicon-somewhere.ico"),
+                scope=IconScope.PAGE,
+                rel_text="shortcut icon",
+            ),
+            Icon(
+                url=URL.from_string("http://example.com/apple-touch-icon.png"),
+                scope=IconScope.PAGE,
+                rel_text="apple-touch-icon",
+                sizes="152x152",
+            ),
+        ]
+    )
     assert metadata.canonical == URL.from_string("http://example.com/simple")
     assert metadata.title == "Simple"
     assert metadata.links == {URL.from_string("http://example.com/other")}
@@ -67,6 +81,7 @@ def test_calpaterson():
             Icon(
                 url=URL.from_string("http://example.com/favicon.ico"),
                 scope=IconScope.DOMAIN,
+                rel_text="shortcut icon",
             ),
             id="fallback icon",
         ),
@@ -75,11 +90,13 @@ def test_calpaterson():
                 Icon(
                     URL.from_string("http://example.com/favicon.png"),
                     scope=IconScope.PAGE,
+                    rel_text="icon",
                 )
             ],
             Icon(
                 url=URL.from_string("http://example.com/favicon.png"),
                 scope=IconScope.PAGE,
+                rel_text="icon",
             ),
             id="just a png icon",
         ),
@@ -88,15 +105,18 @@ def test_calpaterson():
                 Icon(
                     URL.from_string("http://example.com/favicon.png"),
                     scope=IconScope.PAGE,
+                    rel_text="icon",
                 ),
                 Icon(
                     URL.from_string("http://example.com/favicon.ico"),
                     scope=IconScope.PAGE,
+                    rel_text="shortcut icon",
                 ),
             ],
             Icon(
                 url=URL.from_string("http://example.com/favicon.png"),
                 scope=IconScope.PAGE,
+                rel_text="icon",
             ),
             id="explicit ico and png",
         ),
@@ -104,16 +124,19 @@ def test_calpaterson():
             [
                 Icon(
                     URL.from_string("http://example.com/favicon.png"),
+                    rel_text="icon",
                     scope=IconScope.PAGE,
                 ),
                 Icon(
                     URL.from_string("http://example.com/favicon.svg"),
+                    rel_text="icon",
                     scope=IconScope.PAGE,
                 ),
             ],
             Icon(
                 url=URL.from_string("http://example.com/favicon.png"),
                 scope=IconScope.PAGE,
+                rel_text="icon",
             ),
             id="explicit svg and png",
         ),
@@ -122,16 +145,19 @@ def test_calpaterson():
                 Icon(
                     URL.from_string("http://example.com/favicon_a"),
                     scope=IconScope.PAGE,
+                    rel_text="icon",
                 ),
                 Icon(
                     URL.from_string("http://example.com/favicon_b"),
                     scope=IconScope.PAGE,
-                    metadata={"sizes": "any"},
+                    rel_text="icon",
+                    sizes="any",
                 ),
             ],
             Icon(
                 url=URL.from_string("http://example.com/favicon_a"),
                 scope=IconScope.PAGE,
+                rel_text="icon",
             ),
             id="explicit svg and png",
         ),
@@ -140,12 +166,14 @@ def test_calpaterson():
                 Icon(
                     URL.from_string("http://example.com/favicon_b"),
                     scope=IconScope.PAGE,
-                    metadata={"sizes": "128y128"},
+                    rel_text="icon",
+                    sizes="128y128",
                 ),
             ],
             Icon(
                 url=URL.from_string("http://example.com/favicon.ico"),
                 scope=IconScope.DOMAIN,
+                rel_text="shortcut icon",
             ),
             id="junk size",
         ),
@@ -154,18 +182,21 @@ def test_calpaterson():
                 Icon(
                     URL.from_string("http://example.com/favicon_1"),
                     scope=IconScope.PAGE,
-                    metadata={"sizes": "128x128"},
+                    rel_text="icon",
+                    sizes="128x128",
                 ),
                 Icon(
                     URL.from_string("http://example.com/favicon_b"),
                     scope=IconScope.PAGE,
-                    metadata={"sizes": "256x256"},
+                    rel_text="icon",
+                    sizes="256x256",
                 ),
             ],
             Icon(
                 URL.from_string("http://example.com/favicon_b"),
                 scope=IconScope.PAGE,
-                metadata={"sizes": "256x256"},
+                sizes="256x256",
+                rel_text="icon",
             ),
             id="multiple sizes",
         ),
@@ -174,18 +205,21 @@ def test_calpaterson():
                 Icon(
                     URL.from_string("http://example.com/favicon_1"),
                     scope=IconScope.PAGE,
-                    metadata={"type": "something else"},
+                    rel_text="icon",
+                    type="something else",
                 ),
                 Icon(
                     URL.from_string("http://example.com/favicon_b"),
                     scope=IconScope.PAGE,
-                    metadata={"type": "image/png"},
+                    rel_text="icon",
+                    type="image/png",
                 ),
             ],
             Icon(
                 URL.from_string("http://example.com/favicon_b"),
                 scope=IconScope.PAGE,
-                metadata={"type": "image/png"},
+                rel_text="icon",
+                type="image/png",
             ),
             id="mime as type param",
         ),
