@@ -414,6 +414,7 @@ def bookmarks_with_tag(session, user: User, tag: str) -> Iterable[BookmarkView]:
 
 
 def bookmarks_with_netloc(session, user: User, netloc: str) -> Iterable[BookmarkView]:
+    # FIXME: seem to be no tests for this?
     query = (
         session.query(
             SQLAUrl,
