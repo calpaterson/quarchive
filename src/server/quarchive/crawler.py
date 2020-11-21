@@ -7,7 +7,7 @@ import hashlib
 from tempfile import TemporaryFile
 
 from sqlalchemy.orm import Session
-import requests
+from requests import exceptions, Session as HTTPClient
 
 from quarchive import file_storage
 from quarchive.messaging.message_lib import CrawlRequested
@@ -28,7 +28,7 @@ REQUESTS_TIMEOUT = 30
 
 
 def ensure_url_is_crawled(
-    session: Session, http_client: requests.Session, url: URL
+    session: Session, http_client: HTTPClient, url: URL
 ) -> None:
     if is_crawled(session, url):
         log.info("%s already crawled")
@@ -36,7 +36,7 @@ def ensure_url_is_crawled(
         crawl_url(session, http_client, url)
 
 
-def crawl_url(session: Session, http_client: requests.Session, url: URL) -> UUID:
+def crawl_url(session: Session, http_client: HTTPClient, url: URL) -> UUID:
     crawl_uuid = uuid4()
     bucket = file_storage.get_response_body_bucket()
     create_crawl_request(session, crawl_uuid, url)
@@ -45,7 +45,7 @@ def crawl_url(session: Session, http_client: requests.Session, url: URL) -> UUID
         response = http_client.get(
             url.to_string(), stream=True, timeout=REQUESTS_TIMEOUT
         )
-    except requests.exceptions.RequestException as e:
+    except exceptions.RequestException as e:
         log.warning("unable to request %s - %s", url, e)
         return crawl_uuid
 
@@ -73,7 +73,7 @@ class CrawlException(Exception):
 
 
 def crawl_icon(
-    session: Session, http_client: requests.Session, icon_url: URL
+    session: Session, http_client: HTTPClient, icon_url: URL
 ) -> Tuple[hashlib.blake2b, BinaryIO]:
     # FIXME: Lots of duplicated code here
     """Crawl an icon, returning a hash and the bytes themselves"""
@@ -81,10 +81,10 @@ def crawl_icon(
     create_crawl_request(session, crawl_uuid, icon_url)
 
     try:
-        response = requests.get(
+        response = http_client.get(
             icon_url.to_string(), stream=True, timeout=REQUESTS_TIMEOUT
         )
-    except requests.exceptions.RequestException as e:
+    except exceptions.RequestException as e:
         log.warning("unable to request %s - %s", icon_url, e)
         raise CrawlException()
     log.info("crawled %s", icon_url)
