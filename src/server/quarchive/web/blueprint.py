@@ -751,6 +751,7 @@ def user_tags(username: str) -> flask.Response:
 def icon_by_uuid(icon_uuid: UUID) -> flask.Response:
     # This endpoint is added for completeness.  In production icons should not
     # be served by nginx instead of Python.
+    log.warning("serving icon %s directly", icon_uuid)
 
     bucket = file_storage.get_icon_bucket()
     icon_filelike = file_storage.download_icon(bucket, icon_uuid)
