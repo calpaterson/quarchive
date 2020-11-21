@@ -111,7 +111,7 @@ p.bookmark-date {
     width: 2em;
     height: 2em;
     /* FIXME: Need to actually load a fallback image from the server... */
-    background: var(--main);
+    background: var(--bg);
 }
 
 .bookmark-link {
