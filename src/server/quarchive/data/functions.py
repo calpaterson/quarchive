@@ -269,7 +269,6 @@ def get_bookmark_by_url_uuid(
 
 def upsert_url(session: Session, url: URL) -> UUID:
     """Put a url into the database if it isn't already present"""
-    # This could clearly be faster if it used the url uuid better
     url_stmt = (
         pg_insert(SQLAUrl.__table__)
         .values(
@@ -280,9 +279,7 @@ def upsert_url(session: Session, url: URL) -> UUID:
             query=url.query,
             fragment=url.fragment,
         )
-        .on_conflict_do_nothing(
-            index_elements=["scheme", "netloc", "path", "query", "fragment"]
-        )
+        .on_conflict_do_nothing(index_elements=["url_uuid"])
     )
     session.execute(url_stmt)
 
