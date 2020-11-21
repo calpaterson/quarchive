@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, List
 from uuid import UUID
 
-from sqlalchemy import Column, ForeignKey, and_, types as satypes
+from sqlalchemy import Column, ForeignKey, and_, types as satypes, UniqueConstraint
 from sqlalchemy.dialects.postgresql import BYTEA, JSONB, TSVECTOR, UUID as _PGUUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import RelationshipProperty, foreign, relationship, remote
@@ -228,6 +228,8 @@ class Tag(Base):
 
 
 class DomainIcon(Base):
+    """Records raditional "favicons" served from http://{url}/favicon.ico."""
+
     __tablename__ = "domain_icons"
 
     scheme = Column(satypes.String, nullable=False, primary_key=True)
@@ -240,6 +242,8 @@ class DomainIcon(Base):
 
 
 class URLIcon(Base):
+    """Records favicons referred to by <link rel="..."> HTML"""
+
     __tablename__ = "url_icons"
 
     url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), primary_key=True)
@@ -250,11 +254,26 @@ class URLIcon(Base):
     icon: "RelationshipProperty[Icon]" = relationship("Icon", backref="urls")
 
 
+class IconSource(Base):
+    """Records urls where we found an icon.  Used for deduplication"""
+
+    __tablename__ = "icon_sources"
+
+    icon_uuid = Column(PGUUID, ForeignKey("icons.icon_uuid"), primary_key=True)
+    url_uuid = Column(
+        PGUUID, ForeignKey("urls.url_uuid"), primary_key=True, unique=True
+    )
+
+
 class Icon(Base):
+    """An icon we have retrived, scaled and stored in our S3-compatible
+    store."""
+
     __tablename__ = "icons"
 
+    # This is a key into our S3 bucket
     icon_uuid = Column(PGUUID, primary_key=True)
-    original_blake2b_hash = Column(
-        BYTEA(length=64), nullable=False, unique=True, index=True
-    )
-    pixel_size = Column(satypes.SmallInteger, nullable=False)
+
+    # BLAKE2b hash to help deduplicate the same icon file served from different
+    # locations
+    source_blake2b_hash = Column(BYTEA(length=64), nullable=False, unique=True)

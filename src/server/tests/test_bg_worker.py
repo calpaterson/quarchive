@@ -77,8 +77,7 @@ def test_new_icon_found_domain(
         )
         .first()
     )
-    assert icon.original_blake2b_hash == hash_bytes
-    assert icon.pixel_size == 100
+    assert icon.source_blake2b_hash == hash_bytes
 
     assert domain_icon.scheme == icon_url.scheme
     assert domain_icon.netloc == icon_url.netloc
@@ -120,8 +119,7 @@ def test_new_icon_found_for_url_icon(
         .filter(URLIcon.url_uuid == url.url_uuid)
         .first()
     )
-    assert icon.original_blake2b_hash == hash_bytes
-    assert icon.pixel_size == 100
+    assert icon.source_blake2b_hash == hash_bytes
 
     assert url_icon.url_uuid == url.url_uuid
 

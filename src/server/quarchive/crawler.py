@@ -27,9 +27,7 @@ log = getLogger(__name__)
 REQUESTS_TIMEOUT = 30
 
 
-def ensure_url_is_crawled(
-    session: Session, http_client: HTTPClient, url: URL
-) -> None:
+def ensure_url_is_crawled(session: Session, http_client: HTTPClient, url: URL) -> None:
     if is_crawled(session, url):
         log.info("%s already crawled")
     else:
