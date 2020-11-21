@@ -551,6 +551,19 @@ def get_unindexed_urls(session: Session) -> Iterable[Tuple[URL, UUID]]:
         yield sqla_url.to_url(), crawl_uuid
 
 
+def most_recent_successful_bookmark_crawls(session: Session) -> Iterable[UUID]:
+    query = """
+    SELECT DISTINCT ON (url_uuid) crawl_uuid
+    FROM crawl_requests
+    JOIN crawl_responses USING (crawl_uuid)
+    JOIN bookmarks USING (url_uuid)
+    WHERE got_response
+    AND status_code BETWEEN 200 AND 299
+    ORDER BY url_uuid, requested DESC;
+    """
+    yield from (crawl_uuid for crawl_uuid, in session.execute(query))
+
+
 def create_crawl_request(session: Session, crawl_uuid: UUID, url):
     """Record a request that was made"""
     crawl_request = CrawlRequest(

@@ -64,6 +64,7 @@ setup(
             "qm-pinboard-import=quarchive.pinboard:pinboard_import",
             "quarchive-send-hello=quarchive.messaging.publication:send_hello",
             "quarchive-bg-worker=quarchive.bg_worker:bg_worker",
+            "quarchive-reindex-bookmarks=quarchive.cli:reindex_bookmarks",
         ]
     },
 )

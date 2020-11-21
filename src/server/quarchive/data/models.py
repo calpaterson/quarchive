@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import Column, ForeignKey, and_, types as satypes, UniqueConstraint
 from sqlalchemy.dialects.postgresql import BYTEA, JSONB, TSVECTOR, UUID as _PGUUID
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import RelationshipProperty, foreign, relationship, remote
+from sqlalchemy.orm import RelationshipProperty, foreign, relationship, remote, backref
 from sqlalchemy.schema import CheckConstraint
 
 from quarchive.value_objects import URL
@@ -107,7 +107,7 @@ class CrawlResponse(Base):
     status_code = Column(satypes.SmallInteger, nullable=False, index=True)
 
     request_obj: "RelationshipProperty[CrawlRequest]" = relationship(
-        CrawlRequest, uselist=False, backref="response_obj"
+        CrawlRequest, uselist=False, backref=backref("response_obj", uselist=False),
     )
 
 
