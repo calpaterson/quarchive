@@ -119,14 +119,6 @@ def ensure_fulltext(session: Session, crawl_uuid: UUID) -> Optional[HTMLMetadata
         )
         return None
 
-    if crawl_metadata.fulltext_inserted is not None:
-        log.info(
-            "%s (%s) already indexed - not indexing again",
-            crawl_metadata.url.to_string(),
-            crawl_uuid,
-        )
-        return None
-
     bucket = file_storage.get_response_body_bucket()
     # Try to avoid downloading the content unless we need it
     fileobj = None

@@ -632,20 +632,23 @@ def get_crawl_metadata(session: Session, crawl_uuid: UUID) -> CrawlMetadata:
 
 
 def upsert_metadata(session: Session, crawl_uuid: UUID, metadata: HTMLMetadata) -> None:
-    # FIXME: Not idempotent
+    # FIXME: Need proper tests
     if metadata.text:
         if metadata.meta_desc is not None:
             combined_text = " ".join([metadata.meta_desc, metadata.text])
         else:
             combined_text = metadata.text
-        fulltext_obj = FullText(
-            url_uuid=metadata.url.url_uuid,
-            crawl_uuid=crawl_uuid,
-            inserted=datetime.utcnow().replace(tzinfo=timezone.utc),
-            full_text=combined_text,
-            tsvector=func.to_tsvector(combined_text),
-        )
-        session.add(fulltext_obj)
+        fulltext_obj = session.query(FullText).get(metadata.url.url_uuid)
+        if fulltext_obj is None:
+            fulltext_obj = FullText(
+                url_uuid=metadata.url.url_uuid, crawl_uuid=crawl_uuid
+            )
+            session.add(fulltext_obj)
+
+        fulltext_obj.crawl_uuid = crawl_uuid
+        fulltext_obj.inserted = datetime.utcnow().replace(tzinfo=timezone.utc)
+        fulltext_obj.full_text = combined_text
+        fulltext_obj.tsvector = func.to_tsvector(combined_text)
 
 
 def record_index_error(session: Session, crawl_uuid: UUID, message: str) -> None:

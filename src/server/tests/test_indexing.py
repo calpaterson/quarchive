@@ -1,7 +1,5 @@
 from os import path
-from io import BytesIO
 from uuid import uuid4, UUID
-import re
 from datetime import datetime, timezone
 from typing import Tuple
 from unittest import mock
@@ -10,7 +8,7 @@ import pytest
 from sqlalchemy import func
 from freezegun import freeze_time
 
-from quarchive import file_storage, crawler, indexing
+from quarchive import file_storage, indexing
 from quarchive.data.models import (
     SQLAUrl,
     CrawlRequest,
