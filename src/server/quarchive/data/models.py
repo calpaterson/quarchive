@@ -56,6 +56,32 @@ class SQLAUrl(Base):
         return self.to_url().to_string()
 
 
+class Links(Base):
+    """Links between urls, stored as a tuple of (from, to)."""
+
+    __tablename__ = "links"
+
+    from_url_uuid = Column(
+        PGUUID, ForeignKey("urls.url_uuid"), primary_key=True, index=True
+    )
+    to_url_uuid = Column(
+        PGUUID, ForeignKey("urls.url_uuid"), primary_key=True, index=True
+    )
+
+
+class CanonicalUrls(Base):
+    """Canonical urls, stored as a tuple of (canon, non-canon)."""
+
+    __tablename__ = "canonical_urls"
+
+    canonical_url_uuid = Column(
+        PGUUID, ForeignKey("urls.url_uuid"), primary_key=True, index=True
+    )
+    non_canonical_url_uuid = Column(
+        PGUUID, ForeignKey("urls.url_uuid"), primary_key=True, unique=True
+    )
+
+
 class SQLABookmark(Base):
     __tablename__ = "bookmarks"
 
