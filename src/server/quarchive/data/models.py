@@ -55,8 +55,19 @@ class SQLAUrl(Base):
     def to_url_string(self) -> str:
         return self.to_url().to_string()
 
+    links: "RelationshipProperty[Link]" = relationship(
+        "Link",
+        primaryjoin="SQLAUrl.url_uuid==Link.from_url_uuid",
+        backref=backref("from_url_obj", uselist=False),
+    )
+    backlinks: "RelationshipProperty[Link]" = relationship(
+        "Link",
+        primaryjoin="SQLAUrl.url_uuid==Link.to_url_uuid",
+        backref=backref("to_url_obj", uselist=False),
+    )
 
-class Links(Base):
+
+class Link(Base):
     """Links between urls, stored as a tuple of (from, to)."""
 
     __tablename__ = "links"

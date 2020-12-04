@@ -35,6 +35,7 @@ from .models import (
     FullText,
     Icon,
     IndexingError,
+    Link,
     SQLABookmark,
     SQLAUrl,
     SQLUser,
@@ -649,6 +650,33 @@ def upsert_metadata(session: Session, crawl_uuid: UUID, metadata: HTMLMetadata) 
         fulltext_obj.inserted = datetime.utcnow().replace(tzinfo=timezone.utc)
         fulltext_obj.full_text = combined_text
         fulltext_obj.tsvector = func.to_tsvector(combined_text)
+
+    upsert_links(session, metadata.url, metadata.links)
+
+
+def upsert_links(session: Session, url: URL, links: Set[URL]) -> None:
+    current: Set[UUID] = set(
+        t
+        for t, in session.query(Link.to_url_uuid).filter(
+            Link.from_url_uuid == url.url_uuid
+        )
+    )
+    required: Set[UUID] = {u.url_uuid for u in links}
+
+    to_be_added: Set[UUID] = set()
+
+    for link_url in links:
+        if link_url.url_uuid in current:
+            log.debug("not re-adding link from %s to %s", url, link_url)
+        else:
+            upsert_url(session, link_url)
+            to_be_added.add(link_url.url_uuid)
+
+    # FIXME: should delete here!
+
+    session.add_all(
+        [Link(from_url_uuid=url.url_uuid, to_url_uuid=r) for r in to_be_added]
+    )
 
 
 def record_index_error(session: Session, crawl_uuid: UUID, message: str) -> None:
