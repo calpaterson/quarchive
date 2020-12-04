@@ -671,8 +671,13 @@ def upsert_links(session: Session, url: URL, links: Set[URL]) -> None:
         else:
             upsert_url(session, link_url)
             to_be_added.add(link_url.url_uuid)
+            log.debug("added link from %s to %s", url, link_url)
 
-    # FIXME: should delete here!
+    to_be_removed: Set[UUID] = current.difference(required)
+    log.debug("deleting %d now absent links", len(to_be_removed))
+    session.query(Link).filter(Link.to_url_uuid.in_(to_be_removed)).delete(
+        synchronize_session="fetch"
+    )
 
     session.add_all(
         [Link(from_url_uuid=url.url_uuid, to_url_uuid=r) for r in to_be_added]

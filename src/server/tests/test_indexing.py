@@ -1,7 +1,7 @@
 from os import path
 from uuid import uuid4, UUID
 from datetime import datetime, timezone
-from typing import Tuple
+from typing import Tuple, Optional
 from unittest import mock
 
 import pytest
@@ -21,12 +21,17 @@ from quarchive.value_objects import URL
 from .conftest import test_data_path, random_string
 
 
-def make_crawl_with_response(session) -> Tuple[SQLAUrl, CrawlRequest, CrawlResponse]:
+def make_crawl_with_response(
+    session, url: Optional[URL] = None
+) -> Tuple[SQLAUrl, CrawlRequest, CrawlResponse]:
     # FIXME: This should probably return a CrawlMetadata
-    url = URL.from_string("http://example.com/" + random_string())
+    if url is None:
+        url = URL.from_string("http://example.com/" + random_string())
+        url_obj = SQLAUrl.from_url(url)
+    else:
+        url_obj = session.query(SQLAUrl).filter(SQLAUrl.url_uuid == url.url_uuid).one()
     crawl_uuid = uuid4()
     body_uuid = uuid4()
-    url_obj = SQLAUrl.from_url(url)
     crawl_req = CrawlRequest(
         crawl_uuid=crawl_uuid,
         url_uuid=url.url_uuid,
