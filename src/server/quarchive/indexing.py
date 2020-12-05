@@ -108,16 +108,8 @@ def ensure_fulltext(session: Session, crawl_uuid: UUID) -> Optional[HTMLMetadata
 
     If there is an error, a fulltext error will be recorded in the database.
 
-    ."""
+    """
     crawl_metadata = get_crawl_metadata(session, crawl_uuid)
-
-    if crawl_metadata.fulltext_failed:
-        log.info(
-            "%s (%s) already failed - not trying again",
-            crawl_metadata.url.to_string(),
-            crawl_uuid,
-        )
-        return None
 
     bucket = file_storage.get_response_body_bucket()
     # Try to avoid downloading the content unless we need it

@@ -100,6 +100,9 @@ def test_ensure_crawled_only_runs_once(session, http_client, mock_s3, requests_m
     assert resp_query.count() == 1
 
 
+# There are lots more urls than we want to crawl - we should only crawl things
+# that are currently bookmarked
+@pytest.mark.skip(reason="no longer the correct functionality")
 def test_request_crawls_for_uncrawled_urls(
     session, bg_worker, mock_s3, test_user, requests_mock
 ):
