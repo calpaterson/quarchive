@@ -79,6 +79,11 @@ def test_url_from_non_minimal_canonicalisation_fails(problem_url):
             "http://somewhere-else.com/a.html",
             "http://somewhere-else.com/a.html",
         ),
+        (
+            "http://example.com/subdir/index.html",
+            "bar.html",
+            "http://example.com/subdir/bar.html",
+        ),
     ],
 )
 def test_follow(base_url, relative_url, expected):

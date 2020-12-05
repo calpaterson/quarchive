@@ -29,6 +29,7 @@ from quarchive.value_objects import (
 from .models import (
     APIKey,
     BookmarkTag,
+    CanonicalUrl,
     CrawlRequest,
     CrawlResponse,
     DomainIcon,
@@ -652,6 +653,24 @@ def upsert_metadata(session: Session, crawl_uuid: UUID, metadata: HTMLMetadata) 
         fulltext_obj.tsvector = func.to_tsvector(combined_text)
 
     upsert_links(session, metadata.url, metadata.links)
+
+    if metadata.canonical is not None:
+        upsert_url(session, metadata.canonical)
+        canonical_url_obj = (
+            session.query(CanonicalUrl)
+            .filter(CanonicalUrl.non_canonical_url_uuid == metadata.url.url_uuid)
+            .first()
+        )
+        if canonical_url_obj is None:
+            session.add(
+                CanonicalUrl(
+                    non_canonical_url_uuid=metadata.url.url_uuid,
+                    canonical_url_uuid=metadata.canonical.url_uuid,
+                )
+            )
+            log.debug("new canonical url %s for %s", metadata.canonical, metadata.url)
+        else:
+            canonical_url_obj.canonical_url_uuid = metadata.canonical.url_uuid
 
 
 def upsert_links(session: Session, url: URL, links: Set[URL]) -> None:

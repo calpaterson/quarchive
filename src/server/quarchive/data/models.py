@@ -66,6 +66,12 @@ class SQLAUrl(Base):
         backref=backref("to_url_obj", uselist=False),
     )
 
+    canonical_url_obj: "RelationshipProperty[CanonicalUrl]" = relationship(
+        "CanonicalUrl",
+        primaryjoin="SQLAUrl.url_uuid==CanonicalUrl.non_canonical_url_uuid",
+        uselist=False,
+    )
+
 
 class Link(Base):
     """Links between urls, stored as a tuple of (from, to)."""
@@ -80,7 +86,7 @@ class Link(Base):
     )
 
 
-class CanonicalUrls(Base):
+class CanonicalUrl(Base):
     """Canonical urls, stored as a tuple of (canon, non-canon)."""
 
     __tablename__ = "canonical_urls"
