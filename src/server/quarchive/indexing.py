@@ -66,12 +66,19 @@ def index_icon(
     is_domain_icon = page_url is None
     if have_icon_by_hash(session, blake2b.digest()):
         log.info("already have icon: %s (hash: %s)", icon_url, blake2b.hexdigest())
-        return
+        if is_domain_icon:
+            icon_uuid = record_domain_icon(session, icon_url, blake2b.digest())
+        else:
+            icon_uuid = record_page_icon(
+                session, icon_url, cast(URL, page_url), blake2b.digest()
+            )
     else:
         if is_domain_icon:
             icon_uuid = record_domain_icon(session, icon_url, blake2b.digest())
         else:
-            icon_uuid = record_page_icon(session, cast(URL, page_url), blake2b.digest())
+            icon_uuid = record_page_icon(
+                session, icon_url, cast(URL, page_url), blake2b.digest()
+            )
         bucket = file_storage.get_icon_bucket()
         converted = convert_icon(filelike, ICON_SIZE)
         file_storage.upload_icon(bucket, icon_uuid, converted)

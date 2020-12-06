@@ -4,7 +4,6 @@ from sys import stdout
 import contextlib
 from logging import getLogger
 from os import environ
-import shutil
 
 import click
 
@@ -39,7 +38,7 @@ def reindex_bookmarks(log_level: str):
         log.warning("requested %d indexings", index)
 
 
-@click.command(help="Outputs the a crawl body")
+@click.command(help="Outputs the body of the given crawl")
 @click.option("--log-level", type=click.Choice(LOG_LEVELS), default="INFO")
 @click.argument("crawl_uuid", type=click.UUID)
 def get_crawl_body(crawl_uuid: UUID, log_level: str):

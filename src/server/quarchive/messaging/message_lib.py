@@ -39,11 +39,11 @@ class CrawlRequested(Event):
 class NewIconFound(Event):
     """A new icon has been found as part of indexing.
 
-    In the case of a domain icon (a root level favicon.ico), this icon may not
-    exist but will not have been tried yet.
+    Contains the URL of the icon (icon_url_uuid).  If this is a page icon, it
+    also contains the URL which the icon was found (page_url_uuid).
 
-    In the case of a page icon (eg: rel=icon link in meta) page_url_uuid will
-    be populated."""
+    For domain icons, the icon may not exist (ie: will return 404).
+    """
 
     icon_url_uuid: UUID
     page_url_uuid: Optional[UUID] = None

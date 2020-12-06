@@ -11,7 +11,7 @@ from missive import TestAdapter
 
 from quarchive import file_storage
 from quarchive.value_objects import URL
-from quarchive.data.models import Icon, DomainIcon, URLIcon
+from quarchive.data.models import Icon, DomainIcon, URLIcon, SQLAUrl
 from quarchive.data.functions import upsert_url
 from quarchive.messaging.receipt import PickleMessage
 from quarchive.messaging.message_lib import HelloEvent, NewIconFound
@@ -89,11 +89,16 @@ def test_new_icon_found_domain(
     assert response["ResponseMetadata"]["HTTPHeaders"]["content-type"] == "image/png"
 
 
-def test_new_icon_found_for_url_icon(
+def test_new_icon_found_for_page_icon(
     session, requests_mock, bg_client: TestAdapter[PickleMessage], mock_s3
 ):
+    """Test that when a new page icon is found (that doesn't match any existing
+    icons) that it is retrieved, indexed and stored.
+
+    """
+    netloc = random_string()
     url = URL.from_string(f"http://{random_string()}.example.com/")
-    icon_url = url.follow("/favicon.ico")
+    icon_url = url.follow("/favicon.png")
     image_buff = random_image_fileobj()
     hash_bytes = hashlib.blake2b(image_buff.read()).digest()
     image_buff.seek(0)
@@ -128,3 +133,62 @@ def test_new_icon_found_for_url_icon(
     assert s3_obj.key == f"{icon.icon_uuid}.png"
     response = s3_obj.get()
     assert response["ResponseMetadata"]["HTTPHeaders"]["content-type"] == "image/png"
+
+
+def test_new_icon_found_for_page_url_duplicated_by_content(
+    session, requests_mock, bg_client: TestAdapter[PickleMessage], mock_s3
+):
+    """Test that when a new page icon is found that is the same icon by hash as
+    an existing icon, that it is recorded."""
+    page_url_1 = URL.from_string(f"http://{random_string()}.example.com/index.html")
+    page_url_2 = page_url_1.follow("/otherindex.html")
+
+    icon_url_1 = page_url_1.follow("favicon1.png")
+    icon_url_2 = page_url_2.follow("favicon2.png")
+
+    image_buff = random_image_fileobj()
+    hash_bytes = hashlib.blake2b(image_buff.read()).digest()
+    image_buff.seek(0)
+    requests_mock.add(
+        responses.GET,
+        url=icon_url_1.to_string(),
+        body=image_buff.read(),
+        status=200,
+        stream=True,
+    )
+    image_buff.seek(0)
+    requests_mock.add(
+        responses.GET,
+        url=icon_url_2.to_string(),
+        body=image_buff.read(),
+        status=200,
+        stream=True,
+    )
+    requests_mock.start()
+
+    upsert_url(session, page_url_1)
+    upsert_url(session, page_url_2)
+    upsert_url(session, icon_url_1)
+    upsert_url(session, icon_url_2)
+    session.commit()
+
+    event = NewIconFound(
+        icon_url_uuid=icon_url_1.url_uuid, page_url_uuid=page_url_1.url_uuid
+    )
+    bg_client.send(PickleMessage.from_obj(event))
+
+    event = NewIconFound(
+        icon_url_uuid=icon_url_2.url_uuid, page_url_uuid=page_url_2.url_uuid
+    )
+    bg_client.send(PickleMessage.from_obj(event))
+
+    url_icon_obj_1, url_icon_obj_2 = (
+        session.query(URLIcon)
+        .join(SQLAUrl, URLIcon.url_uuid == SQLAUrl.url_uuid)
+        .filter(SQLAUrl.netloc == page_url_1.netloc)
+        .order_by(SQLAUrl.path)
+        .all()
+    )
+
+    assert url_icon_obj_1.icon == url_icon_obj_2.icon
+    assert url_icon_obj_1.icon.source_blake2b_hash == hash_bytes

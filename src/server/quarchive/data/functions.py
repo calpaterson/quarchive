@@ -721,19 +721,27 @@ def have_icon_by_hash(session: Session, hash_bytes: bytes) -> bool:
     ).scalar()
 
 
-def record_page_icon(session: Session, url: URL, hash_bytes: bytes) -> UUID:
-    icon_uuid = uuid4()
-    url_icon = URLIcon(url_uuid=url.url_uuid, icon_uuid=icon_uuid)
-    icon = Icon(icon_uuid=icon_uuid, source_blake2b_hash=hash_bytes)
-    session.add_all([icon, url_icon])
+def upsert_icon(session, hash_bytes: bytes) -> UUID:
+    icon = session.query(Icon).filter(Icon.source_blake2b_hash == hash_bytes).first()
+    if icon is None:
+        icon = Icon(icon_uuid=uuid4(), source_blake2b_hash=hash_bytes)
+        session.add(icon)
+    return icon.icon_uuid
+
+
+def record_page_icon(
+    session: Session, icon_url: URL, page_url: URL, hash_bytes: bytes
+) -> UUID:
+    icon_uuid = upsert_icon(session, hash_bytes)
+    url_icon = URLIcon(url_uuid=page_url.url_uuid, icon_uuid=icon_uuid)
+    session.add(url_icon)
     return icon_uuid
 
 
 def record_domain_icon(session: Session, icon_url: URL, hash_bytes: bytes) -> UUID:
-    icon_uuid = uuid4()
+    icon_uuid = upsert_icon(session, hash_bytes)
     domain_icon = DomainIcon(
         scheme=icon_url.scheme, netloc=icon_url.netloc, icon_uuid=icon_uuid
     )
-    icon = Icon(icon_uuid=icon_uuid, source_blake2b_hash=hash_bytes)
-    session.add_all([icon, domain_icon])
+    session.add(domain_icon)
     return icon_uuid
