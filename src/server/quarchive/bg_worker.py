@@ -10,12 +10,12 @@ import missive
 import missive.dlq.sqlite
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
-from quarchive.html_metadata import Icon, best_icon, HTMLMetadata, IconScope
+from quarchive.html_metadata import best_icon, HTMLMetadata, IconScope
 from quarchive.logging import configure_logging, LOG_LEVELS
 from quarchive import crawler, indexing
 from quarchive.data.functions import (
     upsert_url,
-    have_icon_by_url,
+    have_icon_at_url,
     get_url_by_url_uuid,
     is_crawled,
     get_session_cls,
@@ -163,7 +163,10 @@ def on_new_icon_found(message: PickleMessage, ctx: missive.HandlingContext):
     else:
         page_url = None
 
-    # FIXME: Check we don't already have it (by url) before crawling
+    if have_icon_at_url(session, icon_url):
+        log.info("already have icon at %s, not recrawling", icon_url)
+        ctx.ack()
+        return
     blake2b_hash, crawled_filelike = crawler.crawl_icon(session, http_client, icon_url)
     indexing.index_icon(
         session, icon_url, crawled_filelike, blake2b_hash, page_url=page_url
@@ -176,7 +179,7 @@ def icon_message_if_necessary(
     session: Session, metadata: HTMLMetadata
 ) -> Optional[NewIconFound]:
     icon = best_icon(metadata)
-    if not have_icon_by_url(session, icon.url):
+    if not have_icon_at_url(session, icon.url):
         upsert_url(session, icon.url)
         message = NewIconFound(icon.url.url_uuid)
         if icon.scope == IconScope.PAGE:

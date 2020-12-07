@@ -89,6 +89,43 @@ def test_new_icon_found_domain(
     assert response["ResponseMetadata"]["HTTPHeaders"]["content-type"] == "image/png"
 
 
+def test_new_icon_found_domain_but_is_already_indexed(
+    session, requests_mock, bg_client: TestAdapter[PickleMessage], mock_s3
+):
+    icon_url = URL.from_string(f"http://{random_string()}.example.com/favicon.ico")
+    image_buff = random_image_fileobj()
+    hash_bytes = hashlib.blake2b(image_buff.read()).digest()
+    image_buff.seek(0)
+    requests_mock.add(
+        responses.GET,
+        url=icon_url.to_string(),
+        body=image_buff.read(),
+        status=200,
+        stream=True,
+    )
+    requests_mock.start()
+
+    upsert_url(session, icon_url)
+    session.commit()
+
+    event = NewIconFound(icon_url_uuid=icon_url.url_uuid)
+    bg_client.send(PickleMessage.from_obj(event))
+    bg_client.send(PickleMessage.from_obj(event))
+
+    icon, domain_icon = (
+        session.query(Icon, DomainIcon)
+        .join(DomainIcon)
+        .filter(
+            DomainIcon.scheme == icon_url.scheme, DomainIcon.netloc == icon_url.netloc
+        )
+        .one()
+    )
+    assert icon.source_blake2b_hash == hash_bytes
+
+    assert domain_icon.scheme == icon_url.scheme
+    assert domain_icon.netloc == icon_url.netloc
+
+
 def test_new_icon_found_for_page_icon(
     session, requests_mock, bg_client: TestAdapter[PickleMessage], mock_s3
 ):
