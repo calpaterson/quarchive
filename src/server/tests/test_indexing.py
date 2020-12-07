@@ -1,8 +1,9 @@
 from os import path
-from uuid import uuid4, UUID
+from uuid import uuid4
 from datetime import datetime, timezone
-from typing import Tuple, Optional
+from typing import Tuple, Optional, BinaryIO
 from unittest import mock
+from contextlib import ExitStack
 
 import pytest
 from sqlalchemy import func
@@ -22,7 +23,7 @@ from .conftest import test_data_path, random_string
 
 
 def make_crawl_with_response(
-    session, url: Optional[URL] = None
+    session, url: Optional[URL] = None, response_body: Optional[BinaryIO] = None
 ) -> Tuple[SQLAUrl, CrawlRequest, CrawlResponse]:
     # FIXME: This should probably return a CrawlMetadata
     if url is None:
@@ -46,17 +47,16 @@ def make_crawl_with_response(
     )
     session.add_all([url_obj, crawl_req, crawl_resp])
 
-    put_simple_website_into_bucket(crawl_resp.body_uuid)
-
-    return (url_obj, crawl_req, crawl_resp)
-
-
-def put_simple_website_into_bucket(body_uuid: UUID):
+    stack = ExitStack()
     bucket = file_storage.get_response_body_bucket()
-    with open(
-        path.join(test_data_path, "webpage-with-full-metadata.html"), "rb"
-    ) as html_f:
-        file_storage.upload_file(bucket, html_f, str(body_uuid))
+    if response_body is None:
+        response_body = stack.enter_context(
+            open(path.join(test_data_path, "webpage-with-full-metadata.html"), "rb")
+        )
+    file_storage.upload_file(bucket, response_body, str(body_uuid))
+
+    stack.close()
+    return (url_obj, crawl_req, crawl_resp)
 
 
 @freeze_time("2018-01-03")

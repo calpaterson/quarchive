@@ -148,7 +148,7 @@ def bg_worker(bg_client: missive.TestAdapter):
 
     def fake_publish(as_bytes: bytes, routing_key: str) -> None:
         message_obj = receipt.PickleMessage(as_bytes)
-        log.debug("sending %s directly to test client", message_obj)
+        log.info("sending %s directly to test client", message_obj)
         bg_client.send(message_obj)
 
     producer = publication.get_producer()
