@@ -11,6 +11,8 @@ import boto3
 import botocore.exceptions as boto_exceptions
 from botocore.utils import fix_s3_host
 
+from quarchive.io import RewindingIO
+
 log = getLogger(__name__)
 
 
@@ -95,7 +97,7 @@ def upload_icon(bucket, icon_uuid: UUID, filelike: IO[bytes]) -> None:
 
 
 def download_icon(bucket, icon_uuid: UUID) -> Optional[IO[bytes]]:
-    temp_file = tempfile.TemporaryFile()
-    bucket.download_fileobj(f"{icon_uuid}.png", temp_file)
-    temp_file.seek(0)
-    return temp_file
+    rewinder = RewindingIO(tempfile.TemporaryFile())
+    with rewinder as temp_file:
+        bucket.download_fileobj(f"{icon_uuid}.png", temp_file)
+    return rewinder.io
