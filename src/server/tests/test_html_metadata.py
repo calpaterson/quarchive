@@ -51,6 +51,11 @@ def test_simple():
                 rel_text="apple-touch-icon",
                 sizes="152x152",
             ),
+            Icon(
+                url=URL.from_string("http://example.com/favicon-alternative.png"),
+                scope=IconScope.PAGE,
+                rel_text="alternate icon",
+            ),
         ]
     )
     assert metadata.canonical == URL.from_string("http://example.com/simple")
@@ -222,6 +227,22 @@ def test_calpaterson():
                 type="image/png",
             ),
             id="mime as type param",
+        ),
+        pytest.param(
+            [
+                Icon(
+                    URL.from_string("http://example.com/favicon_1"),
+                    scope=IconScope.PAGE,
+                    rel_text="icon",
+                    type="image/svg+xml",
+                ),
+            ],
+            Icon(
+                url=URL.from_string("http://example.com/favicon.ico"),
+                scope=IconScope.DOMAIN,
+                rel_text="shortcut icon",
+            ),
+            id="never choose an svg",
         ),
     ],
 )

@@ -58,12 +58,16 @@ class Icon:
                 # junk size, assume tiny
                 return -1
 
-    def mimetype_rank(self):
+    def mimetype(self) -> Optional[str]:
         mimetype: Optional[str]
         if self.type is not None:
             mimetype = self.type
         else:
             mimetype, _ = mimetypes.guess_type(self.url.to_string())
+        return mimetype
+
+    def mimetype_rank(self):
+        mimetype = self.mimetype()
         ranks: Mapping = {
             "image/png": 2,
             "image/svg+xml": 1,
@@ -86,17 +90,20 @@ class HTMLMetadata:
 def best_icon(metadata: HTMLMetadata) -> Icon:
     """Will return the most suitable icon for our purposes, falling back to the
     domain level favicon.ico if nothing else is available."""
-    if len(metadata.icons) > 0:
-        best_icon = sorted(
-            metadata.icons,
+    # We don't currently consider SVG as we can't read them (yet)
+    possible_icons = list(
+        sorted(
+            (i for i in metadata.icons if i.mimetype() != "image/svg+xml"),
             key=lambda i: (i.size_rank(), i.mimetype_rank()),
             reverse=True,
-        )[0]
+        )
+    )
+    if len(possible_icons) > 0:
+        best_icon = possible_icons[0]
         if best_icon.size_rank() > 0:
             # If the size is wonky, skip it
             log.debug("picked %s as icon for %s", best_icon, metadata.url)
             return best_icon
-
     url = metadata.url
     fallback_icon = Icon(
         url=URL.from_string(f"{url.scheme}://{url.netloc}/favicon.ico"),
@@ -124,7 +131,7 @@ def extract_metadata_from_html(url: URL, filelike: Buffer) -> HTMLMetadata:
 
 
 def extract_canonical_link(root, url: URL) -> Optional[URL]:
-    rel_canonicals = root.xpath("//link[@rel='canonical']")
+    rel_canonicals = root.xpath("//head/link[@rel='canonical']")
     if len(rel_canonicals) > 0:
         if "href" in rel_canonicals[0].attrib:
             href = rel_canonicals[0].attrib["href"]
@@ -139,7 +146,7 @@ def extract_canonical_link(root, url: URL) -> Optional[URL]:
 
 
 def extract_title(root) -> Optional[str]:
-    titles = root.xpath("//title")
+    titles = root.xpath("//head/title")
     if len(titles) > 0:
         return titles[0].text_content()
     return None
@@ -172,7 +179,7 @@ def extract_full_text(root) -> str:
 
 def extract_icons(root, url: URL) -> Sequence[Icon]:
     icon_elements = root.xpath(
-        "//link[(@rel='icon' or @rel='shortcut icon' or @rel='apple-touch-icon')]"
+        "//head/link[(@rel='icon' or @rel='shortcut icon' or @rel='apple-touch-icon' or @rel='alternate icon')]"
     )
     icons = []
     for icon_element in icon_elements:
@@ -191,7 +198,7 @@ def extract_icons(root, url: URL) -> Sequence[Icon]:
 
 
 def extract_first_meta_description(root) -> Optional[str]:
-    meta_description_elements = root.xpath("//meta[@name='description']")
+    meta_description_elements = root.xpath("//head/meta[@name='description']")
     if len(meta_description_elements) == 0:
         return None
     else:
