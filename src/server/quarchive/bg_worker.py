@@ -191,7 +191,7 @@ def icon_message_if_necessary(
 
 
 @proc.handle_for(ClassMatcher(IndexRequested))
-def on_full_text_requested(message: PickleMessage, ctx: missive.HandlingContext):
+def on_index_requested(message: PickleMessage, ctx: missive.HandlingContext):
     event = cast(IndexRequested, message.get_obj())
     session = get_session(ctx)
     metadata = indexing.index(session, event.crawl_uuid)

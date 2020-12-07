@@ -86,7 +86,12 @@ def index_icon(
     if is_domain_icon:
         log.info("indexed domain icon: %s (hash: %s)", icon_url, blake2b.hexdigest())
     else:
-        log.info("indexed page icon: %s (hash: %s)", page_url, blake2b.hexdigest())
+        log.info(
+            "indexed page icon: %s for %s (hash: %s)",
+            icon_url,
+            page_url,
+            blake2b.hexdigest(),
+        )
 
 
 def index(session: Session, crawl_uuid: UUID) -> Optional[HTMLMetadata]:
