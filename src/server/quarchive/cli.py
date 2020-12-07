@@ -7,9 +7,11 @@ from os import environ
 
 import click
 
+from quarchive.value_objects import URL
 from quarchive import file_storage
 from quarchive.logging import LOG_LEVELS, configure_logging
 from quarchive.data.functions import (
+    get_most_recent_crawl,
     most_recent_successful_bookmark_crawls,
     get_crawl_metadata,
     get_session_cls,
@@ -36,6 +38,18 @@ def reindex_bookmarks(log_level: str):
                 IndexRequested(crawl_uuid), environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
             )
         log.warning("requested %d indexings", index)
+
+
+@click.command(help="Requests an (re)index of a specific url")
+@click.option("--log-level", type=click.Choice(LOG_LEVELS), default="INFO")
+@click.argument("url", type=click.STRING)
+def reindex_url(url: str, log_level: str):
+    url_obj = URL.from_string(url)
+    Session = get_session_cls()
+    with contextlib.closing(Session()) as session:
+        crawl_uuid = get_most_recent_crawl(session, url_obj)
+    publish_message(IndexRequested(crawl_uuid), environ["QM_RABBITMQ_BG_WORKER_TOPIC"])
+    log.info("requested index of %s (crawl_uuid: %s)", url_obj, crawl_uuid)
 
 
 @click.command(help="Outputs the body of the given crawl")

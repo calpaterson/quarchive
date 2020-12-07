@@ -608,6 +608,18 @@ class CrawlMetadata:
     url: URL
 
 
+def get_most_recent_crawl(session: Session, url: URL) -> UUID:
+    return (
+        session.query(CrawlResponse.crawl_uuid,)
+        .join(CrawlRequest)
+        .join(SQLAUrl)
+        .filter(SQLAUrl.url_uuid == url.url_uuid)
+        .order_by(CrawlRequest.requested)
+        .limit(1)
+        .scalar()
+    )
+
+
 def get_crawl_metadata(session: Session, crawl_uuid: UUID) -> CrawlMetadata:
     """Return some crawl metadata (for indexing purposes)"""
     body_uuid, content_type_header, sqla_url_obj, inserted, previous_failure = (
