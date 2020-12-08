@@ -32,6 +32,12 @@ import pytest
 log = getLogger(__name__)
 
 
+# This is necessary to work around moto's effect on responses
+# https://github.com/spulec/moto/issues/3264
+responses._default_mock.passthru_prefixes = tuple()
+responses.add_passthru = responses._default_mock.add_passthru
+
+
 @pytest.fixture(scope="session", autouse=True)
 def reduce_noisy_logging():
     q_logging.turn_down_noisy_loggers()
