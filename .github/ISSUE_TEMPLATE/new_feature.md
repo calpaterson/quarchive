@@ -2,7 +2,7 @@
 name: User story
 about: A plan for implementing some new feature or change
 title: ''
-labels: ''
+labels: 'enhancement'
 assignees: ''
 
 ---
