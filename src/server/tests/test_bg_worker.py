@@ -1,5 +1,6 @@
 import logging
 from typing import Tuple, IO
+from uuid import uuid4
 from io import BytesIO
 import random
 import hashlib
@@ -12,7 +13,14 @@ import pytest
 
 from quarchive import file_storage
 from quarchive.value_objects import URL
-from quarchive.data.models import Icon, DomainIcon, URLIcon, SQLAUrl, FullText
+from quarchive.data.models import (
+    Icon,
+    DomainIcon,
+    URLIcon,
+    SQLAUrl,
+    FullText,
+    IconSource,
+)
 from quarchive.data.functions import upsert_url
 from quarchive.messaging.receipt import PickleMessage
 from quarchive.messaging.message_lib import HelloEvent, NewIconFound, IndexRequested
@@ -52,6 +60,7 @@ def test_hello_event(bg_client: TestAdapter[PickleMessage], caplog):
 def test_index_requested_new_page_and_new_page_icon(
     session, bg_worker, mock_s3, requests_mock
 ):
+    """Test that new pages are indexed properly and their icon is downloaded."""
     icon_url = URL.from_string(f"http://{random_string()}.example.com/favicon.png")
     html = f"""
     <html>
@@ -91,6 +100,39 @@ def test_index_requested_new_page_and_new_page_icon(
 
     assert fulltext_exists, "crawl not indexed!"
     assert icon_exists, "icon not crawled!"
+
+
+def test_index_requested_new_page_and_known_page_icon_url(
+    session, bg_worker, mock_s3, requests_mock
+):
+    """Test that when a page uses an icon url we already have in the index, we reuse it."""
+    icon_url = URL.from_string(f"http://{random_string()}.example.com/favicon.png")
+    icon_uuid = uuid4()
+    html = f"""
+    <html>
+    <head>
+    <link rel="icon" type="image/png" href="{icon_url.to_string()}">
+    </head>
+    </html>
+    """
+
+    sqla_url, crawl_req, crawl_resp = make_crawl_with_response(
+        session, response_body=BytesIO(html.encode("utf-8"))
+    )
+    image_buff = random_image_fileobj()
+    hash_bytes = hashlib.blake2b(image_buff.read()).digest()
+    upsert_url(session, icon_url)
+    session.add(Icon(icon_uuid=icon_uuid, source_blake2b_hash=hash_bytes))
+    session.add(IconSource(icon_uuid=icon_uuid, url_uuid=icon_url.url_uuid))
+    session.commit()
+
+    bg_worker.send(PickleMessage.from_obj(IndexRequested(crawl_resp.crawl_uuid)))
+
+    url_icon = (
+        session.query(URLIcon).filter(URLIcon.url_uuid == sqla_url.url_uuid).one()
+    )
+    assert url_icon.url_uuid == sqla_url.url_uuid
+    assert url_icon.icon_uuid == icon_uuid
 
 
 def test_new_icon_found_domain(

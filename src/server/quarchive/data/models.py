@@ -307,6 +307,10 @@ class IconSource(Base):
         PGUUID, ForeignKey("urls.url_uuid"), primary_key=True, unique=True
     )
 
+    icon: "RelationshipProperty[Icon]" = relationship(
+        "Icon", backref="icon_sources", uselist=False
+    )
+
 
 class Icon(Base):
     """An icon we have retrived, scaled and stored in our S3-compatible

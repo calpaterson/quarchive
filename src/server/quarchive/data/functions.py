@@ -720,11 +720,25 @@ def record_index_error(session: Session, crawl_uuid: UUID, message: str) -> None
     session.add(IndexingError(crawl_uuid=crawl_uuid, description=message))
 
 
-def have_icon_at_url(session: Session, url: URL) -> bool:
+def icon_at_url(session: Session, url: URL) -> Optional[UUID]:
     """Return True if we think we already have an icon from that URL."""
-    return session.query(
-        session.query(IconSource).filter(IconSource.url_uuid == url.url_uuid).exists()
-    ).scalar()
+    rv = (
+        session.query(IconSource.icon_uuid)
+        .filter(IconSource.url_uuid == url.url_uuid)
+        .first()
+    )
+    return rv
+
+
+def upsert_icon_for_url(session, page_url: URL, icon_uuid: UUID) -> None:
+    url_icon = (
+        session.query(URLIcon).filter(URLIcon.url_uuid == page_url.url_uuid).first()
+    )
+    if url_icon is None:
+        url_icon = URLIcon(url_uuid=page_url.url_uuid, icon_uuid=icon_uuid)
+        session.add(url_icon)
+    else:
+        url_icon.icon_uuid = icon_uuid
 
 
 def have_icon_by_hash(session: Session, hash_bytes: bytes) -> bool:

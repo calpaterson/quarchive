@@ -15,7 +15,8 @@ from quarchive.logging import configure_logging, LOG_LEVELS
 from quarchive import crawler, indexing
 from quarchive.data.functions import (
     upsert_url,
-    have_icon_at_url,
+    upsert_icon_for_url,
+    icon_at_url,
     get_url_by_url_uuid,
     is_crawled,
     get_session_cls,
@@ -163,7 +164,7 @@ def on_new_icon_found(message: PickleMessage, ctx: missive.HandlingContext):
     else:
         page_url = None
 
-    if have_icon_at_url(session, icon_url):
+    if icon_at_url(session, icon_url) is not None:
         log.info("already have icon at %s, not recrawling", icon_url)
         ctx.ack()
         return
@@ -179,15 +180,17 @@ def icon_message_if_necessary(
     session: Session, metadata: HTMLMetadata
 ) -> Optional[NewIconFound]:
     icon = best_icon(metadata)
-    if not have_icon_at_url(session, icon.url):
+    icon_uuid = icon_at_url(session, icon.url)
+    if icon_uuid is not None:
+        log.debug("already have icon for %s (%s)", metadata.url, icon.url)
+        upsert_icon_for_url(session, metadata.url, icon_uuid)
+        return None
+    else:
         upsert_url(session, icon.url)
         message = NewIconFound(icon.url.url_uuid)
         if icon.scope == IconScope.PAGE:
             message.page_url_uuid = metadata.url.url_uuid
         return message
-    else:
-        log.debug("already have icon for %s", metadata.url)
-        return None
 
 
 @proc.handle_for(ClassMatcher(IndexRequested))
