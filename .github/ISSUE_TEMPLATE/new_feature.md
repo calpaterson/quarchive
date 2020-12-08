@@ -1,0 +1,18 @@
+---
+name: User story
+about: A plan for implementing some new feature or change
+title: ''
+labels: ''
+assignees: ''
+
+---
+
+# Brief overview
+
+As a **[persona name]**
+
+I want **[some feature or change to be made]**
+
+SO THAT **[brief description of goal]**
+
+# Additional details
