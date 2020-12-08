@@ -19,18 +19,21 @@ def main():
     writer.writerow(["from_uuid", "to_uuid"])
     for line in reader:
         current_uuid = UUID(line["url_uuid"])
-        url = urlunsplit((
-            line["scheme"],
-            line["netloc"],
-            line["path"],
-            line["query"],
-            line["fragment"],
-        ))
+        url = urlunsplit(
+            (
+                line["scheme"],
+                line["netloc"],
+                line["path"],
+                line["query"],
+                line["fragment"],
+            )
+        )
 
         expected_uuid = create_url_uuid(url)
 
         if expected_uuid != current_uuid:
             writer.writerow([current_uuid, expected_uuid])
+
 
 if __name__ == "__main__":
     main()
