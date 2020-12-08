@@ -164,15 +164,21 @@ def on_new_icon_found(message: PickleMessage, ctx: missive.HandlingContext):
     else:
         page_url = None
 
-    if icon_at_url(session, icon_url) is not None:
-        log.info("already have icon at %s, not recrawling", icon_url)
-        ctx.ack()
-        return
-    blake2b_hash, crawled_filelike = crawler.crawl_icon(session, http_client, icon_url)
-    indexing.index_icon(
-        session, icon_url, crawled_filelike, blake2b_hash, page_url=page_url
-    )
-    session.commit()
+    existing_icon_uuid = icon_at_url(session, icon_url)
+    if existing_icon_uuid is not None:
+        log.info("already have icon at %s", icon_url)
+        if page_url is not None:
+            upsert_icon_for_url(session, page_url, existing_icon_uuid)
+            session.commit()
+    else:
+        blake2b_hash, crawled_filelike = crawler.crawl_icon(
+            session, http_client, icon_url
+        )
+        indexing.index_icon(
+            session, icon_url, crawled_filelike, blake2b_hash, page_url=page_url
+        )
+        session.commit()
+
     ctx.ack()
 
 
