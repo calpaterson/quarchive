@@ -33,15 +33,24 @@ def convert_icon(filelike: IO[bytes], pixel_size: int) -> IO[bytes]:
         temp_file.close()
 
         # pngcrush does a lot better than PIL at optimizing (50% or more)
+        crushed_filename = f"{temp_file}.crushed"
         result = subprocess.run(
-            ["pngcrush", "-ow", temp_file.name], stdout=DEVNULL, stderr=DEVNULL
+            ["pngcrush", temp_file.name, crushed_filename], capture_output=True,
         )
 
         # Raise an exception if something went wrong
-        result.check_returncode()
+        try:
+            result.check_returncode()
+        except subprocess.CalledProcessError:
+            log.error(
+                "pngcrush failed: stdout='%s', stderr='%s'",
+                result.stdout,
+                result.stderr,
+            )
+            raise
 
         # Open a handle to the new, crushed, png
-        rv = open(temp_file.name, mode="r+b")
+        rv = open(crushed_filename, mode="r+b")
 
         # Log out the size reduction
         rv.seek(0, 2)
@@ -50,8 +59,10 @@ def convert_icon(filelike: IO[bytes], pixel_size: int) -> IO[bytes]:
         log.debug("reduced image from %d bytes to %d", initial_size, crushed_size)
 
     finally:
-        # then delete the underlying file (existing handle will continue to
-        # work due to CoW
+        # clean up our temp file
         os.remove(temp_file.name)
+        # then delete the underlying file (existing handle will continue to
+        # work due to CoW)
+        os.remove(crushed_filename)
 
     return rv
