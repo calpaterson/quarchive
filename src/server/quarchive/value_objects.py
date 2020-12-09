@@ -2,7 +2,7 @@ import itertools
 from dataclasses import dataclass
 from datetime import datetime
 from logging import getLogger
-from typing import Any, FrozenSet, Mapping, Optional, Set, Tuple
+from typing import Any, FrozenSet, Mapping, Optional, Set, Tuple, ClassVar
 from urllib.parse import urlsplit, urlunsplit, urljoin
 from uuid import NAMESPACE_URL as UUID_URL_NAMESPACE, UUID, uuid5
 
@@ -264,3 +264,24 @@ class FeedEntry:
 class FeedNotification:
     user: User
     notification_dt: datetime
+
+
+@dataclass
+class BookmarkView:
+    """A bookmark with all the associated metadata to allow it to be displayed
+     on the web: eg icon_uuid, (eventually) links, discussions, etc."""
+
+    MAX_TITLE_SIZE: ClassVar[int] = 70
+
+    bookmark: Bookmark
+    icon_uuid: Optional[UUID] = None
+
+    def title(self) -> str:
+        """Minor pretty printing of the bookmark title for the web"""
+        title = self.bookmark.title
+        if len(title) == 0:
+            return "[no title]"
+        elif len(title) > self.MAX_TITLE_SIZE:
+            return title[: self.MAX_TITLE_SIZE - 5] + "[...]"
+        else:
+            return title

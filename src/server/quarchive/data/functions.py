@@ -23,6 +23,7 @@ from quarchive.html_metadata import HTMLMetadata
 from quarchive.value_objects import (
     URL,
     Bookmark,
+    BookmarkView,
     User,
 )
 
@@ -81,15 +82,6 @@ class UsernameToApiKey(Key[bytes]):
 
     def as_segments(self):
         return [self._username, "api_key"]
-
-
-@dataclass
-class BookmarkView:
-    """A bookmark with all the associated metadata to allow it to be displayed
-     on the web: eg icon_uuid, (eventually) links, discussions, etc."""
-
-    bookmark: Bookmark
-    icon_uuid: Optional[UUID]
 
 
 def put_user_in_cache(cache: Cache, user: User):

@@ -13,7 +13,7 @@
       </div>
       <div class="bookmark-rest-column">
         <p class="bookmark-link">
-          <a class="bookmark-title" href="{{bookmark.url.to_string()}}">{{bookmark.title}}</a>
+          <a class="bookmark-title" href="{{bookmark.url.to_string()}}">{{bookmark_view.title()}}</a>
           <a
             class="netloc"
             href="{{ url_for('quarchive.user_netloc', username=user.username, netloc=bookmark.url.netloc) }}"
