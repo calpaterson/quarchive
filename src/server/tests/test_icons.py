@@ -11,7 +11,7 @@ from quarchive.icons import convert_icon
 from .conftest import test_data_path
 
 
-def test_get_icon(client, mock_s3):
+def test_get_icon(signed_in_client, mock_s3):
     icon_uuid = uuid4()
     with open(
         path.join(test_data_path, "wikipedia-32px.png"), "r+b"
@@ -20,8 +20,13 @@ def test_get_icon(client, mock_s3):
             file_storage.get_icon_bucket(), icon_uuid, wikipedia_icon_f
         )
 
-    response = client.get(flask.url_for("quarchive.icon_by_uuid", icon_uuid=icon_uuid))
+    response = signed_in_client.get(
+        flask.url_for("quarchive-icons.icon_by_uuid", icon_uuid=icon_uuid)
+    )
     assert response.status_code == 200
+
+    # If cookies are set CDNs and other caches generally will not cache the image
+    assert "Set-Cookie" not in response.headers
 
 
 @pytest.mark.xfail(reason="not implemented")

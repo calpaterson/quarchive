@@ -101,6 +101,16 @@ def set_sign_in_cookies(user: User, api_key: bytes):
 
 
 @blueprint.after_request
+def echo_session(response: flask.Response) -> flask.Response:
+    # It's possible to use SESSION_REFRESH_EACH_REQUEST to echo the session
+    # after each request.  However this is ONLY desirable when serving
+    # endpoints from this blueprint (the one that serves the web ui) and not in
+    # general - from the sync api or from the backup icon server blueprint
+    flask.session.modified = True
+    return response
+
+
+@blueprint.after_request
 def set_api_key_cookie_if_necessary(response: flask.Response) -> flask.Response:
     """If the user signed in in this session, set the sync_credentials cookie."""
     if hasattr(flask.g, "sync_credentials"):
@@ -745,23 +755,6 @@ def user_tags(username: str) -> flask.Response:
     return flask.make_response(
         flask.render_template("user_tags.html", tag_counts=tt1, page_title="My tags")
     )
-
-
-@blueprint.route("/icons/<uuid:icon_uuid>.png")
-def icon_by_uuid(icon_uuid: UUID) -> flask.Response:
-    # This endpoint is added for completeness.  In production icons should not
-    # be served by nginx instead of Python.
-    log.warning("serving icon %s directly", icon_uuid)
-
-    bucket = file_storage.get_icon_bucket()
-    icon_filelike = file_storage.download_icon(bucket, icon_uuid)
-    response = flask.Response(icon_filelike, mimetype="image/png")
-
-    # But if we're going to serve these, just serve them once
-    ONE_YEAR = 366 * 24 * 60 * 60
-    response.cache_control.max_age = ONE_YEAR
-    response.cache_control.public = True
-    return response
 
 
 @blueprint.route("/faq")

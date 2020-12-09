@@ -218,8 +218,9 @@ def make_bookmark(**kwargs) -> sut.Bookmark:
 
 
 def sign_in_as(client, user: ExtendedUser):
-    with client.session_transaction() as sess:
-        sess["user_uuid"] = user.user_uuid
+    with client.session_transaction() as sesh:
+        sesh.permanent = True
+        sesh["user_uuid"] = user.user_uuid
 
 
 def sign_out(client):

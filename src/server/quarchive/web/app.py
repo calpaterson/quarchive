@@ -13,6 +13,7 @@ from werkzeug.urls import url_encode
 from quarchive.config import load_config
 
 from .blueprint import blueprint
+from .icon_blueprint import icon_blueprint
 from .db_obj import db
 
 log = logging.getLogger(__name__)
@@ -39,6 +40,11 @@ def init_app() -> flask.Flask:
     app.config["CRYPT_CONTEXT"] = CryptContext(["argon2", "bcrypt"])
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
+    # This configuration option, enabled by default, causes cookies to be
+    # refreshed (echoed) for many endpoints where that's not appropriate - eg
+    # those in the icon blueprint
+    app.config["SESSION_REFRESH_EACH_REQUEST"] = False
+
     # By default Postgres will consult the locale to decide what timezone to
     # return datetimes in.  We want UTC in all cases.
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
@@ -53,6 +59,7 @@ def init_app() -> flask.Flask:
     cors.init_app(app)
     babel = Babel(app, default_locale="en_GB", default_timezone="Europe/London")
     app.register_blueprint(blueprint)
+    app.register_blueprint(icon_blueprint)
 
     @babel.timezoneselector
     def use_user_timezone():
