@@ -87,17 +87,18 @@ def get_current_user() -> User:
     return flask.g.user
 
 
-def set_sign_in_cookies(user: User, api_key: bytes):
-    """Sets two sign in cookies.  Firstly a traditional (encrypted) session
-    cookie.  Secondly a sync credentials cookie to help the extension get
-    started without user configuration.
+def set_current_user(user: User, api_key: bytes, session: Optional[Any] = None):
+    """Sets the current user.
 
-    """
-    flask.session["user_uuid"] = user.user_uuid
+    Optional session kwarg is to facilitate use from tests."""
+    if session is None:
+        session = flask.session
 
-    # Make it last for 31 days
-    flask.session.permanent = True
+    flask.g.user = user
     flask.g.sync_credentials = "|".join([user.username, api_key.hex()])
+    session["user_uuid"] = user.user_uuid
+    # Make it last for 31 days
+    session.permanent = True
 
 
 @blueprint.after_request
@@ -614,10 +615,7 @@ def register() -> flask.Response:
         response.headers["Location"] = flask.url_for("quarchive.my_bookmarks")
         log.info("created user: %s", user.username)
 
-        flask.session["user_uuid"] = user.user_uuid
-        flask.g.user = user
-
-        set_sign_in_cookies(user, api_key)
+        set_current_user(user, api_key)
 
         return response
 
@@ -651,8 +649,7 @@ def sign_in() -> flask.Response:
             # In this context the user exists to the api key must too
             api_key = cast(bytes, get_api_key(db.session, get_cache(), user.username))
 
-            flask.g.user = user
-            set_sign_in_cookies(user, api_key)
+            set_current_user(user, api_key)
             flask.flash("Signed in")
 
             response = flask.make_response("Redirecting...", 303)

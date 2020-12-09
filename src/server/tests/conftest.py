@@ -23,6 +23,7 @@ from quarchive import (
     file_storage,
     crawler,
 )
+from quarchive.web.blueprint import set_current_user
 from quarchive import logging as q_logging
 from quarchive.data import models as sut_models
 from quarchive.messaging import publication, receipt
@@ -219,8 +220,7 @@ def make_bookmark(**kwargs) -> sut.Bookmark:
 
 def sign_in_as(client, user: ExtendedUser):
     with client.session_transaction() as sesh:
-        sesh.permanent = True
-        sesh["user_uuid"] = user.user_uuid
+        set_current_user(user, user.api_key, session=sesh)
 
 
 def sign_out(client):
