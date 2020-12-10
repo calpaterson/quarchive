@@ -4,20 +4,22 @@
 {% import 'macros.html' as macros %}
 
 {% block main %}
-  <h1>My bookmarks</h1>
+  <h1>{{ h1 }}</h1>
 
+  {% if search_query != False %}
   <form id="search-form">
     <input
       type="text"
       id="search-box"
       name="q"
-      {% if q %}
-      value="{{ q }}"
+      {% if search_query != "" %}
+      value="{{ search_query }}"
       {% endif %}
       autofocus
       >
     <button>Search</button>
   </form>
+  {% endif %}
 
   {{ render_pagination(page) }}
 

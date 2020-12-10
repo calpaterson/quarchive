@@ -171,13 +171,14 @@ def my_bookmarks() -> flask.Response:
 
     return flask.make_response(
         flask.render_template(
-            "my_bookmarks.html",
+            "bookmarks.html",
+            h1="My bookmarks",
             page_title=page_title,
             bookmark_views=qb.execute(),
             page=page,
             prev_page_exists=prev_page_exists,
             next_page_exists=next_page_exists,
-            q=flask.request.args.get("q"),
+            search_query=flask.request.args.get("q", ""),
         )
     )
 
