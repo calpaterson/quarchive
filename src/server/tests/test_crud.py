@@ -8,7 +8,7 @@ import pytest
 from freezegun import freeze_time
 
 import quarchive as sut
-from quarchive.web.blueprint import form_fields_from_querystring
+from quarchive.web.web_blueprint import form_fields_from_querystring
 
 from .conftest import make_bookmark, random_string
 from .utils import sync_bookmarks

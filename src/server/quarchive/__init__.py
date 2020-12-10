@@ -37,6 +37,6 @@ from .data.functions import (
 from .search import parse_search_str
 from .config import load_config
 from .web.app import init_app
-from .web.blueprint import db
+from .web.db_obj import db
 from .pinboard import pinboard_import
 from .url_recheck import url_recheck

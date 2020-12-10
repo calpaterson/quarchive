@@ -13,7 +13,7 @@ import click
 from .logging import LOG_LEVELS, configure_logging
 from .value_objects import URL, URLException
 from .web.app import init_app
-from .web.blueprint import db
+from .web.web_blueprint import db
 from .data.functions import get_all_urls_as_5_tuples
 
 log = logging.getLogger("quarchive-url-recheck")

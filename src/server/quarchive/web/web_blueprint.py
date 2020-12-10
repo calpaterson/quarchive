@@ -1,4 +1,3 @@
-import json
 import re
 from datetime import datetime, timezone
 from functools import wraps
@@ -32,13 +31,10 @@ from quarchive.cache import get_cache
 from quarchive.data.functions import (
     BookmarkView,
     BookmarkViewQueryBuilder,
-    all_bookmarks,
     create_user,
     get_api_key,
     get_bookmark_by_url_uuid,
-    is_correct_api_key,
     is_correct_password,
-    merge_bookmarks,
     set_bookmark,
     set_user_timezone,
     tags_with_count,
@@ -51,46 +47,20 @@ from quarchive.value_objects import (
     URL,
     Bookmark,
     TagTriples,
-    User,
-    BadCanonicalisationException,
     DisallowedSchemeException,
 )
-
+from .users import get_current_user, set_current_user
 from .db_obj import db
 
 log = getLogger(__name__)
 
-blueprint = flask.Blueprint("quarchive", "quarchive")
+web_blueprint = flask.Blueprint("quarchive", "quarchive")
 
 # Flask's "views" are quite variable
 V = TypeVar("V", bound=Callable)
 
 
-def get_current_user() -> User:
-    """Utility function to get the current user.
-
-    The only purpose of this is for typing - flask.g.user is unavoidably Any
-    whereas the return type of this is User.
-
-    """
-    return flask.g.user
-
-
-def set_current_user(user: User, api_key: bytes, session: Optional[Any] = None):
-    """Sets the current user.
-
-    Optional session kwarg is to facilitate use from tests."""
-    if session is None:
-        session = flask.session
-
-    flask.g.user = user
-    flask.g.sync_credentials = "|".join([user.username, api_key.hex()])
-    session["user_uuid"] = user.user_uuid
-    # Make it last for 31 days
-    session.permanent = True
-
-
-@blueprint.after_request
+@web_blueprint.after_request
 def echo_session(response: flask.Response) -> flask.Response:
     # It's possible to use SESSION_REFRESH_EACH_REQUEST to echo the session
     # after each request.  However this is ONLY desirable when serving
@@ -100,7 +70,7 @@ def echo_session(response: flask.Response) -> flask.Response:
     return response
 
 
-@blueprint.after_request
+@web_blueprint.after_request
 def set_api_key_cookie_if_necessary(response: flask.Response) -> flask.Response:
     """If the user signed in in this session, set the sync_credentials cookie."""
     if hasattr(flask.g, "sync_credentials"):
@@ -118,7 +88,7 @@ def set_api_key_cookie_if_necessary(response: flask.Response) -> flask.Response:
     return response
 
 
-@blueprint.before_request
+@web_blueprint.before_request
 def put_user_in_g() -> None:
     user_uuid: Optional[UUID] = flask.session.get("user_uuid")
     if user_uuid is not None:
@@ -128,7 +98,7 @@ def put_user_in_g() -> None:
         flask.current_app.logger.debug("not signed in")
 
 
-@blueprint.before_app_first_request
+@web_blueprint.before_app_first_request
 def log_db() -> None:
     flask.current_app.logger.info("using engine: %s", db.session.bind)
 
@@ -159,76 +129,27 @@ def observe_redirect_to(handler: V) -> V:
     return cast(V, wrapper)
 
 
-def api_key_required(handler: V) -> V:
-    @wraps(handler)
-    def wrapper(*args, **kwargs):
-        try:
-            # FIXME: Remove old synonyms
-            username = (
-                flask.request.headers.get("X-QM-API-Username")
-                or flask.request.headers["Quarchive-Username"]
-            )
-            api_key_str = (
-                flask.request.headers.get("X-QM-API-Key")
-                or flask.request.headers["Quarchive-API-Key"]
-            )
-        except KeyError:
-            flask.current_app.logger.info("no api credentials")
-            return flask.jsonify({"error": "no api credentials"}), 400
-
-        cache = get_cache()
-
-        try:
-            api_key = bytes.fromhex(api_key_str)
-        except ValueError:
-            flask.current_app.logger.warning("invalid api key: %s", username)
-            return (
-                flask.jsonify({"error": "invalid api key (should be hexadecimal)"}),
-                400,
-            )
-
-        if is_correct_api_key(db.session, cache, username, api_key):
-            # We know at this point that the user does in fact exist, so cast
-            # away the Optional
-            user = cast(User, user_from_username_if_exists(db.session, cache, username))
-            flask.g.user = user
-            return handler()
-        else:
-            # Something was wrong, let's figure out what
-            user_if_exists = user_from_username_if_exists(db.session, cache, username)
-            if user_if_exists is None:
-                flask.current_app.logger.warning("user does not exist: %s", username)
-                # user doesn't exist
-                return flask.jsonify({"error": "user does not exist"}), 400
-            else:
-                flask.current_app.logger.warning("wrong api key for %s", username)
-                # api key must have been wrong
-                return flask.jsonify({"error": "wrong api key"}), 400
-
-    return cast(V, wrapper)
-
-
-@blueprint.route("/favicon.ico")
+@web_blueprint.route("/favicon.ico")
 def favicon() -> flask.Response:
     # Should set cache headers
     return flask.current_app.send_static_file("icons/favicon.ico")
 
 
-@blueprint.route("/about")
+@web_blueprint.route("/about")
 def about() -> flask.Response:
     return flask.make_response(
         flask.render_template("about.html", page_title="About Quarchive")
     )
 
 
-@blueprint.route("/getting-started")
+@web_blueprint.route("/getting-started")
 def getting_started():
     return flask.make_response(
         flask.render_template("getting_started.html", page_title="Getting Started")
     )
 
 
-@blueprint.route("/")
+@web_blueprint.route("/")
 @sign_in_required
 def my_bookmarks() -> flask.Response:
     # FIXME: This viewfunc really needs to get split up and work via the data
@@ -309,7 +230,7 @@ def form_fields_from_querystring(
     return form_fields
 
 
-@blueprint.route("/create-bookmark")
+@web_blueprint.route("/create-bookmark")
 @sign_in_required
 def create_bookmark_form() -> flask.Response:
     template_kwargs: Dict[str, Any] = {"page_title": "Create bookmark"}
@@ -321,7 +242,7 @@ def create_bookmark_form() -> flask.Response:
     )
 
 
-@blueprint.route("/bookmark/<uuid:url_uuid>", methods=["GET"])
+@web_blueprint.route("/bookmark/<uuid:url_uuid>", methods=["GET"])
 @sign_in_required
 @observe_redirect_to
 def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
@@ -355,7 +276,7 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
     )
 
 
-@blueprint.route("/bookmark/<uuid:url_uuid>/archives", methods=["GET"])
+@web_blueprint.route("/bookmark/<uuid:url_uuid>/archives", methods=["GET"])
 @sign_in_required
 def bookmark_archives(url_uuid: UUID) -> flask.Response:
     bookmark = get_bookmark_by_url_uuid(
@@ -422,7 +343,7 @@ def tag_triples_from_form(
     return frozenset(return_value)
 
 
-@blueprint.route("/bookmark", methods=["POST"])
+@web_blueprint.route("/bookmark", methods=["POST"])
 @sign_in_required
 def create_bookmark() -> flask.Response:
     form = flask.request.form
@@ -463,7 +384,7 @@ def create_bookmark() -> flask.Response:
     return response
 
 
-@blueprint.route("/bookmark/<uuid:url_uuid>", methods=["POST"])
+@web_blueprint.route("/bookmark/<uuid:url_uuid>", methods=["POST"])
 @sign_in_required
 @observe_redirect_to
 def edit_bookmark(url_uuid: UUID) -> flask.Response:
@@ -493,7 +414,7 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
     return flask.make_response("ok")
 
 
-@blueprint.route("/register", methods=["GET", "POST"])
+@web_blueprint.route("/register", methods=["GET", "POST"])
 def register() -> flask.Response:
     if flask.request.method == "GET":
         return flask.make_response(
@@ -535,7 +456,7 @@ def register() -> flask.Response:
         return response
 
 
-@blueprint.route("/sign-in", methods=["GET", "POST"])
+@web_blueprint.route("/sign-in", methods=["GET", "POST"])
 def sign_in() -> flask.Response:
     if flask.request.method == "GET":
         return flask.make_response(
@@ -574,14 +495,14 @@ def sign_in() -> flask.Response:
             raise exc.BadRequest("unsuccessful sign in")
 
 
-@blueprint.route("/sign-out", methods=["GET"])
+@web_blueprint.route("/sign-out", methods=["GET"])
 def sign_out() -> flask.Response:
     flask.session.clear()
     flask.flash("Signed out")
     return flask.make_response(flask.render_template("base.html"))
 
 
-@blueprint.route("/user/<username>", methods=["GET"])
+@web_blueprint.route("/user/<username>", methods=["GET"])
 def user_page(username: str) -> flask.Response:
     cache = get_cache()
     user = user_from_username_if_exists(db.session, cache, username)
@@ -603,7 +524,7 @@ def user_page(username: str) -> flask.Response:
     )
 
 
-@blueprint.route("/user/<username>", methods=["POST"])
+@web_blueprint.route("/user/<username>", methods=["POST"])
 def user_page_post(username: str) -> Tuple[flask.Response, int]:
     user = user_from_username_if_exists(db.session, get_cache(), username)
     if user is None:
@@ -622,7 +543,7 @@ def user_page_post(username: str) -> Tuple[flask.Response, int]:
         return response, 303
 
 
-@blueprint.route("/user/<username>/tags/<tag>")
+@web_blueprint.route("/user/<username>/tags/<tag>")
 @sign_in_required
 def user_tag(username: str, tag: str) -> flask.Response:
     user = get_current_user()
@@ -639,7 +560,7 @@ def user_tag(username: str, tag: str) -> flask.Response:
     )
 
 
-@blueprint.route("/user/<username>/netlocs/<netloc>")
+@web_blueprint.route("/user/<username>/netlocs/<netloc>")
 @sign_in_required
 def user_netloc(username: str, netloc: str) -> flask.Response:
     user = get_current_user()
@@ -656,7 +577,7 @@ def user_netloc(username: str, netloc: str) -> flask.Response:
     )
 
 
-@blueprint.route("/user/<username>/tags")
+@web_blueprint.route("/user/<username>/tags")
 @sign_in_required
 def user_tags(username: str) -> flask.Response:
     user = get_current_user()
@@ -667,7 +588,7 @@ def user_tags(username: str) -> flask.Response:
     )
 
 
-@blueprint.route("/faq")
+@web_blueprint.route("/faq")
 def faq() -> flask.Response:
     here = path.dirname(path.realpath(__file__))
     with open(path.join(here, "faq.yaml")) as faq_f:
@@ -676,86 +597,6 @@ def faq() -> flask.Response:
     return flask.make_response(flask.render_template("faq.html", faq=faq))
 
 
-@blueprint.route("/ok")
+@web_blueprint.route("/ok")
 def ok() -> flask.Response:
     return flask.json.jsonify({"ok": True})
-
-
-@blueprint.route("/api/sync/check-api-key", methods=["POST"])
-@api_key_required
-def sync_check_api_key() -> Tuple[flask.Response, int]:
-    return flask.jsonify({}), 200
-
-
-@blueprint.route("/api/sync", methods=["POST"])
-@blueprint.route("/sync", methods=["POST"])  # FIXME: Deprecated
-@api_key_required
-def sync() -> flask.Response:
-    start_time = datetime.utcnow()
-    extension_version = flask.request.headers.get(
-        "Quarchive-Extension-Version", "unknown"
-    )
-    log.debug("extension version: %s", extension_version)
-    user = get_current_user()
-    user_uuid = user.user_uuid
-    use_jsonlines = flask.request.headers["Content-Type"] != "application/json"
-    if not use_jsonlines:
-        log.warning("sync request using deprecated single json object")
-        body = flask.request.json
-        recieved_bookmarks = (Bookmark.from_json(item) for item in body["bookmarks"])
-    else:
-        log.info("sync request using jsonlines")
-        recieved_bookmarks = (
-            Bookmark.from_json(json.loads(l)) for l in flask.request.stream.readlines()
-        )
-
-    try:
-        merge_result = merge_bookmarks(db.session, user_uuid, recieved_bookmarks)
-    except BadCanonicalisationException as e:
-        log.error(
-            "bad canonicalised url ('%s') from version %s, user %s",
-            e.url_string,
-            extension_version,
-            user,
-        )
-        db.session.rollback()
-        flask.abort(400, "bad canonicalisation on url: %s" % e.url_string)
-    db.session.commit()
-
-    for added in merge_result.added:
-        publish_message(
-            message_lib.BookmarkCreated(
-                user_uuid=user_uuid, url_uuid=added.url.url_uuid
-            ),
-            environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
-        )
-
-    is_full_sync = "full" in flask.request.args
-
-    if is_full_sync:
-        response_bookmarks = all_bookmarks(db.session, get_current_user().user_uuid)
-    else:
-        response_bookmarks = merge_result.changed
-
-    # If we got JSON, send json back
-    if not use_jsonlines:
-        return flask.json.jsonify(
-            {"bookmarks": [b.to_json() for b in response_bookmarks]}
-        )
-    else:
-
-        def generator():
-            for b in response_bookmarks:
-                yield json.dumps(b.to_json())
-                yield "\n"
-            if is_full_sync:
-                duration = datetime.utcnow() - start_time
-                log.info(
-                    "completed full sync for %s in %ds",
-                    user.username,
-                    duration.total_seconds(),
-                )
-
-        return flask.Response(
-            flask.stream_with_context(generator()), mimetype="application/x-ndjson",
-        )

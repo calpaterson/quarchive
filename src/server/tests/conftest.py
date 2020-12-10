@@ -23,7 +23,7 @@ from quarchive import (
     file_storage,
     crawler,
 )
-from quarchive.web.blueprint import set_current_user
+from quarchive.web.web_blueprint import set_current_user
 from quarchive import logging as q_logging
 from quarchive.data import models as sut_models
 from quarchive.messaging import publication, receipt

@@ -14,7 +14,7 @@ from .messaging.publication import publish_message
 from .data.functions import merge_bookmarks
 from .value_objects import Bookmark, TagTriples, URL
 from .web.app import init_app
-from .web.blueprint import db
+from .web.web_blueprint import db
 from .logging import LOG_LEVELS, configure_logging
 
 log = logging.getLogger(__name__)

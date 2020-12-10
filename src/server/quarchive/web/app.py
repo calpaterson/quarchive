@@ -12,8 +12,9 @@ from werkzeug.urls import url_encode
 
 from quarchive.config import load_config
 
-from .blueprint import blueprint
+from .web_blueprint import web_blueprint
 from .icon_blueprint import icon_blueprint
+from .sync_blueprint import sync_blueprint
 from .db_obj import db
 
 log = logging.getLogger(__name__)
@@ -58,8 +59,9 @@ def init_app() -> flask.Flask:
 
     cors.init_app(app)
     babel = Babel(app, default_locale="en_GB", default_timezone="Europe/London")
-    app.register_blueprint(blueprint)
+    app.register_blueprint(web_blueprint)
     app.register_blueprint(icon_blueprint)
+    app.register_blueprint(sync_blueprint)
 
     @babel.timezoneselector
     def use_user_timezone():
