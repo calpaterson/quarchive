@@ -98,11 +98,6 @@ def put_user_in_g() -> None:
         flask.current_app.logger.debug("not signed in")
 
 
-@web_blueprint.before_app_first_request
-def log_db() -> None:
-    flask.current_app.logger.info("using engine: %s", db.session.bind)
-
-
 def sign_in_required(handler: V) -> V:
     @wraps(handler)
     def wrapper(*args, **kwargs):
@@ -131,7 +126,7 @@ def observe_redirect_to(handler: V) -> V:
 
 @web_blueprint.route("/favicon.ico")
 def favicon() -> flask.Response:
-    # Should set cache headers
+    # FIXME: Should set cache headers
     return flask.current_app.send_static_file("icons/favicon.ico")
 
 
@@ -152,12 +147,9 @@ def getting_started():
 @web_blueprint.route("/")
 @sign_in_required
 def my_bookmarks() -> flask.Response:
-    # FIXME: This viewfunc really needs to get split up and work via the data
-    # layer to get what it wants.
-    page_size = flask.current_app.config["PAGE_SIZE"]
     page = int(flask.request.args.get("page", "1"))
     user = get_current_user()
-    qb = BookmarkViewQueryBuilder(db.session, user, page_size=page_size, page=page)
+    qb = BookmarkViewQueryBuilder(db.session, user, page=page)
 
     if "q" in flask.request.args:
         search_str = flask.request.args["q"]
@@ -496,6 +488,7 @@ def sign_in() -> flask.Response:
 
 
 @web_blueprint.route("/sign-out", methods=["GET"])
+@sign_in_required
 def sign_out() -> flask.Response:
     flask.session.clear()
     flask.flash("Signed out")

@@ -91,4 +91,9 @@ def init_app() -> flask.Flask:
 
         return "?%s" % url_encode(args)
 
+    @app.before_first_request
+    def log_db() -> None:
+        flask.current_app.logger.info("using engine: %s", db.session.bind)
+
+
     return app
