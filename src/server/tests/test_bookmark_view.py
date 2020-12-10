@@ -1,3 +1,4 @@
+from uuid import uuid4
 import pytest
 
 from quarchive.value_objects import BookmarkView
@@ -16,6 +17,12 @@ from .conftest import make_bookmark
 def test_title(input_title, expected_title):
     bm = make_bookmark(title=input_title)
 
-    view = BookmarkView(bookmark=bm)
+    view = BookmarkView(
+        bookmark=bm,
+        icon_uuid=uuid4(),
+        canonical_url=None,
+        link_count=0,
+        backlink_count=0,
+    )
 
     assert view.title() == expected_title

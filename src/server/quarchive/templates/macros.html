@@ -20,7 +20,12 @@
             >{{ bookmark.url.netloc }}</a>
         </p>
         <p class="bookmark-url">
-          <a href="{{bookmark.url.to_string()}}">{{bookmark.url.to_string()}}</a>
+          {% if bookmark_view.has_canonical_url() %}
+            <a href="{{bookmark_view.canonical_url.to_string()}}"
+               >canonical: {{bookmark_view.canonical_url.to_string()}}</a>
+          {% else %}
+            <a href="{{bookmark.url.to_string()}}">{{bookmark.url.to_string()}}</a>
+          {% endif %}
         </p>
         {% if bookmark.description|length > 0 %}
           <blockquote class="bookmark-description">
@@ -32,14 +37,20 @@
           <a class="bookmark-meta"
              href="{{ url_for('quarchive.edit_bookmark', url_uuid=bookmark.url.url_uuid) }}">edit</a>
           <a class="bookmark-meta" href="{{ url_for('quarchive.bookmark_archives', url_uuid=bookmark.url.url_uuid) }}">archives</a>
-          {# FIXME: Removed for now as it is useless #}
-          {# <a class="bookmark-meta" href="{{ url_for('quarchive.view_url', url_uuid=url.url_uuid) }}">url metadata</a> #}
+          {{ render_links(bookmark_view) }}
           {% for tag in bookmark.current_tags()|sort %}{{ render_tag(user, tag) }}{% if not loop.last %},{% endif %}
         {% endfor %}
         </p>
       </div>
     </div>
   </div>
+{% endmacro %}
+
+
+{% macro render_links(bookmark_view) %}
+  {% if bookmark_view.has_any_links() %}
+    <a class="bookmark-meta" href="#">{{ bookmark_view.link_count}} links, {{ bookmark_view.backlink_count }} backlinks</span></a>
+  {% endif %}
 {% endmacro %}
 
 

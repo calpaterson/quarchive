@@ -274,7 +274,20 @@ class BookmarkView:
     MAX_TITLE_SIZE: ClassVar[int] = 70
 
     bookmark: Bookmark
-    icon_uuid: Optional[UUID] = None
+    icon_uuid: Optional[UUID]
+    canonical_url: Optional[URL]
+    link_count: int
+    backlink_count: int
+    # discussions: DiscussionDigest
+
+    def has_any_links(self):
+        return (self.link_count > 0) and (self.backlink_count > 0)
+
+    def has_canonical_url(self):
+        """Returns true when there is a canonical url and it's different to the original url"""
+        return (self.canonical_url is not None) and (
+            self.canonical_url != self.bookmark.url
+        )
 
     def title(self) -> str:
         """Minor pretty printing of the bookmark title for the web"""

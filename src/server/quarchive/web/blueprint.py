@@ -23,40 +23,29 @@ from uuid import UUID
 import pytz
 import flask
 import yaml
-from sqlalchemy import func, and_
 from werkzeug import exceptions as exc
 
-from quarchive import file_storage
 from quarchive.messaging import message_lib
 from quarchive.archive import get_archive_links, Archive
 from quarchive.messaging.publication import publish_message
 from quarchive.cache import get_cache
 from quarchive.data.functions import (
     BookmarkView,
+    BookmarkViewQueryBuilder,
     all_bookmarks,
-    bookmarks_with_tag,
-    bookmarks_with_netloc,
     create_user,
     get_api_key,
     get_bookmark_by_url_uuid,
     is_correct_api_key,
+    is_correct_password,
     merge_bookmarks,
     set_bookmark,
+    set_user_timezone,
     tags_with_count,
     user_from_user_uuid,
     user_from_username_if_exists,
-    set_user_timezone,
     username_exists,
 )
-from quarchive.data.models import (
-    FullText,
-    SQLABookmark,
-    SQLAUrl,
-    SQLUser,
-    URLIcon,
-    DomainIcon,
-)
-from quarchive.data.functions import bookmark_from_sqla
 from quarchive.search import parse_search_str
 from quarchive.value_objects import (
     URL,
@@ -246,74 +235,32 @@ def my_bookmarks() -> flask.Response:
     # layer to get what it wants.
     page_size = flask.current_app.config["PAGE_SIZE"]
     page = int(flask.request.args.get("page", "1"))
-    offset = (page - 1) * page_size
     user = get_current_user()
-    query = (
-        db.session.query(
-            SQLAUrl,
-            SQLABookmark,
-            func.coalesce(URLIcon.icon_uuid, DomainIcon.icon_uuid),
-        )
-        .join(SQLABookmark)
-        .outerjoin(URLIcon)
-        .outerjoin(
-            DomainIcon,
-            and_(
-                DomainIcon.scheme == SQLAUrl.scheme, DomainIcon.netloc == SQLAUrl.netloc
-            ),
-        )
-        .filter(SQLABookmark.user_uuid == user.user_uuid)
-    )
+    qb = BookmarkViewQueryBuilder(db.session, user, page_size=page_size, page=page)
 
     if "q" in flask.request.args:
-        query = query.outerjoin(FullText, FullText.url_uuid == SQLABookmark.url_uuid)
-
         search_str = flask.request.args["q"]
         tquery_str = parse_search_str(search_str)
         log.debug('search_str, tquery_str = ("%s", "%s")', search_str, tquery_str)
 
-        # necessary to coalesce this as there may be no fulltext
-        fulltext = func.coalesce(FullText.tsvector, func.to_tsvector(""))
+        qb = qb.text_search(tquery_str).order_by_search_rank()
 
-        combined_tsvector = (
-            func.to_tsvector(SQLABookmark.title)
-            .op("||")(func.to_tsvector(SQLABookmark.description))
-            .op("||")(fulltext)
-        )
-        tsquery = func.to_tsquery(tquery_str)
-        query = query.filter(combined_tsvector.op("@@")(tsquery))
-        query = query.order_by(func.ts_rank(combined_tsvector, tsquery, 1))
         page_title = search_str
     else:
+        qb = qb.order_by_created()
         page_title = "Quarchive"
 
     if page > 1:
         page_title += " (page %s)" % page
 
-    # omit deleted bookmarks
-    query = query.filter(~SQLABookmark.deleted)
+    prev_page_exists = qb.has_previous_page()
+    next_page_exists = qb.has_next_page()
 
-    sqla_objs = (
-        query.order_by(SQLABookmark.created.desc()).offset(offset).limit(page_size)
-    )
-
-    prev_page_exists = page > 1
-    next_page_exists: bool = db.session.query(
-        query.order_by(SQLABookmark.created.desc()).offset(offset + page_size).exists()
-    ).scalar()
-
-    bookmark_views: Iterable[BookmarkView] = (
-        BookmarkView(
-            bookmark=bookmark_from_sqla(sqla_url.to_url(), sqla_bookmark),
-            icon_uuid=icon_uuid,
-        )
-        for sqla_url, sqla_bookmark, icon_uuid in sqla_objs
-    )
     return flask.make_response(
         flask.render_template(
             "my_bookmarks.html",
             page_title=page_title,
-            bookmark_views=bookmark_views,
+            bookmark_views=qb.execute(),
             page=page,
             prev_page_exists=prev_page_exists,
             next_page_exists=next_page_exists,
@@ -546,38 +493,6 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
     return flask.make_response("ok")
 
 
-@blueprint.route("/url/<uuid:url_uuid>")
-@sign_in_required
-def view_url(url_uuid: UUID) -> flask.Response:
-    sqla_obj = db.session.query(SQLAUrl).filter(SQLAUrl.url_uuid == url_uuid).first()
-    if sqla_obj is None:
-        raise exc.NotFound()
-    else:
-        url_obj = sqla_obj.to_url()
-        return flask.make_response(
-            flask.render_template(
-                "url.html", url=url_obj, page_title="View: %s" % url_obj.to_string()
-            )
-        )
-
-
-@blueprint.route("/netloc/<string:netloc>")
-@sign_in_required
-def view_netloc(netloc: str) -> flask.Response:
-    url_objs = db.session.query(SQLAUrl).filter(SQLAUrl.netloc == netloc)
-    if url_objs.count() == 0:
-        raise exc.NotFound()
-    else:
-        return flask.make_response(
-            flask.render_template(
-                "netloc.html",
-                netloc=netloc,
-                url_objs=url_objs,
-                page_title="Netloc: %s" % netloc,
-            )
-        )
-
-
 @blueprint.route("/register", methods=["GET", "POST"])
 def register() -> flask.Response:
     if flask.request.method == "GET":
@@ -629,11 +544,9 @@ def sign_in() -> flask.Response:
     else:
         crypt_context = flask.current_app.config["CRYPT_CONTEXT"]
 
-        username = flask.request.form.get("username")
-        # FIXME: This should be replaced with a quarchive.data.functions call -
-        # perhaps the type on user_from_username should be changed to an
-        # optional
-        user = db.session.query(SQLUser).filter(SQLUser.username == username).first()
+        username = flask.request.form["username"]
+        cache = get_cache()
+        user = user_from_username_if_exists(db.session, cache, username)
 
         if user is None:
             flask.current_app.logger.info(
@@ -641,9 +554,8 @@ def sign_in() -> flask.Response:
             )
             raise exc.BadRequest("unsuccessful sign in")
 
-        password = flask.request.form.get("password")
-        is_correct_password: bool = crypt_context.verify(password, user.password)
-        if is_correct_password:
+        password = flask.request.form["password"]
+        if is_correct_password(db.session, crypt_context, user, password):
             flask.current_app.logger.info("successful sign in")
 
             # In this context the user exists to the api key must too
@@ -714,7 +626,9 @@ def user_page_post(username: str) -> Tuple[flask.Response, int]:
 @sign_in_required
 def user_tag(username: str, tag: str) -> flask.Response:
     user = get_current_user()
-    bookmark_views: Iterable[BookmarkView] = bookmarks_with_tag(db.session, user, tag)
+    bookmark_views: Iterable[BookmarkView] = BookmarkViewQueryBuilder(
+        db.session, user
+    ).with_tag(tag).execute()
     return flask.make_response(
         flask.render_template(
             "user_tag.html",
@@ -728,11 +642,10 @@ def user_tag(username: str, tag: str) -> flask.Response:
 @blueprint.route("/user/<username>/netlocs/<netloc>")
 @sign_in_required
 def user_netloc(username: str, netloc: str) -> flask.Response:
-    # FIXME: This is not being paginated!
     user = get_current_user()
-    bookmark_views: Iterable[BookmarkView] = bookmarks_with_netloc(
-        db.session, user, netloc
-    )
+    bookmark_views: Iterable[BookmarkView] = BookmarkViewQueryBuilder(
+        db.session, user
+    ).with_netloc(netloc).execute()
     return flask.make_response(
         flask.render_template(
             "user_netloc.html",

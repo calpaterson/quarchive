@@ -142,6 +142,7 @@ def extract_canonical_link(root, url: URL) -> Optional[URL]:
         else:
             log.debug("canonical link with no href on %s", url)
             return None
+    log.debug("no canonical link found for %s", url)
     return None
 
 
