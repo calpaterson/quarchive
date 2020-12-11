@@ -296,10 +296,10 @@ class BookmarkViewQueryBuilder:
         link_counts = (
             self._session.query(
                 SQLABookmark.url_uuid.label("url_uuid"),
-                func.count().label("link_count")
+                func.count().label("link_count"),
             )
-            .join(Link, Link.from_url_uuid==SQLABookmark.url_uuid)
-            .join(B2, Link.to_url_uuid==B2.url_uuid)
+            .join(Link, Link.from_url_uuid == SQLABookmark.url_uuid)
+            .join(B2, Link.to_url_uuid == B2.url_uuid)
             .filter(SQLABookmark.url_uuid != B2.url_uuid)
             .filter(SQLABookmark.user_uuid == self.user.user_uuid)
             .filter(B2.user_uuid == self.user.user_uuid)
@@ -311,10 +311,10 @@ class BookmarkViewQueryBuilder:
         backlink_counts = (
             self._session.query(
                 SQLABookmark.url_uuid.label("url_uuid"),
-                func.count().label("backlink_count")
+                func.count().label("backlink_count"),
             )
-            .join(Link, Link.to_url_uuid==SQLABookmark.url_uuid)
-            .join(B3, Link.from_url_uuid==B3.url_uuid)
+            .join(Link, Link.to_url_uuid == SQLABookmark.url_uuid)
+            .join(B3, Link.from_url_uuid == B3.url_uuid)
             .filter(SQLABookmark.url_uuid != B3.url_uuid)
             .filter(SQLABookmark.user_uuid == self.user.user_uuid)
             .filter(B3.user_uuid == self.user.user_uuid)
@@ -334,7 +334,9 @@ class BookmarkViewQueryBuilder:
             .join(SQLABookmark, SQLAUrl.url_uuid == SQLABookmark.url_uuid)
             .options(joinedload(SQLABookmark.bookmark_tag_objs))
             .outerjoin(link_counts, link_counts.c.url_uuid == SQLABookmark.url_uuid)
-            .outerjoin(backlink_counts, backlink_counts.c.url_uuid == SQLABookmark.url_uuid)
+            .outerjoin(
+                backlink_counts, backlink_counts.c.url_uuid == SQLABookmark.url_uuid
+            )
             .outerjoin(
                 CanonicalUrl, SQLAUrl.url_uuid == CanonicalUrl.non_canonical_url_uuid
             )
@@ -364,9 +366,8 @@ class BookmarkViewQueryBuilder:
         Link2 = aliased(Link)
         SQLABookmarkLink = aliased(SQLABookmark)
         self._query = (
-            self._query
-            .join(Link2, Link2.to_url_uuid == SQLAUrl.url_uuid)
-            .join(SQLABookmarkLink, Link2.to_url_uuid==SQLABookmarkLink.url_uuid)
+            self._query.join(Link2, Link2.to_url_uuid == SQLAUrl.url_uuid)
+            .join(SQLABookmarkLink, Link2.to_url_uuid == SQLABookmarkLink.url_uuid)
             .filter(Link2.from_url_uuid == url_uuid)
             .filter(Link2.to_url_uuid != Link2.from_url_uuid)
             .filter(SQLABookmarkLink.user_uuid == self.user.user_uuid)
@@ -378,9 +379,11 @@ class BookmarkViewQueryBuilder:
         Backlink = aliased(Link)
         SQLABookmarkBacklink = aliased(SQLABookmark)
         self._query = (
-            self._query
-            .join(Backlink, Backlink.from_url_uuid == SQLAUrl.url_uuid)
-            .join(SQLABookmarkBacklink, Backlink.to_url_uuid==SQLABookmarkBacklink.url_uuid)
+            self._query.join(Backlink, Backlink.from_url_uuid == SQLAUrl.url_uuid)
+            .join(
+                SQLABookmarkBacklink,
+                Backlink.to_url_uuid == SQLABookmarkBacklink.url_uuid,
+            )
             .filter(Backlink.to_url_uuid == url_uuid)
             .filter(Backlink.to_url_uuid != Backlink.from_url_uuid)
             .filter(SQLABookmarkBacklink.user_uuid == self.user.user_uuid)
