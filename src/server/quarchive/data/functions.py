@@ -287,6 +287,9 @@ class BookmarkViewQueryBuilder:
         return (self.page - 1) * self.page_size
 
     def _create_initial_query(self):
+        # FIXME: The point has been reached where this should done using
+        # SQLAlchemy core
+
         CanonicalSQLAUrl = aliased(SQLAUrl)
 
         B2 = aliased(SQLABookmark)
@@ -357,20 +360,30 @@ class BookmarkViewQueryBuilder:
         return self
 
     def links(self, url_uuid: UUID) -> "BookmarkViewQueryBuilder":
-        Links = aliased(Link)
+        Link2 = aliased(Link)
+        SQLABookmarkLink = aliased(SQLABookmark)
         self._query = (
-            self._query.join(Links, Links.to_url_uuid == SQLAUrl.url_uuid)
-            .filter(Links.from_url_uuid == url_uuid)
-            .filter(Links.to_url_uuid != Links.from_url_uuid)
+            self._query
+            .join(Link2, Link2.to_url_uuid == SQLAUrl.url_uuid)
+            .join(SQLABookmarkLink, Link2.to_url_uuid==SQLABookmarkLink.url_uuid)
+            .filter(Link2.from_url_uuid == url_uuid)
+            .filter(Link2.to_url_uuid != Link2.from_url_uuid)
+            .filter(SQLABookmarkLink.user_uuid == self.user.user_uuid)
+            .filter(~SQLABookmarkLink.deleted)
         )
         return self
 
     def backlinks(self, url_uuid: UUID) -> "BookmarkViewQueryBuilder":
-        Backlinks = aliased(Link)
+        Backlink = aliased(Link)
+        SQLABookmarkBacklink = aliased(SQLABookmark)
         self._query = (
-            self._query.join(Backlinks, Backlinks.from_url_uuid == SQLAUrl.url_uuid)
-            .filter(Backlinks.to_url_uuid == url_uuid)
-            .filter(Backlinks.to_url_uuid != Backlinks.from_url_uuid)
+            self._query
+            .join(Backlink, Backlink.from_url_uuid == SQLAUrl.url_uuid)
+            .join(SQLABookmarkBacklink, Backlink.to_url_uuid==SQLABookmarkBacklink.url_uuid)
+            .filter(Backlink.to_url_uuid == url_uuid)
+            .filter(Backlink.to_url_uuid != Backlink.from_url_uuid)
+            .filter(SQLABookmarkBacklink.user_uuid == self.user.user_uuid)
+            .filter(~SQLABookmarkBacklink.deleted)
         )
         return self
 
