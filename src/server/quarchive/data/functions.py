@@ -292,24 +292,24 @@ class BookmarkViewQueryBuilder:
         CanonicalSQLAUrl = aliased(SQLAUrl)
         link_counts = (
             self._session.query(
-                Link.to_url_uuid.label("url_uuid"), func.count().label("link_count")
-            )
-            .join(SQLABookmark, Link.from_url_uuid == SQLABookmark.url_uuid)
-            .filter(SQLABookmark.user_uuid == self.user.user_uuid)
-            .filter(Link.to_url_uuid != Link.from_url_uuid)
-            .group_by(Link.to_url_uuid)
-            .subquery()
-        )
-
-        backlink_counts = (
-            self._session.query(
-                Link.from_url_uuid.label("url_uuid"),
-                func.count().label("backlink_count"),
+                Link.from_url_uuid.label("url_uuid"), func.count().label("link_count")
             )
             .join(SQLABookmark, Link.to_url_uuid == SQLABookmark.url_uuid)
             .filter(SQLABookmark.user_uuid == self.user.user_uuid)
             .filter(Link.to_url_uuid != Link.from_url_uuid)
             .group_by(Link.from_url_uuid)
+            .subquery()
+        )
+
+        backlink_counts = (
+            self._session.query(
+                Link.to_url_uuid.label("url_uuid"),
+                func.count().label("backlink_count"),
+            )
+            .join(SQLABookmark, Link.from_url_uuid == SQLABookmark.url_uuid)
+            .filter(SQLABookmark.user_uuid == self.user.user_uuid)
+            .filter(Link.to_url_uuid != Link.from_url_uuid)
+            .group_by(Link.to_url_uuid)
             .subquery()
         )
 
@@ -347,6 +347,24 @@ class BookmarkViewQueryBuilder:
     def with_tag(self, tag: str) -> "BookmarkViewQueryBuilder":
         self._query = (
             self._query.join(BookmarkTag).join(Tag).filter(Tag.tag_name == tag)
+        )
+        return self
+
+    def links(self, url_uuid: UUID) -> "BookmarkViewQueryBuilder":
+        Links = aliased(Link)
+        self._query = (
+            self._query.join(Links, Links.to_url_uuid == SQLAUrl.url_uuid)
+            .filter(Links.from_url_uuid == url_uuid)
+            .filter(Links.to_url_uuid != Links.from_url_uuid)
+        )
+        return self
+
+    def backlinks(self, url_uuid: UUID) -> "BookmarkViewQueryBuilder":
+        Backlinks = aliased(Link)
+        self._query = (
+            self._query.join(Backlinks, Backlinks.from_url_uuid == SQLAUrl.url_uuid)
+            .filter(Backlinks.to_url_uuid == url_uuid)
+            .filter(Backlinks.to_url_uuid != Backlinks.from_url_uuid)
         )
         return self
 
@@ -403,12 +421,6 @@ class BookmarkViewQueryBuilder:
             for sqla_url, canonical_sqla_url, sqla_bookmark, icon_uuid, link_count, backlink_count in paged_query
         )
         yield from bookmark_views
-
-
-def get_links(
-    session: Session, user_uuid: UUID, url_uuid: UUID
-) -> Tuple[Set[BookmarkView], Set[BookmarkView]]:
-    pass
 
 
 def upsert_url(session: Session, url: URL) -> UUID:

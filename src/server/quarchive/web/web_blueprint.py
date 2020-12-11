@@ -291,6 +291,70 @@ def bookmark_archives(url_uuid: UUID) -> flask.Response:
     )
 
 
+@web_blueprint.route("/bookmark/<uuid:url_uuid>/links", methods=["GET"])
+@sign_in_required
+def links(url_uuid: UUID) -> flask.Response:
+    bookmark = get_bookmark_by_url_uuid(
+        db.session, get_current_user().user_uuid, url_uuid
+    )
+    if bookmark is None:
+        # FIXME: er, write a test for this
+        flask.abort(404, description="bookmark not found")
+
+    page = int(flask.request.args.get("page", "1"))
+    user = get_current_user()
+    qb = (
+        BookmarkViewQueryBuilder(db.session, user, page=page)
+        .links(url_uuid)
+        .order_by_created()
+    )
+    title = f"Links from '{bookmark.title}'"
+    return flask.make_response(
+        flask.render_template(
+            "bookmarks.html",
+            h1=title,
+            page_title=title,
+            bookmark_views=qb.execute(),
+            page=page,
+            prev_page_exists=qb.has_previous_page(),
+            next_page_exists=qb.has_next_page(),
+            search_query=False,
+        )
+    )
+
+
+@web_blueprint.route("/bookmark/<uuid:url_uuid>/backlinks", methods=["GET"])
+@sign_in_required
+def backlinks(url_uuid: UUID) -> flask.Response:
+    bookmark = get_bookmark_by_url_uuid(
+        db.session, get_current_user().user_uuid, url_uuid
+    )
+    if bookmark is None:
+        # FIXME: er, write a test for this
+        flask.abort(404, description="bookmark not found")
+
+    page = int(flask.request.args.get("page", "1"))
+    user = get_current_user()
+    qb = (
+        BookmarkViewQueryBuilder(db.session, user, page=page)
+        .backlinks(url_uuid)
+        .order_by_created()
+    )
+    title = f"Links to '{bookmark.title}'"
+    return flask.make_response(
+        flask.render_template(
+            "bookmarks.html",
+            h1=title,
+            page_title=title,
+            bookmark_views=qb.execute(),
+            page=page,
+            prev_page_exists=qb.has_previous_page(),
+            next_page_exists=qb.has_next_page(),
+            search_query=False,
+        )
+    )
+
+
 def tag_triples_from_form(
     form: Mapping[str, str], current: TagTriples = frozenset()
 ) -> TagTriples:

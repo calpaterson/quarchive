@@ -48,9 +48,18 @@
 
 
 {% macro render_links(bookmark_view) %}
-  {% if bookmark_view.has_any_links() %}
-    <a class="bookmark-meta" href="#">{{ bookmark_view.link_count}} links, {{ bookmark_view.backlink_count }} backlinks</span></a>
-  {% endif %}
+  {% if bookmark_view.link_count > 0 %}
+    <a
+      class="bookmark-meta"
+      href="{{ url_for('quarchive.links', url_uuid=bookmark_view.bookmark.url.url_uuid) }}"
+      >{{ bookmark_view.link_count }} links</a>
+    {% endif %}
+    {% if bookmark_view.backlink_count > 0 %}
+    <a
+      class="bookmark-meta"
+      href="{{ url_for('quarchive.backlinks', url_uuid=bookmark_view.bookmark.url.url_uuid) }}"
+      >{{ bookmark_view.backlink_count }} backlinks</a>
+    {% endif %}
 {% endmacro %}
 
 

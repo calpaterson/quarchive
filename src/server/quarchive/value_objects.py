@@ -280,9 +280,6 @@ class BookmarkView:
     backlink_count: int
     # discussions: DiscussionDigest
 
-    def has_any_links(self):
-        return (self.link_count > 0) and (self.backlink_count > 0)
-
     def has_canonical_url(self):
         """Returns true when there is a canonical url and it's different to the original url"""
         return (self.canonical_url is not None) and (

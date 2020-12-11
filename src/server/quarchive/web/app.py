@@ -95,5 +95,4 @@ def init_app() -> flask.Flask:
     def log_db() -> None:
         flask.current_app.logger.info("using engine: %s", db.session.bind)
 
-
     return app
