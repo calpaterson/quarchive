@@ -2,7 +2,6 @@ from os import environ
 import secrets
 from logging import getLogger
 from typing import Any, Iterable, Optional, Set, Tuple, Dict
-from urllib.parse import urlunsplit
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
 from dataclasses import dataclass
@@ -30,7 +29,6 @@ from quarchive.value_objects import (
 from .models import (
     APIKey,
     BookmarkTag,
-    CanonicalUrl,
     CanonicalUrl,
     CrawlRequest,
     CrawlResponse,
@@ -290,26 +288,34 @@ class BookmarkViewQueryBuilder:
 
     def _create_initial_query(self):
         CanonicalSQLAUrl = aliased(SQLAUrl)
+
+        B2 = aliased(SQLABookmark)
         link_counts = (
             self._session.query(
-                Link.from_url_uuid.label("url_uuid"), func.count().label("link_count")
+                SQLABookmark.url_uuid.label("url_uuid"),
+                func.count().label("link_count")
             )
-            .join(SQLABookmark, Link.to_url_uuid == SQLABookmark.url_uuid)
+            .join(Link, Link.from_url_uuid==SQLABookmark.url_uuid)
+            .join(B2, Link.to_url_uuid==B2.url_uuid)
+            .filter(SQLABookmark.url_uuid != B2.url_uuid)
             .filter(SQLABookmark.user_uuid == self.user.user_uuid)
-            .filter(Link.to_url_uuid != Link.from_url_uuid)
-            .group_by(Link.from_url_uuid)
+            .filter(B2.user_uuid == self.user.user_uuid)
+            .group_by(SQLABookmark.url_uuid)
             .subquery()
         )
 
+        B3 = aliased(SQLABookmark)
         backlink_counts = (
             self._session.query(
-                Link.to_url_uuid.label("url_uuid"),
-                func.count().label("backlink_count"),
+                SQLABookmark.url_uuid.label("url_uuid"),
+                func.count().label("backlink_count")
             )
-            .join(SQLABookmark, Link.from_url_uuid == SQLABookmark.url_uuid)
+            .join(Link, Link.to_url_uuid==SQLABookmark.url_uuid)
+            .join(B3, Link.from_url_uuid==B3.url_uuid)
+            .filter(SQLABookmark.url_uuid != B3.url_uuid)
             .filter(SQLABookmark.user_uuid == self.user.user_uuid)
-            .filter(Link.to_url_uuid != Link.from_url_uuid)
-            .group_by(Link.to_url_uuid)
+            .filter(B3.user_uuid == self.user.user_uuid)
+            .group_by(SQLABookmark.url_uuid)
             .subquery()
         )
 
@@ -323,8 +329,8 @@ class BookmarkViewQueryBuilder:
                 func.coalesce(backlink_counts.c.backlink_count, 0),
             )
             .join(SQLABookmark, SQLAUrl.url_uuid == SQLABookmark.url_uuid)
-            .outerjoin(link_counts, SQLAUrl.url_uuid == link_counts.c.url_uuid)
-            .outerjoin(backlink_counts, SQLAUrl.url_uuid == backlink_counts.c.url_uuid)
+            .outerjoin(link_counts, link_counts.c.url_uuid == SQLABookmark.url_uuid)
+            .outerjoin(backlink_counts, backlink_counts.c.url_uuid == SQLABookmark.url_uuid)
             .outerjoin(
                 CanonicalUrl, SQLAUrl.url_uuid == CanonicalUrl.non_canonical_url_uuid
             )
