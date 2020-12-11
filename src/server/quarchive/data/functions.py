@@ -16,7 +16,7 @@ from sqlalchemy.dialects.postgresql import (
     array as pg_array,
     insert as pg_insert,
 )
-from sqlalchemy.orm import sessionmaker, Session, aliased
+from sqlalchemy.orm import sessionmaker, Session, aliased, joinedload
 
 from quarchive.html_metadata import HTMLMetadata
 from quarchive.value_objects import (
@@ -332,6 +332,7 @@ class BookmarkViewQueryBuilder:
                 func.coalesce(backlink_counts.c.backlink_count, 0),
             )
             .join(SQLABookmark, SQLAUrl.url_uuid == SQLABookmark.url_uuid)
+            .options(joinedload(SQLABookmark.bookmark_tag_objs))
             .outerjoin(link_counts, link_counts.c.url_uuid == SQLABookmark.url_uuid)
             .outerjoin(backlink_counts, backlink_counts.c.url_uuid == SQLABookmark.url_uuid)
             .outerjoin(
