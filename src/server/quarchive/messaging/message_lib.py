@@ -3,6 +3,8 @@ from uuid import UUID, uuid4
 from datetime import datetime, timezone
 import attr
 
+from quarchive.value_objects import CrawlRequest
+
 
 @attr.s(auto_attribs=True)
 class Event:
@@ -32,7 +34,7 @@ class CrawlRequested(Event):
     """A specific request for a url to be crawled that is not connected to a
     user action."""
 
-    url_uuid: UUID
+    crawl_request: CrawlRequest
 
 
 @attr.s(auto_attribs=True)

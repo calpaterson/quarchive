@@ -20,9 +20,10 @@ from sqlalchemy.orm import sessionmaker, Session, aliased, joinedload
 
 from quarchive.html_metadata import HTMLMetadata
 from quarchive.value_objects import (
-    URL,
     Bookmark,
     BookmarkView,
+    Request,
+    URL,
     User,
 )
 
@@ -691,11 +692,12 @@ def most_recent_successful_bookmark_crawls(session: Session) -> Iterable[UUID]:
     yield from (crawl_uuid for crawl_uuid, in session.execute(query))
 
 
-def create_crawl_request(session: Session, crawl_uuid: UUID, url):
+def create_crawl_request(session: Session, crawl_uuid: UUID, request: Request):
     """Record a request that was made"""
+    upsert_url(session, request.url)
     crawl_request = CrawlRequest(
         crawl_uuid=crawl_uuid,
-        url_uuid=url.url_uuid,
+        url_uuid=request.url.url_uuid,
         requested=datetime.utcnow().replace(tzinfo=timezone.utc),
         got_response=False,
     )

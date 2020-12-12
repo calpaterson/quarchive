@@ -90,6 +90,7 @@ def test_follow(base_url, relative_url, expected):
     assert URL.from_string(base_url).follow(relative_url) == URL.from_string(expected)
 
 
+@pytest.mark.xfail(reason="unable to use slots due to python bug 36424")
 def test_slots():
     url = URL.from_string("https://example.com/")
     assert getattr(url, "__slots__") is not None

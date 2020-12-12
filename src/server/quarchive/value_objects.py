@@ -1,13 +1,15 @@
 import itertools
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from logging import getLogger
-from typing import Any, FrozenSet, Mapping, Optional, Set, Tuple, ClassVar
+from typing import Any, FrozenSet, Mapping, Optional, Set, Tuple, ClassVar, Union
 from urllib.parse import urlsplit, urlunsplit, urljoin
 from uuid import NAMESPACE_URL as UUID_URL_NAMESPACE, UUID, uuid5
+from enum import Enum
 
 import pytz
 from dateutil.parser import isoparse
+from werkzeug.datastructures import Headers as WerkzeugHeaders
 
 log = getLogger(__name__)
 
@@ -46,7 +48,8 @@ class URL:
 
     # Using slots reduces the size of this dataclass from 152 bytes to 88 bytes
     # (>40%).  Indexing can create quite a lot of these concurrently.
-    __slots__ = ["url_uuid", "scheme", "netloc", "path", "query", "fragment"]
+    # __slots__ = ["url_uuid", "scheme", "netloc", "path", "query", "fragment"]
+    # FIXME: Unable to use slots until we stop pickling messages: https://bugs.python.org/issue36424
 
     url_uuid: UUID
 
@@ -295,3 +298,53 @@ class BookmarkView:
             return title[: self.MAX_TITLE_SIZE - 5] + "[...]"
         else:
             return title
+
+
+class IconScope(Enum):
+    DOMAIN = "domain"
+    PAGE = "page"
+
+
+class HTTPVerb(Enum):
+    GET = 1
+    HEAD = 2
+    POST = 3
+
+
+@dataclass
+class Request:
+    verb: HTTPVerb
+    url: URL
+    headers: WerkzeugHeaders = field(default_factory=WerkzeugHeaders)
+    body: Optional[bytes] = None
+
+
+@dataclass
+class MetadataReason:
+    """When we just want the canonical url, links, title, etc"""
+
+    pass
+
+
+@dataclass
+class DiscussionCrawlReason:
+    for_url: UUID
+
+
+@dataclass
+class IconCrawlReason:
+    for_url: UUID
+    icon_type: IconScope
+
+
+@dataclass
+class BookmarkCrawlReason:
+    """When someone has bookmarked this url"""
+
+
+@dataclass
+class CrawlRequest:
+    request: Request
+    reason: Union[
+        DiscussionCrawlReason, IconCrawlReason, BookmarkCrawlReason, MetadataReason
+    ]

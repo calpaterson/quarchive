@@ -10,6 +10,13 @@ import missive
 import missive.dlq.sqlite
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
+from quarchive.value_objects import (
+    Request,
+    HTTPVerb,
+    CrawlRequest,
+    Request,
+    BookmarkCrawlReason,
+)
 from quarchive.html_metadata import best_icon, HTMLMetadata, IconScope
 from quarchive.logging import configure_logging, LOG_LEVELS
 from quarchive import crawler, indexing
@@ -125,7 +132,12 @@ def on_bookmark_created(message: PickleMessage, ctx: missive.HandlingContext):
         raise RuntimeError("url requested to crawl does not exist in the db")
     if not is_crawled(session, url):
         publish_message(
-            CrawlRequested(url_uuid=url.url_uuid),
+            CrawlRequested(
+                crawl_request=CrawlRequest(
+                    request=Request(verb=HTTPVerb.GET, url=url),
+                    reason=BookmarkCrawlReason(),
+                )
+            ),
             environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
         )
     session.commit()
@@ -138,10 +150,7 @@ def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
     event = cast(CrawlRequested, message.get_obj())
     session = get_session(ctx)
     http_client = get_http_client(ctx)
-    url = get_url_by_url_uuid(session, event.url_uuid)
-    if url is None:
-        raise RuntimeError("url crawled to crawl does not exist in the db")
-    crawl_uuid = crawler.crawl_url(session, http_client, url)
+    crawl_uuid = crawler.crawl_url(session, http_client, event.crawl_request.request)
     session.commit()
     publish_message(
         IndexRequested(crawl_uuid=crawl_uuid), environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
@@ -172,7 +181,7 @@ def on_new_icon_found(message: PickleMessage, ctx: missive.HandlingContext):
             session.commit()
     else:
         blake2b_hash, crawled_filelike = crawler.crawl_icon(
-            session, http_client, icon_url
+            session, http_client, Request(verb=HTTPVerb.GET, url=icon_url)
         )
         indexing.index_icon(
             session, icon_url, crawled_filelike, blake2b_hash, page_url=page_url

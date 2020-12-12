@@ -10,7 +10,7 @@ from collections import defaultdict
 import lxml
 import lxml.html
 
-from quarchive.value_objects import URL, URLException
+from quarchive.value_objects import URL, URLException, IconScope
 
 log = getLogger(__name__)
 
@@ -24,11 +24,6 @@ class Heading(Enum):
     h4 = 4
     h5 = 5
     h6 = 6
-
-
-class IconScope(Enum):
-    DOMAIN = "domain"
-    PAGE = "page"
 
 
 @dataclass(frozen=True)

@@ -12,7 +12,7 @@ from requests import exceptions, Session as HTTPClient
 from quarchive import file_storage
 from quarchive.messaging.message_lib import CrawlRequested
 from quarchive.messaging.publication import publish_message
-from quarchive.value_objects import URL
+from quarchive.value_objects import URL, Request
 from quarchive.data.functions import (
     is_crawled,
     create_crawl_request,
@@ -27,24 +27,20 @@ log = getLogger(__name__)
 REQUESTS_TIMEOUT = 30
 
 
-def ensure_url_is_crawled(session: Session, http_client: HTTPClient, url: URL) -> None:
-    if is_crawled(session, url):
-        log.info("%s already crawled")
-    else:
-        crawl_url(session, http_client, url)
-
-
-def crawl_url(session: Session, http_client: HTTPClient, url: URL) -> UUID:
+def crawl_url(session: Session, http_client: HTTPClient, request: Request) -> UUID:
     crawl_uuid = uuid4()
     bucket = file_storage.get_response_body_bucket()
-    create_crawl_request(session, crawl_uuid, url)
+    create_crawl_request(session, crawl_uuid, request)
 
     try:
-        response = http_client.get(
-            url.to_string(), stream=True, timeout=REQUESTS_TIMEOUT
+        response = http_client.request(
+            method=request.verb.name,
+            url=request.url.to_string(),
+            stream=True,
+            timeout=REQUESTS_TIMEOUT,
         )
     except exceptions.RequestException as e:
-        log.warning("unable to request %s - %s", url, e)
+        log.warning("unable to issue request %s - %s", request, e)
         return crawl_uuid
 
     mark_crawl_request_with_response(session, crawl_uuid)
@@ -62,7 +58,7 @@ def crawl_url(session: Session, http_client: HTTPClient, url: URL) -> UUID:
 
     file_storage.upload_file(bucket, response.raw, str(body_uuid))
     response.close()
-    log.info("crawled %s", url)
+    log.info("crawled %s", request)
     return crawl_uuid
 
 
@@ -71,21 +67,21 @@ class CrawlException(Exception):
 
 
 def crawl_icon(
-    session: Session, http_client: HTTPClient, icon_url: URL
+    session: Session, http_client: HTTPClient, request: Request
 ) -> Tuple[hashlib.blake2b, BinaryIO]:
     # FIXME: Lots of duplicated code here
     """Crawl an icon, returning a hash and the bytes themselves"""
     crawl_uuid = uuid4()
-    create_crawl_request(session, crawl_uuid, icon_url)
+    create_crawl_request(session, crawl_uuid, request)
 
     try:
         response = http_client.get(
-            icon_url.to_string(), stream=True, timeout=REQUESTS_TIMEOUT
+            request.url.to_string(), stream=True, timeout=REQUESTS_TIMEOUT
         )
     except exceptions.RequestException as e:
-        log.warning("unable to request %s - %s", icon_url, e)
+        log.warning("unable to request %s - %s", request, e)
         raise CrawlException()
-    log.info("crawled %s", icon_url)
+    log.info("crawled %s", request)
 
     mark_crawl_request_with_response(session, crawl_uuid)
 
@@ -116,13 +112,3 @@ def crawl_icon(
 
     temp_filelike.seek(0)
     return hashobj, temp_filelike
-
-
-def request_crawls_for_uncrawled_urls(session):
-    index = 0
-    for index, url in enumerate(get_uncrawled_urls(session), start=1):
-        publish_message(
-            CrawlRequested(url.url_uuid), environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
-        )
-        log.info("requested crawl: %s", url.to_string())
-    log.info("requested %d crawls", index + 1)

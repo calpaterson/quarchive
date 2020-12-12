@@ -9,10 +9,9 @@ from tempfile import TemporaryFile
 from PIL import Image
 import responses
 from missive import TestAdapter
-import pytest
 
 from quarchive import file_storage
-from quarchive.value_objects import URL
+from quarchive.value_objects import URL, Request, CrawlRequest, MetadataReason, HTTPVerb
 from quarchive.data.models import (
     Icon,
     DomainIcon,
@@ -20,10 +19,18 @@ from quarchive.data.models import (
     SQLAUrl,
     FullText,
     IconSource,
+    CrawlRequest as SQLACrawlRequest,
+    CrawlResponse as SQLACrawlResponse,
 )
 from quarchive.data.functions import upsert_url
 from quarchive.messaging.receipt import PickleMessage
-from quarchive.messaging.message_lib import HelloEvent, NewIconFound, IndexRequested
+from quarchive.messaging.message_lib import (
+    HelloEvent,
+    NewIconFound,
+    IndexRequested,
+    CrawlRequested,
+    BookmarkCreated,
+)
 
 from .conftest import random_string
 from .test_indexing import make_crawl_with_response
@@ -55,6 +62,56 @@ def test_hello_event(bg_client: TestAdapter[PickleMessage], caplog):
     expected = "greetings earthling"
     # FIXME: this is pretty ropey and fragile
     assert expected in logs[-1]
+
+
+def test_bookmark_created(session, bg_worker, mock_s3, requests_mock, test_user):
+    url = URL.from_string("http://example.com/" + random_string())
+    upsert_url(session, url)
+    session.commit()
+
+    requests_mock.add(
+        responses.GET, url=url.to_string(), body="Hello!", status=200, stream=True,
+    )
+
+    bg_worker.send(
+        PickleMessage.from_obj(
+            BookmarkCreated(user_uuid=test_user.user_uuid, url_uuid=url.url_uuid)
+        )
+    )
+
+    response_exists = session.query(
+        session.query(SQLACrawlResponse)
+        .join(SQLACrawlRequest)
+        .join(SQLAUrl)
+        .filter(SQLAUrl.url_uuid == url.url_uuid)
+        .exists()
+    ).scalar()
+    assert response_exists
+
+
+def test_crawl_requested(session, bg_worker, mock_s3, requests_mock):
+    url = URL.from_string("http://example.com/" + random_string())
+    requests_mock.add(
+        responses.GET, url=url.to_string(), body="Hello!", status=200, stream=True,
+    )
+
+    bg_worker.send(
+        PickleMessage.from_obj(
+            CrawlRequested(
+                CrawlRequest(
+                    request=Request(HTTPVerb.GET, url=url,), reason=MetadataReason()
+                )
+            )
+        )
+    )
+    response_exists = session.query(
+        session.query(SQLACrawlResponse)
+        .join(SQLACrawlRequest)
+        .join(SQLAUrl)
+        .filter(SQLAUrl.url_uuid == url.url_uuid)
+        .exists()
+    ).scalar()
+    assert response_exists
 
 
 def test_index_requested_new_page_and_new_page_icon(
