@@ -9,9 +9,9 @@ assignees: ''
 
 # Brief overview
 
-As a **[persona name]**
+AS A **[persona name]**
 
-I want **[some feature or change to be made]**
+I WANT **[some feature or change to be made]**
 
 SO THAT **[brief description of goal]**
 
