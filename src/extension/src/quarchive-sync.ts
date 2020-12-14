@@ -332,23 +332,16 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
         body.push(JSON.stringify(bookmark.to_json()));
     }
 
-    console.log("calling /api/sync?full=true");
-    let [APIURL, username, APIKey] = [undefined, undefined, undefined];
-    try {
-        [APIURL, username, APIKey] = await getHTTPConfig();
-    } catch (e) {
-        if (e instanceof NoConfigurationError) {
-            console.warn("no configuration - unable to do full sync")
-            return [];
-        } else {
-            throw e;
-        }
-    }
-    const url = new URL("/api/sync?full=true", APIURL).toString();
+    const httpConfig = await getHTTPConfig();
+    const APIURL = httpConfig[0];
+    const username = httpConfig[1];
+    const APIKey = httpConfig[2];
 
+    const url = new URL("/api/sync?full=true", APIURL).toString();
     const extensionVersion = browser.runtime.getManifest().version;
     const clientID = await getClientID();
     const timerString = "POST " + url
+    console.log("calling /api/sync?full=true");
     console.time(timerString)
     const response = await fetch(url, {
         method: "POST",
@@ -376,6 +369,7 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
 }
 
 export async function fullSync(): Promise<SyncResult> {
+    const oldStatus = await getLastFullSyncResult()
     let status = {status: SyncStatus.InProgress, at: new Date()}
     setLastFullSyncResult(status);
 
@@ -416,13 +410,19 @@ export async function fullSync(): Promise<SyncResult> {
             }
         }
         status = {status: SyncStatus.Successful, at: new Date()}
+        setLastFullSyncResult(status);
     } catch (e) {
-        status = {status: SyncStatus.Failed, at: new Date()}
-        console.error("full sync failed: ", e);
+        if (e instanceof NoConfigurationError) {
+            console.warn("no configuration - unable to do full sync")
+            setLastFullSyncResult(oldStatus);
+        } else {
+            status = {status: SyncStatus.Failed, at: new Date()}
+            setLastFullSyncResult(status);
+            console.error("full sync failed: ", e);
+        }
     } finally {
         enableListeners()
         console.timeEnd("full sync");
-        setLastFullSyncResult(status);
         return status
     }
 }
