@@ -9,6 +9,7 @@ extension only**.
 
 ## Unreleased
 
+- Use the `/api/` prefixed sync endpoint urls
 - Keep a unique internal client id
   - This will be used to report to web users what clients are currently syncing
   - It's displayed on the options page

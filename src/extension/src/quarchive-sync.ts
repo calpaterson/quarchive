@@ -297,7 +297,7 @@ async function callSyncAPI(bookmark: Bookmark): Promise<Array<Bookmark>> {
         }
     }
     // FIXME: failure should be logged
-    const url = new URL("/sync", APIURL).toString();
+    const url = new URL("/api/sync", APIURL).toString();
     const extensionVersion = browser.runtime.getManifest().version;
     const clientID = await getClientID();
     const response = await fetch(url, {
@@ -308,9 +308,6 @@ async function callSyncAPI(bookmark: Bookmark): Promise<Array<Bookmark>> {
             "Quarchive-Username": username,
             "Quarchive-API-Key": APIKey,
             "Quarchive-ClientID": clientID,
-            // FIXME: the below headers are depreciated
-            "X-QM-API-Username": username,
-            "X-QM-API-Key": APIKey,
         },
         body: sync_body,
     });
@@ -335,7 +332,7 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
         body.push(JSON.stringify(bookmark.to_json()));
     }
 
-    console.log("calling /sync?full=true");
+    console.log("calling /api/sync?full=true");
     let [APIURL, username, APIKey] = [undefined, undefined, undefined];
     try {
         [APIURL, username, APIKey] = await getHTTPConfig();
@@ -347,7 +344,7 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
             throw e;
         }
     }
-    const url = new URL("/sync?full=true", APIURL).toString();
+    const url = new URL("/api/sync?full=true", APIURL).toString();
 
     const extensionVersion = browser.runtime.getManifest().version;
     const clientID = await getClientID();
@@ -361,9 +358,6 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
             "Quarchive-Username": username,
             "Quarchive-API-Key": APIKey,
             "Quarchive-ClientID": clientID,
-            // FIXME: the below headers are depreciated
-            "X-QM-API-Username": username,
-            "X-QM-API-Key": APIKey,
         },
         body: body.join("\n"),
     });
