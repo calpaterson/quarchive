@@ -59,7 +59,7 @@ def api_key_required(handler: V) -> V:
             # We know at this point that the user does in fact exist, so cast
             # away the Optional
             user = cast(User, user_from_username_if_exists(db.session, cache, username))
-            # FIXME: This should perhaps user .users.set_current_user, somehow
+            # FIXME: This should perhaps use .users.set_current_user, somehow
             flask.g.user = user
             return handler()
         else:
@@ -81,6 +81,12 @@ def api_key_required(handler: V) -> V:
 @api_key_required
 def sync_check_api_key() -> Tuple[flask.Response, int]:
     return flask.jsonify({}), 200
+
+
+@sync_blueprint.route("/api/sync/should-sync", methods=["GET"])
+@api_key_required
+def should_sync() -> Tuple[flask.Response, int]:
+    return flask.jsonify({"should_sync": True}), 200
 
 
 @sync_blueprint.route("/api/sync", methods=["POST"])

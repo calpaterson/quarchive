@@ -2,7 +2,6 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Sequence
 import json
-import logging
 
 import quarchive as sut
 
@@ -316,3 +315,15 @@ def test_syncing_with_urls_without_minimum_canonicalisation(
     assert response.status_code == 400
     # FIXME: something is pulling other log messages in here.
     assert "bad canonicalised url" in caplog.text
+
+
+def test_should_sync(client, test_user):
+    response = client.get(
+        "/api/sync/should-sync",
+        headers={
+            "Quarchive-Username": test_user.username,
+            "Quarchive-API-Key": test_user.api_key.hex(),
+        },
+    )
+    assert response.status_code == 200
+    assert response.json == {"should_sync": True}
