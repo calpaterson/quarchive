@@ -8,19 +8,40 @@ import {
     registerLastFullSyncResultChangeHandler,
 } from "./quarchive-sync.js"
 
-function saveOptions(e){
+function flash(message: string){
+    const note_elem = document.querySelector("#test-or-save-note");
+    note_elem.textContent = message;
+}
+
+function clearFlash() {
+    const note_elem = document.querySelector("#test-or-save-note");
+    note_elem.textContent = "";
+}
+
+async function saveOptions(e){
+    clearFlash();
     let APIURLInput = document.querySelector("#api-url") as HTMLInputElement;
     let usernameInput = document.querySelector("#username") as HTMLInputElement;
     let APIKeyInput = document.querySelector("#api-key") as HTMLInputElement;
+
     browser.storage.sync.set({
         APIURL: APIURLInput.value,
         username: usernameInput.value,
         APIKey: APIKeyInput.value,
-    });
+    }).then(
+        function() {
+            flash("Saved!");
+        },
+        function(error_message) {
+            console.error("unable to save preferences! %o", error_message);
+            flash("error saving preferences!");
+        }
+    );
     e.preventDefault()
 }
 
 async function testOptions(e): Promise<void> {
+    clearFlash();
     let APIURLInput = document.querySelector("#api-url") as HTMLInputElement;
     let usernameInput = document.querySelector("#username") as HTMLInputElement;
     let APIKeyInput = document.querySelector("#api-key") as HTMLInputElement;
@@ -30,8 +51,6 @@ async function testOptions(e): Promise<void> {
     const APIKey = APIKeyInput.value;
     const extensionVersion = browser.runtime.getManifest().version;
     const clientID = await getClientID();
-
-    const note_elem = document.querySelector("#test-or-save-note");
 
     await fetch(url, {
         method: "POST",
@@ -44,21 +63,21 @@ async function testOptions(e): Promise<void> {
     }).then(
         async function(response){
             if (response.ok){
-                note_elem.textContent = "Success!";
+                flash("Tested successfully!");
             } else {
-                // FIXME: handle garbage returned
+                // FIXME: handle bad json returned
                 await response.json().then(
                     function(json){
-                        note_elem.textContent = json.error;
+                        flash(json.error);
                     },
                     function(reason){
-                        note_elem.textContent = "unreadable response from api";
+                        flash("unreadable response from api");
                     })
             }
         },
         function(reason){
             console.error("network level error trying to test credentials");
-            note_elem.textContent = "network level error";
+            flash("network level error");
         }
     );
     e.preventDefault()
@@ -96,7 +115,6 @@ async function restoreOptions(){
     const clientIDSpan = document.querySelector("#client-id") as HTMLElement
     clientIDSpan.textContent = clientID
     updateLastSync(lastFullSyncResult);
-
 }
 
 function updateLastSync(result: SyncResult): void {
