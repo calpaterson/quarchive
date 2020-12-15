@@ -593,6 +593,10 @@ function createIDBSchema(db: IDBDatabase) : void {
     }
 }
 
+// FIXME: This function should probably be renamed "ensureDB" and should return
+// the db object (encapsulating it) so that we have it everywhere we need it
+// without having to initialise it in a various different places (inside main()
+// and in quarchive-options)
 export async function openIDB(): Promise<void> {
     return new Promise(function (resolve, reject) {
         if(db !== null) {

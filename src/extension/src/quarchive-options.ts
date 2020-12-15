@@ -29,8 +29,10 @@ async function saveOptions(e){
         username: usernameInput.value,
         APIKey: APIKeyInput.value,
     }).then(
-        function() {
+        async function() {
             flash("Saved!");
+            await openIDB();
+            await fullSync();
         },
         function(error_message) {
             console.error("unable to save preferences! %o", error_message);

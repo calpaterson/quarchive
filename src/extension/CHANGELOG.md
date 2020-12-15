@@ -9,6 +9,7 @@ extension only**.
 
 ## Unreleased
 
+- Do a full sync when the preferences are changed
 - Check with the server whether we need to sync before doing a full sync
   - In future this will be used to prevent needless full syncs
 - Use the `/api/` prefixed sync endpoint urls
