@@ -533,9 +533,6 @@ function removedListener(browserId: string, removeInfo) {
             bookmarkFromBrowser.deleted = true;
             bookmarkFromBrowser.browserId = null;
             bookmarkFromBrowser.updated = new Date();
-            return bookmarkFromBrowser;
-        })
-        .then(function(bookmarkFromBrowser) {
             updateBookmarkInLocalDb(bookmarkFromBrowser)
             return bookmarkFromBrowser;
         })
