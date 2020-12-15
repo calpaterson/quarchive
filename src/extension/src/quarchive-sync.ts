@@ -529,23 +529,23 @@ async function changeListener(browserId: string, changeInfo) {
 function removedListener(browserId: string, removeInfo) {
     console.log("removed browserId: %s - %o", browserId, removeInfo);
     lookupBookmarkFromLocalDbByBrowserId(browserId)
-        .then(function(bookmarkFromBrowser) {
-            bookmarkFromBrowser.deleted = true;
-            bookmarkFromBrowser.browserId = null;
-            bookmarkFromBrowser.updated = new Date();
-            updateBookmarkInLocalDb(bookmarkFromBrowser)
-            return bookmarkFromBrowser;
+        .then(async function(bookmarkFromLocalDb) {
+            bookmarkFromLocalDb.deleted = true;
+            bookmarkFromLocalDb.browserId = null;
+            bookmarkFromLocalDb.updated = new Date();
+            await updateBookmarkInLocalDb(bookmarkFromLocalDb);
+            return bookmarkFromLocalDb;
         })
         .then(callSyncAPI)
-        .then(function(bookmarksMergedWithServer){
+        .then(async function(bookmarksMergedWithServer){
             if (bookmarksMergedWithServer.length > 1) {
                 const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
-                updateBookmarkInLocalDb(bookmarkMergedWithServer);
-                upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
+                await updateBookmarkInLocalDb(bookmarkMergedWithServer);
+                await upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
             }
         })
         .catch(function(error){
-            console.error("uncaught exception while removing a bookmark: %o", error);
+            console.error("removing a bookmark failed: %o", error);
         });
 }
 
