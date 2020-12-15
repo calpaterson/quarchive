@@ -123,7 +123,7 @@ async function upsertBookmarkIntoBrowser(bookmark: Bookmark): Promise<void> {
    }
 }
 
-async function allBookmarksFromLocalDb(): Promise<Array<Bookmark>> {
+function allBookmarksFromLocalDb(): Promise<Array<Bookmark>> {
     return new Promise(function(resolve, reject) {
         let transaction = db.transaction(["bookmarks"], "readonly");
         transaction.onerror = function(event){
@@ -148,7 +148,7 @@ async function allBookmarksFromLocalDb(): Promise<Array<Bookmark>> {
     });
 }
 
-async function lookupBookmarkFromLocalDbByUrl(url: QuarchiveURL): Promise<Bookmark> {
+function lookupBookmarkFromLocalDbByUrl(url: QuarchiveURL): Promise<Bookmark> {
     return new Promise(function(resolve, reject) {
         let transaction = db.transaction(["bookmarks"], "readonly");
         transaction.onerror = function(event){
@@ -172,7 +172,7 @@ async function lookupBookmarkFromLocalDbByUrl(url: QuarchiveURL): Promise<Bookma
 }
 
 // Lookup the bookmark from local db
-async function lookupBookmarkFromLocalDbByBrowserId(browserId: string): Promise<Bookmark> {
+function lookupBookmarkFromLocalDbByBrowserId(browserId: string): Promise<Bookmark> {
     return new Promise(function(resolve, reject) {
         let transaction = db.transaction(["bookmarks"], "readonly");
         transaction.onerror = function(event){
@@ -197,7 +197,7 @@ async function lookupBookmarkFromLocalDbByBrowserId(browserId: string): Promise<
 }
 
 // Insert the bookmark into local db
-async function insertBookmarkIntoLocalDb(bookmark: Bookmark): Promise<void> {
+function insertBookmarkIntoLocalDb(bookmark: Bookmark): Promise<void> {
     return new Promise(function(resolve, reject) {
         let transaction = db.transaction(["bookmarks"], "readwrite");
         transaction.onerror = function(event){
@@ -215,7 +215,7 @@ async function insertBookmarkIntoLocalDb(bookmark: Bookmark): Promise<void> {
     });
 }
 
-async function updateBookmarkInLocalDb(bookmark: Bookmark): Promise<void> {
+function updateBookmarkInLocalDb(bookmark: Bookmark): Promise<void> {
     return new Promise(function(resolve, reject) {
         let transaction = db.transaction(["bookmarks"], "readwrite");
         transaction.onerror = function(event){
@@ -541,7 +541,7 @@ async function removedListener(browserId: string, removeInfo) {
     }
 }
 
-async function movedListener(browserId: string, moveInfo) {
+function movedListener(browserId: string, moveInfo) {
     console.log("moved: browserId: %s - %o", browserId, moveInfo);
     // Nothing to do
 }
@@ -597,7 +597,7 @@ function createIDBSchema(db: IDBDatabase) : void {
 // the db object (encapsulating it) so that we have it everywhere we need it
 // without having to initialise it in a various different places (inside main()
 // and in quarchive-options)
-export async function openIDB(): Promise<void> {
+export function openIDB(): Promise<void> {
     return new Promise(function (resolve, reject) {
         if(db !== null) {
             console.debug("idb already opened - not reopening")
