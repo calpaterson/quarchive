@@ -526,19 +526,30 @@ async function changeListener(browserId: string, changeInfo) {
     }
 }
 
-async function removedListener(browserId: string, removeInfo) {
+function removedListener(browserId: string, removeInfo) {
     console.log("removed browserId: %s - %o", browserId, removeInfo);
-    const bookmarkFromBrowser = await lookupBookmarkFromLocalDbByBrowserId(browserId)
-    bookmarkFromBrowser.deleted = true;
-    bookmarkFromBrowser.browserId = null;
-    bookmarkFromBrowser.updated = new Date();
-    await updateBookmarkInLocalDb(bookmarkFromBrowser);
-    const bookmarksMergedWithServer = await callSyncAPI(bookmarkFromBrowser);
-    if (bookmarksMergedWithServer.length > 1) {
-        const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
-        updateBookmarkInLocalDb(bookmarkMergedWithServer);
-        upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
-    }
+    lookupBookmarkFromLocalDbByBrowserId(browserId)
+        .then(function(bookmarkFromBrowser) {
+            bookmarkFromBrowser.deleted = true;
+            bookmarkFromBrowser.browserId = null;
+            bookmarkFromBrowser.updated = new Date();
+            return bookmarkFromBrowser;
+        })
+        .then(function(bookmarkFromBrowser) {
+            updateBookmarkInLocalDb(bookmarkFromBrowser)
+            return bookmarkFromBrowser;
+        })
+        .then(callSyncAPI)
+        .then(function(bookmarksMergedWithServer){
+            if (bookmarksMergedWithServer.length > 1) {
+                const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
+                updateBookmarkInLocalDb(bookmarkMergedWithServer);
+                upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
+            }
+        })
+        .catch(function(error){
+            console.error("uncaught exception while removing a bookmark: %o", error);
+        });
 }
 
 function movedListener(browserId: string, moveInfo) {

@@ -10,6 +10,7 @@ import missive
 import missive.dlq.sqlite
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
+from quarchive.config import load_config
 from quarchive.value_objects import (
     Request,
     HTTPVerb,
@@ -226,8 +227,9 @@ def on_index_requested(message: PickleMessage, ctx: missive.HandlingContext):
 @click.command()
 @click.option("--log-level", type=click.Choice(LOG_LEVELS), default="INFO")
 def bg_worker(log_level):
+    load_config()
     proc.set_dlq(
-        missive.dlq.sqlite.SQLiteDLQ(environ["QM_MISSIVE_SQLITE_DQL_CONNSTRING"])
+        missive.dlq.sqlite.SQLiteDLQ(environ["QM_MISSIVE_SQLITE_DLQ_CONNSTRING"])
     )
     configure_logging(log_level)
     adapted_proc = RabbitMQAdapter(
