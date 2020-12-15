@@ -9,6 +9,8 @@ extension only**.
 
 ## Unreleased
 
+- Check with the server whether we need to sync before doing a full sync
+  - In future this will be used to prevent needless full syncs
 - Use the `/api/` prefixed sync endpoint urls
 - Keep a unique internal client id
   - This will be used to report to web users what clients are currently syncing

@@ -368,7 +368,30 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
     return returnValue;
 }
 
-export async function fullSync(): Promise<SyncResult> {
+async function shouldSync(): Promise<boolean> {
+    const httpConfig = await getHTTPConfig();
+    const APIURL = httpConfig[0];
+    const username = httpConfig[1];
+    const APIKey = httpConfig[2];
+    const extensionVersion = browser.runtime.getManifest().version;
+    const clientID = await getClientID();
+
+    const url = new URL("/api/sync/should-sync", APIURL).toString();
+    const response = await fetch(url, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/x-ndjson",
+            "Quarchive-Extension-Version": extensionVersion,
+            "Quarchive-Username": username,
+            "Quarchive-API-Key": APIKey,
+            "Quarchive-ClientID": clientID,
+        }
+    });
+    const json = await response.json()
+    return json.should_sync;
+}
+
+export async function fullSync(force: boolean = false): Promise<SyncResult> {
     const oldStatus = await getLastFullSyncResult()
     let status = {status: SyncStatus.InProgress, at: new Date()}
     setLastFullSyncResult(status);
@@ -377,40 +400,50 @@ export async function fullSync(): Promise<SyncResult> {
     // log and record it rather than crash anything else.
     try {
         console.time("full sync");
+        // If we're not focing it, and we don't need to sync, skip it and reset
+        // status back
+        if (!force && !await shouldSync()) {
+            console.log("no need to sync yet")
+            status = oldStatus;
+        } else {
+            if (force) {
+                console.warn("forcing sync");
+            }
 
-        // First build/refresh our local database
-        await syncBrowserBookmarksToLocalDb();
+            // Build/refresh our local database
+            await syncBrowserBookmarksToLocalDb();
 
-        // Then retrieve the server's point of view
-        const bookmarksFromServer = await callFullSyncAPI(await allBookmarksFromLocalDb());
+            // Then retrieve the server's point of view
+            const bookmarksFromServer = await callFullSyncAPI(await allBookmarksFromLocalDb());
 
-        // Next we need to disable our listeners as we're about to edit the
-        // browser bookmarks ourselves and we don't want to handle those events
-        // as usual
-        disableListeners();
+            // Next we need to disable our listeners as we're about to edit the
+            // browser bookmarks ourselves and we don't want to handle those events
+            // as usual
+            disableListeners();
 
-        // For each bookmark we got from the server
-        for (const serverBookmark of bookmarksFromServer) {
+            // For each bookmark we got from the server
+            for (const serverBookmark of bookmarksFromServer) {
 
-            // Look it up in our db
-            const localBookmark = await lookupBookmarkFromLocalDbByUrl(serverBookmark.url);
+                // Look it up in our db
+                const localBookmark = await lookupBookmarkFromLocalDbByUrl(serverBookmark.url);
 
-            if (localBookmark === null) {
-                // and if it's new to that db, create it there and in the browser
-                await insertBookmarkIntoLocalDb(serverBookmark);
-                await upsertBookmarkIntoBrowser(serverBookmark);
-            } else {
-                // otherwise merge it with what we already have and update both
-                const mergedBookmark = localBookmark.merge(serverBookmark);
-                mergedBookmark.browserId = localBookmark.browserId;
-                if (!mergedBookmark.equals(localBookmark)) {
-                    await updateBookmarkInLocalDb(mergedBookmark);
-                    await upsertBookmarkIntoBrowser(mergedBookmark);
+                if (localBookmark === null) {
+                    // and if it's new to that db, create it there and in the browser
+                    await insertBookmarkIntoLocalDb(serverBookmark);
+                    await upsertBookmarkIntoBrowser(serverBookmark);
+                } else {
+                    // otherwise merge it with what we already have and update both
+                    const mergedBookmark = localBookmark.merge(serverBookmark);
+                    mergedBookmark.browserId = localBookmark.browserId;
+                    if (!mergedBookmark.equals(localBookmark)) {
+                        await updateBookmarkInLocalDb(mergedBookmark);
+                        await upsertBookmarkIntoBrowser(mergedBookmark);
+                    }
                 }
             }
+            status = {status: SyncStatus.Successful, at: new Date()}
+            setLastFullSyncResult(status);
         }
-        status = {status: SyncStatus.Successful, at: new Date()}
-        setLastFullSyncResult(status);
     } catch (e) {
         if (e instanceof NoConfigurationError) {
             console.warn("no configuration - unable to do full sync")
@@ -603,7 +636,7 @@ export function main(){
         console.log("quarchive loaded");
         fullSync().then(function(syncResult){
             enablePeriodicFullSync();
-            console.log("done initial fullSync, will no do it periodically");
+            console.log("done initial fullSync(force=false), will now do it periodically");
         });
     });
 }

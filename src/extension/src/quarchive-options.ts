@@ -132,7 +132,7 @@ function updateLastSync(result: SyncResult): void {
 
 async function forceFullSync(): Promise<void> {
     await openIDB();
-    await fullSync();
+    await fullSync(true);
 }
 
 document.addEventListener('DOMContentLoaded', restoreOptions);
