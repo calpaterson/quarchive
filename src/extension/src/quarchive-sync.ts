@@ -393,6 +393,9 @@ export async function fullSync(force: boolean = false): Promise<SyncResult> {
     let status = {status: SyncStatus.InProgress, at: new Date()}
     setLastFullSyncResult(status);
 
+    // Build/refresh our local database
+    await syncBrowserBookmarksToLocalDb();
+
     // Very wide try-except here as in the event of an error we want to catch,
     // log and record it rather than crash anything else.
     try {
@@ -407,8 +410,6 @@ export async function fullSync(force: boolean = false): Promise<SyncResult> {
                 console.warn("forcing sync");
             }
 
-            // Build/refresh our local database
-            await syncBrowserBookmarksToLocalDb();
 
             // Then retrieve the server's point of view
             const bookmarksFromServer = await callFullSyncAPI(await allBookmarksFromLocalDb());
