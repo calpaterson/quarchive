@@ -74,7 +74,6 @@ export function registerLastFullSyncResultChangeHandler(cb: (SyncResult) => void
 }
 
 
-// Lookup the bookmark from browser.bookmarks
 async function lookupTreeNodeFromBrowser(browserId: string): Promise<browser.bookmarks.BookmarkTreeNode> {
     // FIXME: this can fail, should check to make sure no more than one
     // treeNode
@@ -128,7 +127,7 @@ function allBookmarksFromLocalDb(): Promise<Array<Bookmark>> {
         let transaction = db.transaction(["bookmarks"], "readonly");
         transaction.onerror = function(event){
             console.warn("allBookmarksFromLocalDb transaction failed: %o", event);
-            reject();
+            reject(event);
         }
         let objectStore = transaction.objectStore("bookmarks");
         // FIXME: Should use openCursor instead but means switching type to
@@ -143,22 +142,23 @@ function allBookmarksFromLocalDb(): Promise<Array<Bookmark>> {
         }
         request.onerror = function(event){
             console.warn("allBookmarksFromLocalDb request failed: %o", event);
-            reject();  // could this ever fail?
+            reject(event);  // could this ever fail?
         }
     });
 }
 
-function lookupBookmarkFromLocalDbByUrl(url: QuarchiveURL): Promise<Bookmark> {
+function lookupBookmarkFromLocalDbByUrl(url: QuarchiveURL): Promise<Bookmark|null> {
     return new Promise(function(resolve, reject) {
         let transaction = db.transaction(["bookmarks"], "readonly");
         transaction.onerror = function(event){
             console.warn("lookupBookmarkFromLocalDbByUrl transaction failed: %o", event);
         }
         let objectStore = transaction.objectStore("bookmarks");
-        let request = objectStore.get(url.toString())
+        const key = url.toString();
+        let request = objectStore.get(key)
         request.onsuccess = function(event){
             if (request.result === undefined){
-                resolve(null);
+                resolve(null)
             } else {
                 const bookmark = Bookmark.from_json(request.result);
                 resolve(bookmark);
@@ -166,13 +166,12 @@ function lookupBookmarkFromLocalDbByUrl(url: QuarchiveURL): Promise<Bookmark> {
         }
         request.onerror = function(event){
             console.warn("lookupBookmarkFromLocalDbByUrl request failed: %o", event);
-            reject()
+            reject(event)
         }
     });
 }
 
-// Lookup the bookmark from local db
-function lookupBookmarkFromLocalDbByBrowserId(browserId: string): Promise<Bookmark> {
+function lookupBookmarkFromLocalDbByBrowserId(browserId: string): Promise<Bookmark|null> {
     return new Promise(function(resolve, reject) {
         let transaction = db.transaction(["bookmarks"], "readonly");
         transaction.onerror = function(event){
@@ -191,7 +190,7 @@ function lookupBookmarkFromLocalDbByBrowserId(browserId: string): Promise<Bookma
         }
         request.onerror = function(event){
             console.warn("lookupBookmarkFromLocalDbByBrowserId request failed: %o", event);
-            reject();
+            reject(event);
         }
     });
 }
@@ -209,7 +208,7 @@ function insertBookmarkIntoLocalDb(bookmark: Bookmark): Promise<void> {
         }
         request.onerror = function(event){
             console.warn("insertBookmarkIntoLocalDb request failed: %o, %o", bookmark, event);
-            reject();
+            reject(event);
         }
     });
 }
@@ -629,7 +628,7 @@ export function openIDB(): Promise<void> {
             const dbOpenRequest = window.indexedDB.open("quarchive", SCHEMA_VERSION);
             dbOpenRequest.onerror = function(event){
                 console.warn("unable to open database: %o", event);
-                reject()
+                reject(event)
             }
             dbOpenRequest.onupgradeneeded = function (event) {
                 console.log("upgrade needed: %o", event);
@@ -648,7 +647,7 @@ export function openIDB(): Promise<void> {
                 db = dbOpenRequest.result;
                 db.onerror = function(event) {
                     console.error("db error %o", event);
-                    reject()
+                    reject(event)
                 }
                 console.log("opened idb");
                 resolve();
