@@ -196,7 +196,6 @@ function lookupBookmarkFromLocalDbByBrowserId(browserId: string): Promise<Bookma
     });
 }
 
-// Insert the bookmark into local db
 function insertBookmarkIntoLocalDb(bookmark: Bookmark): Promise<void> {
     return new Promise(function(resolve, reject) {
         let transaction = db.transaction(["bookmarks"], "readwrite");
@@ -228,7 +227,7 @@ function updateBookmarkInLocalDb(bookmark: Bookmark): Promise<void> {
         }
         request.onerror = function(event){
             console.warn("updateBookmarkInLocalDb request failed: %o, %o", bookmark, event);
-            reject();
+            reject(event);
         }
     });
 }
@@ -313,7 +312,6 @@ async function callSyncAPI(bookmark: Bookmark): Promise<Array<Bookmark>> {
     });
 
     const jsonlines = await response.text()
-    console.log("got: '%s'", jsonlines);
     let returnValue = [];
     for (let jsonBookmark of jsonlines.split("\n")){
         // Handle trailing newline
@@ -462,68 +460,85 @@ export async function fullSync(force: boolean = false): Promise<SyncResult> {
 
 function enablePeriodicFullSync(){
     browser.alarms.create("periodicFullSync", {"periodInMinutes": PERIODIC_FULL_SYNC_INTERVAL_IN_MINUTES});
-    browser.alarms.onAlarm.addListener(async function(alarm) {
+    browser.alarms.onAlarm.addListener(function(alarm) {
         console.log("alarm: %o", alarm);
-        await fullSync()
+        fullSync().catch(function(error){
+            console.error("periodic full sync failed")
+        });
     });
 }
 
-export async function createdListener(
+function createdListener(
     browserId: string, buggyTreeNode: browser.bookmarks.BookmarkTreeNode) {
     // don't use the second argument, dateAdded is wrong in Firefox - see
     // https://github.com/calpaterson/quarchive/issues/6
     console.log("created: browserId: %s - %o", browserId, buggyTreeNode);
-    const treeNode = await lookupTreeNodeFromBrowser(browserId);
-    let url;
-    try {
-        url = new QuarchiveURL(treeNode.url)
-    } catch (e) {
-        if (e instanceof DisallowedSchemeError){
-            console.log("skipping %s - disallowed scheme", treeNode.url);
-            return;
-        } else {
-            throw e;
-        }
-    }
-    let bookmark = new Bookmark(
-        url,
-        treeNode.title,
-        "",
-        new Date(treeNode.dateAdded),
-        new Date(treeNode.dateAdded),
-        false,
-        false,
-        treeNode.id,
-    )
-    const bookmarkFromLocalDbIfPresent = await lookupBookmarkFromLocalDbByUrl(url)
-    if (bookmarkFromLocalDbIfPresent !== null){
-        // Bookmark already exists in db (probably deleted then re-created)
-        bookmark = bookmark.merge(bookmarkFromLocalDbIfPresent);
-        await updateBookmarkInLocalDb(bookmark);
-    } else {
-        await insertBookmarkIntoLocalDb(bookmark);
-    }
-    const bookmarksMergedWithServer = await callSyncAPI(bookmark);
-    if (bookmarksMergedWithServer.length > 1) {
-        const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
-        updateBookmarkInLocalDb(bookmarkMergedWithServer);
-        upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
-    }
+    lookupTreeNodeFromBrowser(browserId)
+        .then(async function(treeNode) {
+            const url = new QuarchiveURL(treeNode.url);
+            let bookmark = new Bookmark(
+                url,
+                treeNode.title,
+                "",
+                new Date(treeNode.dateAdded),
+                new Date(treeNode.dateAdded),
+                false,
+                false,
+                treeNode.id,
+            )
+            const bookmarkFromLocalDbIfPresent = await lookupBookmarkFromLocalDbByUrl(url)
+            if (bookmarkFromLocalDbIfPresent !== null){
+                // Bookmark already exists in db (probably deleted then re-created)
+                bookmark = bookmark.merge(bookmarkFromLocalDbIfPresent);
+                await updateBookmarkInLocalDb(bookmark);
+            } else {
+                await insertBookmarkIntoLocalDb(bookmark);
+            }
+            return bookmark;
+        })
+        .then(callSyncAPI)
+        .then(async function(bookmarksMergedWithServer){
+            if (bookmarksMergedWithServer.length > 1) {
+                const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
+                await Promise.all([
+                    updateBookmarkInLocalDb(bookmarkMergedWithServer),
+                    upsertBookmarkIntoBrowser(bookmarkMergedWithServer),
+                ]);
+            }
+        })
+        .catch(function(error){
+            if (error instanceof DisallowedSchemeError){
+                console.log("skipping %s - disallowed scheme", error.message);
+                return;
+            } else {
+                console.error("creating a bookmark failed: %o", error);
+            }
+        });
 }
 
-async function changeListener(browserId: string, changeInfo) {
+function changeListener(browserId: string, changeInfo) {
     console.log("changed: browserId: %s - %o", browserId, changeInfo);
-    const treeNode = await lookupTreeNodeFromBrowser(browserId);
-    const bookmarkInDb = await lookupBookmarkFromLocalDbByBrowserId(browserId);
-    bookmarkInDb.title = treeNode.title;
-    bookmarkInDb.updated = new Date();
-    await updateBookmarkInLocalDb(bookmarkInDb);
-    const bookmarksMergedWithServer = await callSyncAPI(bookmarkInDb);
-    if (bookmarksMergedWithServer.length > 1) {
-        const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
-        updateBookmarkInLocalDb(bookmarkMergedWithServer);
-        upsertBookmarkIntoBrowser(bookmarkMergedWithServer);
-    }
+    lookupTreeNodeFromBrowser(browserId)
+        .then(async function(treeNode){
+            const bookmarkInDb = await lookupBookmarkFromLocalDbByBrowserId(browserId);
+            bookmarkInDb.title = treeNode.title;
+            bookmarkInDb.updated = new Date();
+            await updateBookmarkInLocalDb(bookmarkInDb);
+            return bookmarkInDb;
+        })
+        .then(callSyncAPI)
+        .then(async function(bookmarksMergedWithServer){
+            if (bookmarksMergedWithServer.length > 1) {
+                const bookmarkMergedWithServer = bookmarksMergedWithServer[0];
+                await Promise.all([
+                    updateBookmarkInLocalDb(bookmarkMergedWithServer),
+                    upsertBookmarkIntoBrowser(bookmarkMergedWithServer),
+                ]);
+            }
+        })
+        .catch(function(error){
+            console.error("changing a bookmark failed: %o", error);
+        });
 }
 
 function removedListener(browserId: string, removeInfo) {
@@ -644,11 +659,14 @@ export function openIDB(): Promise<void> {
 
 export function main(){
     console.log("starting quarchive load");
-    openIDB().then(function(){
-        console.log("quarchive loaded");
-        fullSync().then(function(syncResult){
+    openIDB()
+        .then(async function(){
+            console.log("quarchive loaded");
+            await fullSync();
             enablePeriodicFullSync();
             console.log("done initial fullSync(force=false), will now do it periodically");
+        })
+        .catch(function(error){
+            console.error("main function failed: %o", error);
         });
-    });
 }
