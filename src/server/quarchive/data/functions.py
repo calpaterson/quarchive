@@ -345,7 +345,7 @@ class BookmarkViewQueryBuilder:
                 CanonicalSQLAUrl,
                 CanonicalUrl.canonical_url_uuid == CanonicalSQLAUrl.url_uuid,
             )
-            .outerjoin(URLIcon)
+            .outerjoin(URLIcon, SQLAUrl.url_uuid == URLIcon.url_uuid)
             .outerjoin(
                 DomainIcon,
                 and_(
@@ -895,6 +895,7 @@ def record_page_icon(
     session: Session, icon_url: URL, page_url: URL, hash_bytes: bytes
 ) -> UUID:
     icon_uuid = upsert_icon(session, icon_url, hash_bytes)
+    # FIXME: This should probably call upsert_icon_for_url
     url_icon = URLIcon(url_uuid=page_url.url_uuid, icon_uuid=icon_uuid)
     session.add(url_icon)
     return icon_uuid

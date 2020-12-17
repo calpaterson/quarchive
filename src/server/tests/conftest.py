@@ -278,3 +278,7 @@ def register_user(
 
 def random_string() -> str:
     return "".join(random.choice(string.ascii_lowercase) for _ in range(32))
+
+
+def random_bytes(n) -> bytes:
+    return bytearray(random.getrandbits(8) for _ in range(n))
