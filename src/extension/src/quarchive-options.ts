@@ -8,17 +8,17 @@ import {
     registerLastFullSyncResultChangeHandler,
 } from "./quarchive-sync.js"
 
-function flash(message: string){
+function flash(message: string): void {
     const note_elem = document.querySelector("#test-or-save-note");
     note_elem.textContent = message;
 }
 
-function clearFlash() {
+function clearFlash() : void {
     const note_elem = document.querySelector("#test-or-save-note");
     note_elem.textContent = "";
 }
 
-async function saveOptions(e){
+function saveOptions(e) : void {
     clearFlash();
     let APIURLInput = document.querySelector("#api-url") as HTMLInputElement;
     let usernameInput = document.querySelector("#username") as HTMLInputElement;
@@ -28,21 +28,20 @@ async function saveOptions(e){
         APIURL: APIURLInput.value,
         username: usernameInput.value,
         APIKey: APIKeyInput.value,
-    }).then(
-        async function() {
+    })
+        .then(async function() {
             flash("Saved!");
             await openIDB();
             await fullSync();
-        },
-        function(error_message) {
+        })
+        .catch(function(error_message) {
             console.error("unable to save preferences! %o", error_message);
             flash("error saving preferences!");
-        }
-    );
+        });
     e.preventDefault()
 }
 
-async function testOptions(e): Promise<void> {
+function testOptions(e): void {
     clearFlash();
     let APIURLInput = document.querySelector("#api-url") as HTMLInputElement;
     let usernameInput = document.querySelector("#username") as HTMLInputElement;
@@ -52,71 +51,93 @@ async function testOptions(e): Promise<void> {
     const username = usernameInput.value;
     const APIKey = APIKeyInput.value;
     const extensionVersion = browser.runtime.getManifest().version;
-    const clientID = await getClientID();
 
-    await fetch(url, {
-        method: "POST",
-        headers: {
-            "Quarchive-Extension-Version": extensionVersion,
-            "Quarchive-Username": username,
-            "Quarchive-API-Key": APIKey,
-            "Quarchive-ClientID": clientID,
-        }
-    }).then(
-        async function(response){
-            if (response.ok){
-                flash("Tested successfully!");
-            } else {
-                // FIXME: handle bad json returned
-                await response.json().then(
-                    function(json){
-                        flash(json.error);
-                    },
-                    function(reason){
-                        flash("unreadable response from api");
-                    })
+    async function testOptionsInner(clientID) {
+        fetch(url, {
+            method: "POST",
+            headers: {
+                "Quarchive-Extension-Version": extensionVersion,
+                "Quarchive-Username": username,
+                "Quarchive-API-Key": APIKey,
+                "Quarchive-ClientID": clientID,
             }
-        },
-        function(reason){
-            console.error("network level error trying to test credentials");
-            flash("network level error");
-        }
-    );
+        })
+            .then(
+                async function(response){
+                    if (response.ok){
+                        flash("Tested successfully!");
+                    } else {
+                        // FIXME: handle bad json returned
+                        await response.json().then(
+                            function(json){
+                                flash(json.error);
+                            },
+                            function(reason){
+                                flash("unreadable response from api");
+                            })
+                    }
+                })
+            .catch(
+                function(reason){
+                    console.error("network level error trying to test credentials");
+                    flash("network level error");
+                }
+            );
+    };
+
+    getClientID()
+        .catch(function (error) {
+            console.error("unable to get clientID: %o", error);
+        })
+        .then(testOptionsInner)
     e.preventDefault()
 }
 
-async function restoreOptions(){
-    var gettingUsername = browser.storage.sync.get("username");
-    gettingUsername.then(function (result) {
-        let input = document.querySelector("#username") as HTMLInputElement;
-        if (result.username !== undefined) {
-            input.value = result.username;
-        }
-    })
+function restoreOptions(){
+    async function restoreOptionsInner() {
+        const gettingUsername = browser.storage.sync.get("username");
+        gettingUsername.then(function (result) {
+            let input = document.querySelector("#username") as HTMLInputElement;
+            if (result.username !== undefined) {
+                input.value = result.username;
+            }
+        })
 
-    var gettingKey = browser.storage.sync.get("APIKey");
-    gettingKey.then(function (result) {
-        let input = document.querySelector("#api-key") as HTMLInputElement;
-        if (result.APIKey !== undefined) {
-            input.value = result.APIKey;
-        }
-    })
+        const gettingKey = browser.storage.sync.get("APIKey");
+        gettingKey.then(function (result) {
+            let input = document.querySelector("#api-key") as HTMLInputElement;
+            if (result.APIKey !== undefined) {
+                input.value = result.APIKey;
+            }
+        })
 
-    var gettingURL = browser.storage.sync.get("APIURL");
-    gettingURL.then(function (result) {
+        const gettingURL = browser.storage.sync.get("APIURL");
+        gettingURL.then(function (result) {
         let input = document.querySelector("#api-url") as HTMLInputElement;
-        if (result.APIURL === undefined) {
-            input.value = "https://quarchive.com"
-        } else {
-            input.value = result.APIURL;
-        }
-    })
+            if (result.APIURL === undefined) {
+                input.value = "https://quarchive.com"
+            } else {
+                input.value = result.APIURL;
+            }
+        })
+        await Promise.all([
+            gettingUsername,
+            gettingKey,
+            gettingURL,
+        ]);
 
-    const [clientID, lastFullSyncResult] = await Promise.all([getClientID(), getLastFullSyncResult()])
+        const [clientID, lastFullSyncResult] = await Promise.all([
+            getClientID(),
+            getLastFullSyncResult(),
+        ]);
 
-    const clientIDSpan = document.querySelector("#client-id") as HTMLElement
-    clientIDSpan.textContent = clientID
-    updateLastSync(lastFullSyncResult);
+        const clientIDSpan = document.querySelector("#client-id") as HTMLElement
+        clientIDSpan.textContent = clientID
+        updateLastSync(lastFullSyncResult);
+    }
+
+    restoreOptionsInner()
+        .catch(function(error){ console.error("unable to restore options: %o", error)});
 }
 
 function updateLastSync(result: SyncResult): void {
@@ -132,14 +153,15 @@ function updateLastSync(result: SyncResult): void {
     }
 }
 
-async function forceFullSync(): Promise<void> {
-    await openIDB();
-    await fullSync(true);
+function forceFullSync(): void {
+    openIDB()
+        .then(async function() { await fullSync(true)})
+        .catch(function(error){ console.error("unable to force full sync: %o", error)});
 }
 
 document.addEventListener('DOMContentLoaded', restoreOptions);
-document.addEventListener('DOMContentLoaded', async function(){
-    await registerLastFullSyncResultChangeHandler(updateLastSync);
+document.addEventListener('DOMContentLoaded', function(){
+    registerLastFullSyncResultChangeHandler(updateLastSync);
 });
 document.querySelector("form").addEventListener("submit", saveOptions);
 document.querySelector("#force-sync").addEventListener("click", forceFullSync);
