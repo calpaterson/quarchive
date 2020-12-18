@@ -9,6 +9,8 @@ extension only**.
 
 ## Unreleased
 
+- Make the extension considerably more robust by checking for (many but not
+  all) error cases
 - Do a full sync when the preferences are changed
 - Check with the server whether we need to sync before doing a full sync
   - In future this will be used to prevent needless full syncs
