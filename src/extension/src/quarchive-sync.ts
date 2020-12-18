@@ -32,19 +32,37 @@ async function getHTTPConfig(): Promise<Array<string>> {
     let gettingURL = await browser.storage.sync.get("APIURL");
     const returnValue = [gettingURL.APIURL, gettingUsername.username, gettingKey.APIKey];
     if (returnValue.includes(undefined)) {
-        throw new NoConfigurationError();
+        throw new NoConfigurationError("no or missing configuration");
     } else {
         return returnValue;
     }
 }
 
 class NoConfigurationError extends Error {
-    constructor(message?: string) {
+    constructor(message: string) {
         super(message);
         Object.setPrototypeOf(this, new.target.prototype);
         this.name = NoConfigurationError.name
     }
 }
+
+class BadServerResponseError extends Error {
+    response: Response
+    constructor(message: string, response: Response) {
+        super(message);
+        Object.setPrototypeOf(this, new.target.prototype);
+        this.name = BadServerResponseError.name
+        this.response = response
+    }
+}
+
+function throwForStatus(response: Response): void {
+    if(!response.ok){
+        console.warn("got %d from server", response.status);
+        throw new BadServerResponseError(`bad response: (${response.status})`, response);
+    }
+}
+
 
 async function setLastFullSyncResult(result: SyncResult): Promise<void> {
     const storable = {
@@ -309,6 +327,7 @@ async function callSyncAPI(bookmark: Bookmark): Promise<Array<Bookmark>> {
         },
         body: sync_body,
     });
+    throwForStatus(response);
 
     const jsonlines = await response.text()
     let returnValue = [];
@@ -351,6 +370,7 @@ async function callFullSyncAPI(bookmarks: Array<Bookmark>): Promise<Array<Bookma
         },
         body: body.join("\n"),
     });
+    throwForStatus(response);
     const jsonlines = await response.text()
     console.timeEnd(timerString);
     let returnValue = [];
@@ -384,8 +404,9 @@ async function shouldSync(): Promise<boolean> {
             "Quarchive-ClientID": clientID,
         }
     });
+    throwForStatus(response);
     const json = await response.json()
-    return json.should_sync;
+    return json.should_sync === true;
 }
 
 export async function fullSync(force: boolean = false): Promise<SyncResult> {
@@ -404,12 +425,11 @@ export async function fullSync(force: boolean = false): Promise<SyncResult> {
         // status back
         if (!force && !await shouldSync()) {
             console.log("no need to sync yet")
-            status = oldStatus;
+            setLastFullSyncResult(oldStatus);
         } else {
             if (force) {
                 console.warn("forcing sync");
             }
-
 
             // Then retrieve the server's point of view
             const bookmarksFromServer = await callFullSyncAPI(await allBookmarksFromLocalDb());
