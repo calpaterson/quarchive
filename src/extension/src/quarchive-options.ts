@@ -141,14 +141,19 @@ function restoreOptions(){
 }
 
 function updateLastSync(result: SyncResult): void {
-    const lastSyncSpan = document.querySelector("#last-full-sync") as HTMLElement
+    const lastSyncSpan = document.querySelector("#last-full-sync") as HTMLElement;
+    const forceSyncButton = document.querySelector("#force-sync-button") as HTMLButtonElement;
     if (result.status === SyncStatus.Never){
+        forceSyncButton.disabled = false;
         lastSyncSpan.textContent = "Never done one before";
     } else if (result.status === SyncStatus.InProgress) {
+        forceSyncButton.disabled = true;
         lastSyncSpan.textContent = `In progress since ${result.at.toLocaleString()}`;
     } else if (result.status === SyncStatus.Failed) {
+        forceSyncButton.disabled = false;
         lastSyncSpan.textContent = `Failed at ${result.at.toLocaleString()}`;
     } else {
+        forceSyncButton.disabled = false;
         lastSyncSpan.textContent = `Completed successfully at ${result.at.toLocaleString()}`;
     }
 }
@@ -164,5 +169,5 @@ document.addEventListener('DOMContentLoaded', function(){
     registerLastFullSyncResultChangeHandler(updateLastSync);
 });
 document.querySelector("form").addEventListener("submit", saveOptions);
-document.querySelector("#force-sync").addEventListener("click", forceFullSync);
+document.querySelector("#force-sync-button").addEventListener("click", forceFullSync);
 document.querySelector("#test-preferences").addEventListener("click", testOptions);
