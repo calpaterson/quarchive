@@ -131,8 +131,8 @@ function restoreOptions(){
             getLastFullSyncResult(),
         ]);
 
-        const clientIDSpan = document.querySelector("#client-id") as HTMLElement
-        clientIDSpan.textContent = clientID
+        const clientIDSpan = document.querySelector("#client-id-input") as HTMLInputElement
+        clientIDSpan.value = clientID
         updateLastSync(lastFullSyncResult);
     }
 
