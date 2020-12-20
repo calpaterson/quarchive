@@ -41,8 +41,6 @@ def main():
         manifest["browser_specific_settings"] = {
             "gecko": {
                 "id": "{ee416e00-528a-4b7b-a0d2-98bae198d30c}",
-                # Setting for self-hosting
-                # "update_url": ("https://quarchive.com/extension/gecko/updates.json"),
             }
         }
         manifest["options_ui"]["browser_style"] = True
