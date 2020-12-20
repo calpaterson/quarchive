@@ -24,7 +24,7 @@ log = getLogger(__name__)
 
 sync_blueprint = flask.Blueprint("quarchive-sync", "quarchive-sync")
 
-V = TypeVar("V", bound=Callable)
+V = TypeVar("V", bound=Callable[[User], Tuple[flask.Response, int]])
 
 
 def api_key_required(handler: V) -> V:
@@ -60,7 +60,7 @@ def api_key_required(handler: V) -> V:
             # away the Optional
             user = cast(User, user_from_username_if_exists(db.session, cache, username))
             set_current_user(user)
-            return handler()
+            return handler(user)
         else:
             # Something was wrong, let's figure out what
             user_if_exists = user_from_username_if_exists(db.session, cache, username)
@@ -78,27 +78,26 @@ def api_key_required(handler: V) -> V:
 
 @sync_blueprint.route("/api/sync/check-api-key", methods=["POST"])
 @api_key_required
-def sync_check_api_key() -> Tuple[flask.Response, int]:
+def sync_check_api_key(current_user: User) -> Tuple[flask.Response, int]:
     return flask.jsonify({}), 200
 
 
 @sync_blueprint.route("/api/sync/should-sync", methods=["GET"])
 @api_key_required
-def should_sync() -> Tuple[flask.Response, int]:
+def should_sync(current_user: User) -> Tuple[flask.Response, int]:
     return flask.jsonify({"should_sync": True}), 200
 
 
 @sync_blueprint.route("/api/sync", methods=["POST"])
 @sync_blueprint.route("/sync", methods=["POST"])  # FIXME: Deprecated
 @api_key_required
-def sync() -> flask.Response:
+def sync(current_user: User) -> Tuple[flask.Response, int]:
     start_time = datetime.utcnow()
     extension_version = flask.request.headers.get(
         "Quarchive-Extension-Version", "unknown"
     )
     log.debug("extension version: %s", extension_version)
-    user = get_current_user()
-    user_uuid = user.user_uuid
+    user_uuid = current_user.user_uuid
     use_jsonlines = flask.request.headers["Content-Type"] != "application/json"
     if not use_jsonlines:
         log.warning("sync request using deprecated single json object")
@@ -117,7 +116,7 @@ def sync() -> flask.Response:
             "bad canonicalised url ('%s') from version %s, user %s",
             e.url_string,
             extension_version,
-            user,
+            current_user,
         )
         db.session.rollback()
         flask.abort(400, "bad canonicalisation on url: %s" % e.url_string)
@@ -134,7 +133,7 @@ def sync() -> flask.Response:
     is_full_sync = "full" in flask.request.args
 
     if is_full_sync:
-        response_bookmarks = all_bookmarks(db.session, get_current_user().user_uuid)
+        response_bookmarks = all_bookmarks(db.session, current_user.user_uuid)
     else:
         response_bookmarks = merge_result.changed
 
@@ -153,10 +152,13 @@ def sync() -> flask.Response:
                 duration = datetime.utcnow() - start_time
                 log.info(
                     "completed full sync for %s in %ds",
-                    user.username,
+                    current_user.username,
                     duration.total_seconds(),
                 )
 
-        return flask.Response(
-            flask.stream_with_context(generator()), mimetype="application/x-ndjson",
+        return (
+            flask.Response(
+                flask.stream_with_context(generator()), mimetype="application/x-ndjson",
+            ),
+            200,
         )

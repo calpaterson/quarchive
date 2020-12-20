@@ -114,16 +114,19 @@ def put_user_in_g() -> None:
         flask.current_app.logger.debug("not signed in")
 
 
-def sign_in_required(handler: V) -> V:
+def sign_in_required(
+    handler: Callable[..., flask.Response]
+) -> Callable[..., flask.Response]:
     @wraps(handler)
     def wrapper(*args, **kwargs):
-        if get_current_user() is None:
+        current_user = get_current_user()
+        if current_user is None:
             # FIXME: This should use redirect_to
             return flask.redirect("/sign-in"), 302
         else:
-            return handler(*args, **kwargs)
+            return handler(current_user, *args, **kwargs)
 
-    return cast(V, wrapper)
+    return cast(Callable[..., flask.Response], wrapper)
 
 
 def observe_redirect_to(handler: V) -> V:
@@ -209,10 +212,10 @@ def form_fields_from_querystring(
 
 @web_blueprint.route("/create-bookmark")
 @sign_in_required
-def create_bookmark_form() -> flask.Response:
+def create_bookmark_form(current_user: User) -> flask.Response:
     template_kwargs: Dict[str, Any] = {"page_title": "Create bookmark"}
     template_kwargs.update(form_fields_from_querystring(flask.request.args))
-    template_kwargs["tags_with_count"] = tags_with_count(db.session, get_current_user())
+    template_kwargs["tags_with_count"] = tags_with_count(db.session, current_user)
 
     return flask.make_response(
         flask.render_template("create_bookmark.html", **template_kwargs)
@@ -221,10 +224,9 @@ def create_bookmark_form() -> flask.Response:
 
 @web_blueprint.route("/bookmarks")
 @sign_in_required
-def my_bookmarks() -> flask.Response:
+def my_bookmarks(current_user: User) -> flask.Response:
     page = int(flask.request.args.get("page", "1"))
-    user = get_current_user()
-    qb = BookmarkViewQueryBuilder(db.session, user, page=page)
+    qb = BookmarkViewQueryBuilder(db.session, current_user, page=page)
 
     if "q" in flask.request.args:
         search_str = flask.request.args["q"]
@@ -261,10 +263,8 @@ def my_bookmarks() -> flask.Response:
 @web_blueprint.route("/bookmarks/<uuid:url_uuid>", methods=["GET"])
 @sign_in_required
 @observe_redirect_to
-def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
-    bookmark = get_bookmark_by_url_uuid(
-        db.session, get_current_user().user_uuid, url_uuid
-    )
+def edit_bookmark_form(current_user: User, url_uuid: UUID) -> flask.Response:
+    bookmark = get_bookmark_by_url_uuid(db.session, current_user.user_uuid, url_uuid)
     if bookmark is None:
         # FIXME: er, write a test for this
         flask.abort(404, description="bookmark not found")
@@ -284,7 +284,7 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
     # Then update it from the querystring
     template_kwargs.update(form_fields_from_querystring(flask.request.args))
 
-    template_kwargs["tags_with_count"] = tags_with_count(db.session, get_current_user())
+    template_kwargs["tags_with_count"] = tags_with_count(db.session, current_user)
     template_kwargs["deleted"] = bookmark.deleted
 
     return flask.make_response(
@@ -294,10 +294,8 @@ def edit_bookmark_form(url_uuid: UUID) -> flask.Response:
 
 @web_blueprint.route("/bookmarks/<uuid:url_uuid>/archives", methods=["GET"])
 @sign_in_required
-def bookmark_archives(url_uuid: UUID) -> flask.Response:
-    bookmark = get_bookmark_by_url_uuid(
-        db.session, get_current_user().user_uuid, url_uuid
-    )
+def bookmark_archives(current_user: User, url_uuid: UUID) -> flask.Response:
+    bookmark = get_bookmark_by_url_uuid(db.session, current_user.user_uuid, url_uuid)
     if bookmark is None:
         flask.abort(404, description="bookmark not found")
 
@@ -316,10 +314,8 @@ def bookmark_archives(url_uuid: UUID) -> flask.Response:
 
 @web_blueprint.route("/bookmarks/<uuid:url_uuid>/links", methods=["GET"])
 @sign_in_required
-def links(url_uuid: UUID) -> flask.Response:
-    bookmark = get_bookmark_by_url_uuid(
-        db.session, get_current_user().user_uuid, url_uuid
-    )
+def links(current_user: User, url_uuid: UUID) -> flask.Response:
+    bookmark = get_bookmark_by_url_uuid(db.session, current_user.user_uuid, url_uuid)
     if bookmark is None:
         # FIXME: er, write a test for this
         flask.abort(404, description="bookmark not found")
@@ -327,7 +323,7 @@ def links(url_uuid: UUID) -> flask.Response:
     page = int(flask.request.args.get("page", "1"))
     user = get_current_user()
     qb = (
-        BookmarkViewQueryBuilder(db.session, user, page=page)
+        BookmarkViewQueryBuilder(db.session, current_user, page=page)
         .links(url_uuid)
         .order_by_created()
     )
@@ -348,10 +344,8 @@ def links(url_uuid: UUID) -> flask.Response:
 
 @web_blueprint.route("/bookmarks/<uuid:url_uuid>/backlinks", methods=["GET"])
 @sign_in_required
-def backlinks(url_uuid: UUID) -> flask.Response:
-    bookmark = get_bookmark_by_url_uuid(
-        db.session, get_current_user().user_uuid, url_uuid
-    )
+def backlinks(current_user: User, url_uuid: UUID) -> flask.Response:
+    bookmark = get_bookmark_by_url_uuid(db.session, current_user.user_uuid, url_uuid)
     if bookmark is None:
         # FIXME: er, write a test for this
         flask.abort(404, description="bookmark not found")
@@ -359,7 +353,7 @@ def backlinks(url_uuid: UUID) -> flask.Response:
     page = int(flask.request.args.get("page", "1"))
     user = get_current_user()
     qb = (
-        BookmarkViewQueryBuilder(db.session, user, page=page)
+        BookmarkViewQueryBuilder(db.session, current_user, page=page)
         .backlinks(url_uuid)
         .order_by_created()
     )
@@ -425,9 +419,8 @@ def tag_triples_from_form(
 
 @web_blueprint.route("/bookmarks", methods=["POST"])
 @sign_in_required
-def create_bookmark() -> flask.Response:
+def create_bookmark(current_user: User) -> flask.Response:
     form = flask.request.form
-    user = get_current_user()
     creation_time = datetime.utcnow().replace(tzinfo=timezone.utc)
     tag_triples = tag_triples_from_form(form)
 
@@ -450,10 +443,12 @@ def create_bookmark() -> flask.Response:
         created=creation_time,
         tag_triples=tag_triples,
     )
-    url_uuid = set_bookmark(db.session, user.user_uuid, bookmark)
+    url_uuid = set_bookmark(db.session, current_user.user_uuid, bookmark)
     db.session.commit()
     publish_message(
-        message_lib.BookmarkCreated(user_uuid=user.user_uuid, url_uuid=url.url_uuid),
+        message_lib.BookmarkCreated(
+            user_uuid=current_user.user_uuid, url_uuid=url.url_uuid
+        ),
         environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
     )
     flask.flash("Bookmarked: %s" % bookmark.title)
@@ -467,10 +462,10 @@ def create_bookmark() -> flask.Response:
 @web_blueprint.route("/bookmarks/<uuid:url_uuid>", methods=["POST"])
 @sign_in_required
 @observe_redirect_to
-def edit_bookmark(url_uuid: UUID) -> flask.Response:
+def edit_bookmark(current_user: User, url_uuid: UUID) -> flask.Response:
     form = flask.request.form
     existing_bookmark = get_bookmark_by_url_uuid(
-        db.session, get_current_user().user_uuid, url_uuid
+        db.session, current_user.user_uuid, url_uuid
     )
     if existing_bookmark is None:
         raise exc.NotFound()
@@ -488,7 +483,7 @@ def edit_bookmark(url_uuid: UUID) -> flask.Response:
 
     merged_bookmark = updated_bookmark.merge(existing_bookmark)
 
-    set_bookmark(db.session, get_current_user().user_uuid, merged_bookmark)
+    set_bookmark(db.session, current_user.user_uuid, merged_bookmark)
     db.session.commit()
     flask.flash("Edited: %s" % merged_bookmark.title)
     return flask.make_response("ok")
@@ -577,7 +572,7 @@ def sign_in() -> flask.Response:
 
 @web_blueprint.route("/sign-out", methods=["GET"])
 @sign_in_required
-def sign_out() -> flask.Response:
+def sign_out(current_user: User) -> flask.Response:
     flask.session.clear()
     flask.flash("Signed out")
     return flask.make_response(flask.render_template("base.html"))
@@ -626,10 +621,9 @@ def user_page_post(username: str) -> Tuple[flask.Response, int]:
 
 @web_blueprint.route("/users/<username>/tags/<tag>")
 @sign_in_required
-def user_tag(username: str, tag: str) -> flask.Response:
-    user = get_current_user()
+def user_tag(current_user: User, username: str, tag: str) -> flask.Response:
     bookmark_views: Iterable[BookmarkView] = BookmarkViewQueryBuilder(
-        db.session, user
+        db.session, current_user
     ).with_tag(tag).execute()
     return flask.make_response(
         flask.render_template(
@@ -643,10 +637,9 @@ def user_tag(username: str, tag: str) -> flask.Response:
 
 @web_blueprint.route("/users/<username>/netlocs/<netloc>")
 @sign_in_required
-def user_netloc(username: str, netloc: str) -> flask.Response:
-    user = get_current_user()
+def user_netloc(current_user: User, username: str, netloc: str) -> flask.Response:
     bookmark_views: Iterable[BookmarkView] = BookmarkViewQueryBuilder(
-        db.session, user
+        db.session, current_user
     ).with_netloc(netloc).execute()
     return flask.make_response(
         flask.render_template(
@@ -660,9 +653,8 @@ def user_netloc(username: str, netloc: str) -> flask.Response:
 
 @web_blueprint.route("/users/<username>/tags")
 @sign_in_required
-def user_tags(username: str) -> flask.Response:
-    user = get_current_user()
-    tag_counts = tags_with_count(db.session, user)
+def user_tags(current_user: User, username: str) -> flask.Response:
+    tag_counts = tags_with_count(db.session, current_user)
     tt1 = list(tag_counts)
     return flask.make_response(
         flask.render_template("user_tags.html", tag_counts=tt1, page_title="My tags")
