@@ -19,9 +19,9 @@
              ><img id="nav-logo" src="{{ url_for('static', filename='icons/quarchive-192px.png') }}"
              ></a>
              <span class="nav-links">
-               {% if g.user %}
+               {% if get_current_user() %}
                  <a href="{{ url_for('quarchive.my_bookmarks') }}">My bookmarks</a>
-                 <a href="{{ url_for('quarchive.user_tags', username=g.user.username) }}">My tags</a>
+                 <a href="{{ url_for('quarchive.user_tags', username=get_current_user().username) }}">My tags</a>
                  <a href="{{ url_for('quarchive.create_bookmark_form') }}">Create</a>
                  <a href="{{ url_for('quarchive.faq') }}">FAQ</a>
                  <a href="{{ url_for('quarchive.getting_started') }}">Getting started</a>
@@ -33,8 +33,8 @@
              </span>
 
              <span class="nav-links nav-links-right">
-               {% if g.user %}
-                 <a href="{{ url_for('quarchive.user_page', username=g.user.username) }}">{{g.user.username}}</a>
+               {% if get_current_user() %}
+                 <a href="{{ url_for('quarchive.user_page', username=get_current_user().username) }}">{{get_current_user().username}}</a>
                  <a href="{{ url_for('quarchive.sign_out') }}">Sign out</a>
                {% else %}
                  <a href="{{ url_for('quarchive.sign_in') }}">Sign In</a>

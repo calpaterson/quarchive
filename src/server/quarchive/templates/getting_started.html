@@ -3,7 +3,7 @@
   <h1>Getting started</h1>
   <p>
     <ol>
-    <li>Register an account! {% if g.user %}(You've already done that!){% else %}<a href="{{url_for('quarchive.register')}}">Click here to do that</a>{% endif %}</li>
+    <li>Register an account! {% if get_current_user() %}(You've already done that!){% else %}<a href="{{url_for('quarchive.register')}}">Click here to do that</a>{% endif %}</li>
     <li>Download the relevant extension for your browser
       <ul>
         <li>If you're a Chrome user, download the extension <a href="https://chrome.google.com/webstore/detail/quarchive/jamkonoipijchpkbkimibchodleeigde">Chrome Web Store</a></li>
@@ -11,8 +11,8 @@
       </ul>
     </li>
     <li>
-      Copy the API key from your {% if g.user %}<a href={{
-      url_for('quarchive.user_page', username=g.user.username) }}>user
+      Copy the API key from your {% if get_current_user() %}<a href={{
+      url_for('quarchive.user_page', username=get_current_user().username) }}>user
       page</a>{% else %}user page{% endif%} into the extension's settings
       (you'll also need to enter your username)
       <ul>

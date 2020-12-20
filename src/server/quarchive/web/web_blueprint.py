@@ -108,8 +108,8 @@ def set_api_key_cookie_if_necessary(response: flask.Response) -> flask.Response:
 def put_user_in_g() -> None:
     user_uuid: Optional[UUID] = flask.session.get("user_uuid")
     if user_uuid is not None:
-        flask.g.user = user_from_user_uuid(db.session, get_cache(), user_uuid)
-        flask.current_app.logger.debug("currently signed in as: %s", flask.g.user)
+        set_current_user(user_from_user_uuid(db.session, get_cache(), user_uuid))
+        flask.current_app.logger.debug("currently signed in as: %s", get_current_user())
     else:
         flask.current_app.logger.debug("not signed in")
 
@@ -117,7 +117,7 @@ def put_user_in_g() -> None:
 def sign_in_required(handler: V) -> V:
     @wraps(handler)
     def wrapper(*args, **kwargs):
-        if flask.g.get("user", None) is None:
+        if get_current_user() is None:
             # FIXME: This should use redirect_to
             return flask.redirect("/sign-in"), 302
         else:
@@ -144,6 +144,13 @@ def observe_redirect_to(handler: V) -> V:
 def favicon() -> flask.Response:
     # FIXME: Should set cache headers
     return flask.current_app.send_static_file("icons/favicon.ico")
+
+
+@web_blueprint.route("/")
+def index() -> flask.Response:
+    response = flask.make_response("Redirecting...", 303)
+    response.headers["Location"] = flask.url_for("quarchive.my_bookmarks")
+    return response
 
 
 @web_blueprint.route("/about")

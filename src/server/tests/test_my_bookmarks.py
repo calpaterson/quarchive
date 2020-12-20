@@ -38,6 +38,14 @@ def test_not_signed_in_my_bookmarks(client):
     assert response.headers["Location"].endswith("/sign-in")
 
 
+def test_redirect(signed_in_client, test_user):
+    response = signed_in_client.get("/")
+    assert response.status_code == 303
+    assert response.headers["Location"] == flask.url_for(
+        "quarchive.my_bookmarks", _external=True
+    )
+
+
 def test_my_bookmarks(signed_in_client, test_user):
     bm = make_bookmark()
 

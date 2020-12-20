@@ -5,6 +5,7 @@ import flask
 import pytest
 
 import quarchive as sut
+from quarchive.web.users import get_current_user
 from .conftest import random_string
 
 
@@ -93,7 +94,7 @@ def test_sign_in_success(client, test_user):
     # This is a easy test bug to introduce and causes this test to spuriously
     # pass
     assert "user_uuid" not in flask.session, "session should not contain sign in!"
-    assert "user" not in flask.g, "user should not already be set on g!"
+    assert "_quarchive_user" not in flask.g, "user should not already be set on g!"
 
     sign_in_form_response = client.get("/sign-in")
     assert sign_in_form_response.status_code == 200
@@ -109,6 +110,7 @@ def test_sign_in_success(client, test_user):
     assert index_response.status_code == 200
 
     assert flask.session["user_uuid"] == test_user.user_uuid
+    assert get_current_user() == test_user.as_user()
 
 
 def test_sign_in_wrong_password(client, test_user):

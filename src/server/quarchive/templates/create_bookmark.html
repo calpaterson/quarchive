@@ -53,7 +53,7 @@
       {% else %}
         Tags:
         {% for tag in tags %}
-          {{ macros.render_tag(g.user, tag) }}{% if not loop.last %},{% endif %}
+          {{ macros.render_tag(get_current_user(), tag) }}{% if not loop.last %},{% endif %}
         {% endfor %}
       {% endif %}
     </p>

@@ -7,7 +7,7 @@
   <h1>My tags</h1>
   <ul>
     {% for tag, count in tag_counts %}
-    <li>{{macros.render_tag(g.user, tag)}} ({{count}})</li>
+    <li>{{macros.render_tag(get_current_user(), tag)}} ({{count}})</li>
   {% endfor %}
   </ul>
 

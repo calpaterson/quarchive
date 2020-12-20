@@ -60,7 +60,7 @@
         {% else %}
           Tags:
           {% for tag in tags|sort %}
-            {{ macros.render_tag(g.user, tag) }}{{ render_remove_tag_button(tag) }}{% if not loop.last %},{% endif %}
+            {{ macros.render_tag(get_current_user(), tag) }}{{ render_remove_tag_button(tag) }}{% if not loop.last %},{% endif %}
           {% endfor %}
         {% endif %}
       </p>

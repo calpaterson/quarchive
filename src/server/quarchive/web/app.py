@@ -12,6 +12,7 @@ from werkzeug.urls import url_encode
 
 from quarchive.config import load_config
 
+from .users import get_current_user
 from .web_blueprint import web_blueprint
 from .icon_blueprint import icon_blueprint
 from .sync_blueprint import sync_blueprint
@@ -65,8 +66,9 @@ def init_app() -> flask.Flask:
 
     @babel.timezoneselector
     def use_user_timezone():
-        if "user" in flask.g:
-            tzinfo = flask.g.user.timezone
+        current_user = get_current_user()
+        if current_user is not None:
+            tzinfo = current_user.timezone
             log.debug("using user timezone: %s", tzinfo)
             return tzinfo.zone
 
