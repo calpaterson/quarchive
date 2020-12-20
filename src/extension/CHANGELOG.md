@@ -9,6 +9,8 @@ extension only**.
 
 ## Unreleased
 
+## [1.4.0] - 2020-12-20
+
 - Make the extension considerably more robust by checking for (many but not
   all) error cases
 - Do a full sync when the preferences are changed
