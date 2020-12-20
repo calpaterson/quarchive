@@ -13,7 +13,6 @@ import pytest
 
 from .conftest import (
     make_bookmark,
-    ExtendedUser,
     register_user,
     sign_in_as,
     random_string,
@@ -34,7 +33,7 @@ def get_bookmark_titles(response) -> List[str]:
 
 
 def test_not_signed_in_my_bookmarks(client):
-    response = client.get("/")
+    response = client.get(flask.url_for("quarchive.my_bookmarks"))
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/sign-in")
 
@@ -44,7 +43,7 @@ def test_my_bookmarks(signed_in_client, test_user):
 
     sync_bookmarks(signed_in_client, test_user, [bm])
 
-    response = signed_in_client.get("/")
+    response = signed_in_client.get(flask.url_for("quarchive.my_bookmarks"))
     assert response.status_code == 200
 
     html_parser = etree.HTMLParser()
@@ -58,7 +57,7 @@ def test_my_bookmarks_excludes_deleted_bookmarks(signed_in_client, session, test
 
     sync_bookmarks(signed_in_client, test_user, [bm])
 
-    response = signed_in_client.get("/")
+    response = signed_in_client.get(flask.url_for("quarchive.my_bookmarks"))
     assert response.status_code == 200
 
     html_parser = etree.HTMLParser()
@@ -77,7 +76,7 @@ def test_my_bookmarks_excludes_bookmarks_from_others(app, client, session):
     sync_bookmarks(client, user2, [bm2])
 
     sign_in_as(client, user2)
-    response = client.get("/")
+    response = client.get(flask.url_for("quarchive.my_bookmarks"))
     assert response.status_code == 200
 
     assert get_bookmark_titles(response) == ["Example 2"]
@@ -93,7 +92,7 @@ def test_my_bookmarks_paging(app, signed_in_client, session, test_user):
 
     sync_bookmarks(signed_in_client, test_user, bms)
 
-    response_pg1 = signed_in_client.get("/")
+    response_pg1 = signed_in_client.get(flask.url_for("quarchive.my_bookmarks"))
     assert response_pg1.status_code == 200
 
     html_parser = etree.HTMLParser()
@@ -101,7 +100,7 @@ def test_my_bookmarks_paging(app, signed_in_client, session, test_user):
     bookmarks_pg1 = CSSSelector("div.bookmark")(root_pg1)
     assert len(bookmarks_pg1) == page_size
 
-    response_pg3 = signed_in_client.get("/?page=3")
+    response_pg3 = signed_in_client.get(flask.url_for("quarchive.my_bookmarks", page=3))
     assert response_pg1.status_code == 200
 
     root_pg3 = etree.fromstring(response_pg3.get_data(), html_parser)

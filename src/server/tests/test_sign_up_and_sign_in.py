@@ -105,7 +105,7 @@ def test_sign_in_success(client, test_user):
     assert sign_in_response.status_code == 303
     assert sign_in_response.headers["Location"] == "http://localhost/"
 
-    index_response = client.get("/")
+    index_response = client.get(flask.url_for("quarchive.my_bookmarks"))
     assert index_response.status_code == 200
 
     assert flask.session["user_uuid"] == test_user.user_uuid
