@@ -18,7 +18,7 @@ from quarchive.messaging import message_lib
 from quarchive.messaging.publication import publish_message
 from quarchive.value_objects import User, Bookmark, BadCanonicalisationException
 from .db_obj import db
-from .users import get_current_user
+from .users import get_current_user, set_current_user
 
 log = getLogger(__name__)
 
@@ -59,8 +59,7 @@ def api_key_required(handler: V) -> V:
             # We know at this point that the user does in fact exist, so cast
             # away the Optional
             user = cast(User, user_from_username_if_exists(db.session, cache, username))
-            # FIXME: This should perhaps use .users.set_current_user, somehow
-            flask.g.user = user
+            set_current_user(user)
             return handler()
         else:
             # Something was wrong, let's figure out what

@@ -44,10 +44,11 @@ from quarchive.data.functions import (
 )
 from quarchive.search import parse_search_str
 from quarchive.value_objects import (
-    URL,
     Bookmark,
-    TagTriples,
     DisallowedSchemeException,
+    TagTriples,
+    URL,
+    User,
 )
 from .users import get_current_user, set_current_user
 from .db_obj import db
@@ -58,6 +59,19 @@ web_blueprint = flask.Blueprint("quarchive", "quarchive")
 
 # Flask's "views" are quite variable
 V = TypeVar("V", bound=Callable)
+
+
+def set_current_user_for_session(user: User, api_key: bytes, session: Optional[Any] = None):
+    """Sets the current user and creates a web session."""
+    set_current_user(user)
+
+    if session is None:
+        session = flask.session
+    session["user_uuid"] = user.user_uuid
+    # Make it last for 31 days
+    session.permanent = True
+
+    flask.g.sync_credentials = "|".join([user.username, api_key.hex()])
 
 
 @web_blueprint.after_request
@@ -508,7 +522,7 @@ def register() -> flask.Response:
         response.headers["Location"] = flask.url_for("quarchive.my_bookmarks")
         log.info("created user: %s", user.username)
 
-        set_current_user(user, api_key)
+        set_current_user_for_session(user, api_key)
 
         return response
 
@@ -539,7 +553,7 @@ def sign_in() -> flask.Response:
             # In this context the user exists to the api key must too
             api_key = cast(bytes, get_api_key(db.session, get_cache(), user.username))
 
-            set_current_user(user, api_key)
+            set_current_user_for_session(user, api_key)
             flask.flash("Signed in")
 
             response = flask.make_response("Redirecting...", 303)
