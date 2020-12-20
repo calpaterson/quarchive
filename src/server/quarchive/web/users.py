@@ -12,9 +12,9 @@ def get_current_user() -> User:
     whereas the return type of this is User.
 
     """
-    return flask.g.user
+    return flask.g._quarchive_user
 
 
 def set_current_user(user: User):
     """Sets the current user."""
-    flask.g.user = user
+    flask.g._quarchive_user = user

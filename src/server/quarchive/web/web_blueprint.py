@@ -61,7 +61,9 @@ web_blueprint = flask.Blueprint("quarchive", "quarchive")
 V = TypeVar("V", bound=Callable)
 
 
-def set_current_user_for_session(user: User, api_key: bytes, session: Optional[Any] = None):
+def set_current_user_for_session(
+    user: User, api_key: bytes, session: Optional[Any] = None
+):
     """Sets the current user and creates a web session."""
     set_current_user(user)
 
@@ -672,3 +674,8 @@ def faq() -> flask.Response:
 @web_blueprint.route("/ok")
 def ok() -> flask.Response:
     return flask.json.jsonify({"ok": True})
+
+
+@web_blueprint.context_processor
+def inject_gcu():
+    return dict(get_current_user=get_current_user)

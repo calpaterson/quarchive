@@ -15,6 +15,7 @@ import responses
 import flask
 import moto
 from passlib.context import CryptContext
+import pytz
 
 import quarchive as sut
 from quarchive import (
@@ -202,6 +203,14 @@ class ExtendedUser(value_objects.User):
     password: str
     api_key: bytes
 
+    def as_user(self) -> value_objects.User:
+        return value_objects.User(
+            user_uuid=self.user_uuid,
+            username=self.username,
+            email=self.email,
+            timezone=self.timezone,
+        )
+
 
 def make_bookmark(**kwargs) -> sut.Bookmark:
     epoch_start = datetime(1970, 1, 1, tzinfo=timezone.utc)
@@ -220,7 +229,7 @@ def make_bookmark(**kwargs) -> sut.Bookmark:
 
 def sign_in_as(client, user: ExtendedUser):
     with client.session_transaction() as sesh:
-        set_current_user_for_session(user, user.api_key, session=sesh)
+        set_current_user_for_session(user.as_user(), user.api_key, session=sesh)
 
 
 def sign_out(client):
@@ -272,7 +281,7 @@ def register_user(
         api_key=api_key,
         user_uuid=user_uuid,
         email=email,
-        timezone=user_timezone,
+        timezone=pytz.timezone(user_timezone),
     )
 
 
