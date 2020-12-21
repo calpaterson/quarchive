@@ -143,6 +143,51 @@ def observe_redirect_to(handler: V) -> V:
     return cast(V, wrapper)
 
 
+def tag_triples_from_form(
+    form: Mapping[str, str], current: TagTriples = frozenset()
+) -> TagTriples:
+    """Parse a form for tag triples, consulting the hidden "tags" field and
+    considering which tags are expected (if any are missing, they have been
+    implicitly deleted)."""
+    current_as_map = {tt[0]: tt for tt in current}
+
+    raw_tags = flask.request.form["tags"].strip()
+    form_tags: Set[str]
+    if raw_tags == "":
+        form_tags = set()
+        log.debug("no tags present in form")
+    else:
+        form_tags = set(raw_tags.split(","))
+
+    now = datetime.utcnow().replace(tzinfo=timezone.utc)
+
+    return_value = set()
+    all_tags = set(current_as_map.keys()).union(set(form_tags))
+    for tag_name in all_tags:
+        if tag_name in current_as_map and tag_name in form_tags:
+            _, dt, deleted = current_as_map[tag_name]
+            if not deleted:
+                # no change
+                return_value.add((tag_name, dt, False))
+            else:
+                # has been undeleted
+                return_value.add((tag_name, now, False))
+        elif tag_name in current_as_map and tag_name not in form_tags:
+            # has been deleted
+            return_value.add((tag_name, now, True))
+        else:  # tag_name not in current_map and tag_name in form_tags:
+            # has been created
+            return_value.add((tag_name, now, False))
+
+    log.debug(
+        "calculated tag_triples: %s from raw_tags: '%s' (current: %s)",
+        return_value,
+        raw_tags,
+        current,
+    )
+    return frozenset(return_value)
+
+
 @web_blueprint.route("/favicon.ico")
 def favicon() -> flask.Response:
     # FIXME: Should set cache headers
@@ -260,10 +305,55 @@ def my_bookmarks(current_user: User) -> flask.Response:
     )
 
 
+@web_blueprint.route("/bookmarks", methods=["POST"])
+@sign_in_required
+def create_bookmark(current_user: User) -> flask.Response:
+    form = flask.request.form
+    creation_time = datetime.utcnow().replace(tzinfo=timezone.utc)
+    tag_triples = tag_triples_from_form(form)
+
+    url_str = form["url"]
+    try:
+        # As it's a user entering this url, help them along with getting a
+        # sufficiently canonicalised url
+        url = URL.from_string(url_str, coerce_canonicalisation=True)
+    except DisallowedSchemeException:
+        log.warning("user tried to create url: %s (disallowed scheme)", url_str)
+        flask.abort(400, "invalid url (disallowed scheme)")
+
+    bookmark = Bookmark(
+        url=url,
+        title=form["title"],
+        description=form["description"],
+        unread="unread" in form,
+        deleted=False,
+        updated=creation_time,
+        created=creation_time,
+        tag_triples=tag_triples,
+    )
+    url_uuid = set_bookmark(db.session, current_user.user_uuid, bookmark)
+    db.session.commit()
+    publish_message(
+        message_lib.BookmarkCreated(
+            user_uuid=current_user.user_uuid, url_uuid=url.url_uuid
+        ),
+        environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
+    )
+    flask.flash("Bookmarked: %s" % bookmark.title)
+    response = flask.make_response("Redirecting...", 303)
+    response.headers["Location"] = flask.url_for(
+        "quarchive.edit_bookmark_form", url_uuid=url_uuid
+    )
+    return response
+
+
 @web_blueprint.route("/bookmarks/<uuid:url_uuid>", methods=["GET"])
 @sign_in_required
 @observe_redirect_to
 def edit_bookmark_form(current_user: User, url_uuid: UUID) -> flask.Response:
+    # access = check_access(current_user, get_access_tokens(flask.request), BookmarkEntitlement(user_uuid, url_uuid))
+    # if access:
+    #     ...
     bookmark = get_bookmark_by_url_uuid(db.session, current_user.user_uuid, url_uuid)
     if bookmark is None:
         # FIXME: er, write a test for this
@@ -370,93 +460,6 @@ def backlinks(current_user: User, url_uuid: UUID) -> flask.Response:
             search_query=False,
         )
     )
-
-
-def tag_triples_from_form(
-    form: Mapping[str, str], current: TagTriples = frozenset()
-) -> TagTriples:
-    """Parse a form for tag triples, consulting the hidden "tags" field and
-    considering which tags are expected (if any are missing, they have been
-    implicitly deleted)."""
-    current_as_map = {tt[0]: tt for tt in current}
-
-    raw_tags = flask.request.form["tags"].strip()
-    form_tags: Set[str]
-    if raw_tags == "":
-        form_tags = set()
-        log.debug("no tags present in form")
-    else:
-        form_tags = set(raw_tags.split(","))
-
-    now = datetime.utcnow().replace(tzinfo=timezone.utc)
-
-    return_value = set()
-    all_tags = set(current_as_map.keys()).union(set(form_tags))
-    for tag_name in all_tags:
-        if tag_name in current_as_map and tag_name in form_tags:
-            _, dt, deleted = current_as_map[tag_name]
-            if not deleted:
-                # no change
-                return_value.add((tag_name, dt, False))
-            else:
-                # has been undeleted
-                return_value.add((tag_name, now, False))
-        elif tag_name in current_as_map and tag_name not in form_tags:
-            # has been deleted
-            return_value.add((tag_name, now, True))
-        else:  # tag_name not in current_map and tag_name in form_tags:
-            # has been created
-            return_value.add((tag_name, now, False))
-
-    log.debug(
-        "calculated tag_triples: %s from raw_tags: '%s' (current: %s)",
-        return_value,
-        raw_tags,
-        current,
-    )
-    return frozenset(return_value)
-
-
-@web_blueprint.route("/bookmarks", methods=["POST"])
-@sign_in_required
-def create_bookmark(current_user: User) -> flask.Response:
-    form = flask.request.form
-    creation_time = datetime.utcnow().replace(tzinfo=timezone.utc)
-    tag_triples = tag_triples_from_form(form)
-
-    url_str = form["url"]
-    try:
-        # As it's a user entering this url, help them along with getting a
-        # sufficiently canonicalised url
-        url = URL.from_string(url_str, coerce_canonicalisation=True)
-    except DisallowedSchemeException:
-        log.warning("user tried to create url: %s (disallowed scheme)", url_str)
-        flask.abort(400, "invalid url (disallowed scheme)")
-
-    bookmark = Bookmark(
-        url=url,
-        title=form["title"],
-        description=form["description"],
-        unread="unread" in form,
-        deleted=False,
-        updated=creation_time,
-        created=creation_time,
-        tag_triples=tag_triples,
-    )
-    url_uuid = set_bookmark(db.session, current_user.user_uuid, bookmark)
-    db.session.commit()
-    publish_message(
-        message_lib.BookmarkCreated(
-            user_uuid=current_user.user_uuid, url_uuid=url.url_uuid
-        ),
-        environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
-    )
-    flask.flash("Bookmarked: %s" % bookmark.title)
-    response = flask.make_response("Redirecting...", 303)
-    response.headers["Location"] = flask.url_for(
-        "quarchive.edit_bookmark_form", url_uuid=url_uuid
-    )
-    return response
 
 
 @web_blueprint.route("/bookmarks/<uuid:url_uuid>", methods=["POST"])
