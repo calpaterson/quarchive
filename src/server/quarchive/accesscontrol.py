@@ -1,6 +1,6 @@
 import json
 from uuid import UUID
-from typing import Optional, Set, Mapping, ClassVar, Tuple, Iterable
+from typing import Optional, Mapping, ClassVar, Tuple, Iterable, Sequence
 import enum
 from functools import lru_cache
 from dataclasses import dataclass
@@ -74,5 +74,5 @@ def get_access(
     return access
 
 
-def get_access_tokens(request: flask.Request) -> Set[str]:
-    ...
+def get_access_tokens(request: flask.Request) -> Sequence[str]:
+    return []

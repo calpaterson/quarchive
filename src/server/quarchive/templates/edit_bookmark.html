@@ -7,7 +7,7 @@
   <form
     id="edit-bookmark-form"
     method="POST"
-    action="{{  url_for('quarchive.edit_bookmark', url_uuid=url_uuid, redirect_to=request.url) }}"
+    action="{{  url_for('quarchive.edit_bookmark', url_uuid=url_uuid, username=owner.username, redirect_to=request.url) }}"
     >
 
     <h1>Edit "{{ title }}"</h1>

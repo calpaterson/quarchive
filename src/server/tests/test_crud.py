@@ -40,8 +40,10 @@ def test_form_fields_from_querystring(inp, exp):
     assert form_fields_from_querystring(inp) == exp
 
 
-def test_create_bookmark_form_simple_get(signed_in_client):
-    response = signed_in_client.get(flask.url_for("quarchive.create_bookmark_form"))
+def test_create_bookmark_form_simple_get(signed_in_client, test_user):
+    response = signed_in_client.get(
+        flask.url_for("quarchive.create_bookmark_form", username=test_user.username)
+    )
     assert response.status_code == 200
 
 
@@ -80,6 +82,7 @@ def test_create_bookmark_form_add_tag(
     tags = ",".join(tags_for_param)
     add_tag = add_tag
     params = {
+        "username": test_user.username,
         "url": url,
         "title": title,
         "description": description,
@@ -111,7 +114,12 @@ def test_edit_bookmark_form_simple_get(signed_in_client, session, test_user):
     url_uuid = bm.url.url_uuid
 
     response = signed_in_client.get(
-        flask.url_for("quarchive.edit_bookmark_form", url_uuid=url_uuid)
+        flask.url_for(
+            "quarchive.edit_bookmark_form",
+            username=test_user.username,
+            url_uuid=url_uuid,
+            user_uuid=test_user.username,
+        )
     )
     assert response.status_code == 200
 
@@ -134,7 +142,8 @@ def test_creating_a_bookmark(test_user, signed_in_client, session, unread, tags)
         form_data["unread"] = "on"
 
     response = signed_in_client.post(
-        flask.url_for("quarchive.create_bookmark",), data=form_data
+        flask.url_for("quarchive.create_bookmark", username=test_user.username),
+        data=form_data,
     )
     assert response.status_code == 303
 
@@ -143,7 +152,9 @@ def test_creating_a_bookmark(test_user, signed_in_client, session, unread, tags)
 
     assert response.headers["Location"].endswith(
         flask.url_for(
-            "quarchive.edit_bookmark_form", url_uuid=str(bookmark.url.url_uuid),
+            "quarchive.edit_bookmark_form",
+            url_uuid=str(bookmark.url.url_uuid),
+            username=test_user.username,
         )
     )
     assert bookmark.title == form_data["title"]
@@ -169,7 +180,8 @@ def test_creating_a_bookmark_non_canonical(test_user, signed_in_client, session)
     )
 
     response = signed_in_client.post(
-        flask.url_for("quarchive.create_bookmark",), data=form_data
+        flask.url_for("quarchive.create_bookmark", username=test_user.username),
+        data=form_data,
     )
     assert response.status_code == 303
 
@@ -181,7 +193,8 @@ def test_creating_a_bookmark_junk_url(test_user, signed_in_client, session):
     )
 
     response = signed_in_client.post(
-        flask.url_for("quarchive.create_bookmark",), data=form_data
+        flask.url_for("quarchive.create_bookmark", username=test_user.username),
+        data=form_data,
     )
     assert response.status_code == 400
 
@@ -250,7 +263,10 @@ def test_editing_a_bookmark(
 
     response = signed_in_client.post(
         flask.url_for(
-            "quarchive.edit_bookmark", url_uuid=url_uuid, redirect_to="/test_location",
+            "quarchive.edit_bookmark",
+            url_uuid=url_uuid,
+            username=test_user.username,
+            redirect_to="/test_location",
         ),
         data=form_data,
     )
@@ -263,11 +279,12 @@ def test_editing_a_bookmark(
     assert getattr(bookmark_obj, obj_attr) == obj_end
 
 
-def test_editing_a_bookmark_that_doesnt_exist(signed_in_client):
+def test_editing_a_bookmark_that_doesnt_exist(signed_in_client, test_user):
     response = signed_in_client.post(
         flask.url_for(
             "quarchive.edit_bookmark_form",
             url_uuid=UUID("f" * 32),
+            username=test_user.username,
             redirect_to="/test_location",
         ),
         data={"deleted": "on"},

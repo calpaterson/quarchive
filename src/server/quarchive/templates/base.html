@@ -22,7 +22,7 @@
                {% if get_current_user() %}
                  <a href="{{ url_for('quarchive.my_bookmarks') }}">My bookmarks</a>
                  <a href="{{ url_for('quarchive.user_tags', username=get_current_user().username) }}">My tags</a>
-                 <a href="{{ url_for('quarchive.create_bookmark_form') }}">Create</a>
+                 <a href="{{ url_for('quarchive.create_bookmark_form', username=get_current_user().username) }}">Create</a>
                  <a href="{{ url_for('quarchive.faq') }}">FAQ</a>
                  <a href="{{ url_for('quarchive.getting_started') }}">Getting started</a>
                  <a href="{{ url_for('quarchive.about') }}">About</a>

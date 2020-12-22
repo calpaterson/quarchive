@@ -7,7 +7,7 @@
   <form
     id="create-bookmark-form"
     method="POST"
-    action="{{  url_for('quarchive.create_bookmark', redirect_to=request.url) }}"
+    action="{{  url_for('quarchive.create_bookmark', username=owner.username, redirect_to=request.url) }}"
     >
 
     <h1>Create a new bookmark</h1>
@@ -77,7 +77,7 @@
       <button
         form="create-bookmark-form"
         formmethod="GET"
-        formaction="{{ url_for('quarchive.create_bookmark_form') }}"
+        formaction="{{ url_for('quarchive.create_bookmark_form', username=owner.username) }}"
         >Add to list</button>
     </p>
     <p>

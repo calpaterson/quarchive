@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timezone
-from functools import wraps
+from functools import wraps, update_wrapper
 from logging import getLogger
 from os import path, environ
 from typing import (
@@ -23,7 +23,14 @@ import pytz
 import flask
 import yaml
 from werkzeug import exceptions as exc
+from sqlalchemy.orm import Session
 
+from quarchive.accesscontrol import (
+    get_access,
+    get_access_tokens,
+    BookmarkSubject,
+    Access,
+)
 from quarchive.messaging import message_lib
 from quarchive.archive import get_archive_links, Archive
 from quarchive.messaging.publication import publish_message
@@ -127,6 +134,45 @@ def sign_in_required(
             return handler(current_user, *args, **kwargs)
 
     return cast(Callable[..., flask.Response], wrapper)
+
+
+def require_access_or_fail(subject: BookmarkSubject, min_access: Access) -> None:
+    """Check that the current user has given level of access to the given object.
+
+    If not, and not signed in, suggest signing in (by redirection).
+
+    If not, and signed in, give a 403.
+
+    """
+    current_user = get_current_user()
+    access = get_access(subject, current_user, get_access_tokens(flask.request))
+    if min_access in access:
+        return
+    else:
+        if current_user is None:
+            log.warning(
+                "anonymous user refused access to %s (min:%s)", subject, min_access
+            )
+            flask.redirect(flask.url_for("web_blueprint.sign_in")), 302
+        else:
+            log.warning(
+                "%s was refused access to %s (min: %s, have:%s)",
+                current_user,
+                subject,
+                min_access,
+                access,
+            )
+            flask.abort(403, "you don't have access to that")
+
+
+def get_user_or_fail(session: Session, username: str) -> User:
+    """Get the user for that username, or raise a 404 if it does not exist."""
+    user = user_from_username_if_exists(db.session, get_cache(), username)
+    if user is None:
+        log.warn("user '%s' does not exist", username)
+        flask.abort(404, "no such user")
+    else:
+        return user
 
 
 def observe_redirect_to(handler: V) -> V:
@@ -255,18 +301,6 @@ def form_fields_from_querystring(
     return form_fields
 
 
-@web_blueprint.route("/create-bookmark")
-@sign_in_required
-def create_bookmark_form(current_user: User) -> flask.Response:
-    template_kwargs: Dict[str, Any] = {"page_title": "Create bookmark"}
-    template_kwargs.update(form_fields_from_querystring(flask.request.args))
-    template_kwargs["tags_with_count"] = tags_with_count(db.session, current_user)
-
-    return flask.make_response(
-        flask.render_template("create_bookmark.html", **template_kwargs)
-    )
-
-
 @web_blueprint.route("/bookmarks")
 @sign_in_required
 def my_bookmarks(current_user: User) -> flask.Response:
@@ -305,9 +339,14 @@ def my_bookmarks(current_user: User) -> flask.Response:
     )
 
 
-@web_blueprint.route("/bookmarks", methods=["POST"])
-@sign_in_required
-def create_bookmark(current_user: User) -> flask.Response:
+@web_blueprint.route("/<username>/bookmarks", methods=["POST"])
+def create_bookmark(username: str) -> flask.Response:
+    owner = get_user_or_fail(db.session, username)
+    # FIXME: sort out optional url_uuid
+    require_access_or_fail(
+        BookmarkSubject(user_uuid=owner.user_uuid, url_uuid=UUID("f" * 32)),
+        Access.WRITE,
+    )
     form = flask.request.form
     creation_time = datetime.utcnow().replace(tzinfo=timezone.utc)
     tag_triples = tag_triples_from_form(form)
@@ -331,30 +370,45 @@ def create_bookmark(current_user: User) -> flask.Response:
         created=creation_time,
         tag_triples=tag_triples,
     )
-    url_uuid = set_bookmark(db.session, current_user.user_uuid, bookmark)
+    url_uuid = set_bookmark(db.session, owner.user_uuid, bookmark)
     db.session.commit()
     publish_message(
-        message_lib.BookmarkCreated(
-            user_uuid=current_user.user_uuid, url_uuid=url.url_uuid
-        ),
+        message_lib.BookmarkCreated(user_uuid=owner.user_uuid, url_uuid=url.url_uuid),
         environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
     )
     flask.flash("Bookmarked: %s" % bookmark.title)
     response = flask.make_response("Redirecting...", 303)
     response.headers["Location"] = flask.url_for(
-        "quarchive.edit_bookmark_form", url_uuid=url_uuid
+        "quarchive.edit_bookmark_form", url_uuid=url_uuid, username=owner.username,
     )
     return response
 
 
-@web_blueprint.route("/bookmarks/<uuid:url_uuid>", methods=["GET"])
-@sign_in_required
+@web_blueprint.route("/<username>/create-bookmark")
+def create_bookmark_form(username: str) -> flask.Response:
+    owner = get_user_or_fail(db.session, username)
+    require_access_or_fail(
+        BookmarkSubject(user_uuid=owner.user_uuid, url_uuid=UUID("f" * 32)),
+        Access.WRITE,
+    )
+    template_kwargs: Dict[str, Any] = {"page_title": "Create bookmark"}
+    template_kwargs.update(form_fields_from_querystring(flask.request.args))
+    template_kwargs["tags_with_count"] = tags_with_count(db.session, owner)
+    template_kwargs["owner"] = owner
+
+    return flask.make_response(
+        flask.render_template("create_bookmark.html", **template_kwargs)
+    )
+
+
+@web_blueprint.route("/<username>/bookmarks/<uuid:url_uuid>", methods=["GET"])
 @observe_redirect_to
-def edit_bookmark_form(current_user: User, url_uuid: UUID) -> flask.Response:
-    # access = check_access(current_user, get_access_tokens(flask.request), BookmarkEntitlement(user_uuid, url_uuid))
-    # if access:
-    #     ...
-    bookmark = get_bookmark_by_url_uuid(db.session, current_user.user_uuid, url_uuid)
+def edit_bookmark_form(username: str, url_uuid: UUID) -> flask.Response:
+    owner = get_user_or_fail(db.session, username)
+    require_access_or_fail(
+        BookmarkSubject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.WRITE
+    )
+    bookmark = get_bookmark_by_url_uuid(db.session, owner.user_uuid, url_uuid)
     if bookmark is None:
         # FIXME: er, write a test for this
         flask.abort(404, description="bookmark not found")
@@ -367,6 +421,7 @@ def edit_bookmark_form(current_user: User, url_uuid: UUID) -> flask.Response:
         page_title="Edit %s" % bookmark.title,
         url_uuid=url_uuid,
         tags=bookmark.current_tags(),
+        owner=owner,
     )
     if bookmark.unread:
         template_kwargs["unread"] = "on"
@@ -374,7 +429,7 @@ def edit_bookmark_form(current_user: User, url_uuid: UUID) -> flask.Response:
     # Then update it from the querystring
     template_kwargs.update(form_fields_from_querystring(flask.request.args))
 
-    template_kwargs["tags_with_count"] = tags_with_count(db.session, current_user)
+    template_kwargs["tags_with_count"] = tags_with_count(db.session, owner)
     template_kwargs["deleted"] = bookmark.deleted
 
     return flask.make_response(
@@ -462,14 +517,17 @@ def backlinks(current_user: User, url_uuid: UUID) -> flask.Response:
     )
 
 
-@web_blueprint.route("/bookmarks/<uuid:url_uuid>", methods=["POST"])
-@sign_in_required
+@web_blueprint.route("/<username>/bookmarks/<uuid:url_uuid>", methods=["POST"])
 @observe_redirect_to
-def edit_bookmark(current_user: User, url_uuid: UUID) -> flask.Response:
-    form = flask.request.form
-    existing_bookmark = get_bookmark_by_url_uuid(
-        db.session, current_user.user_uuid, url_uuid
+def edit_bookmark(username: str, url_uuid: UUID) -> flask.Response:
+    owner = get_user_or_fail(db.session, username)
+    # FIXME: this is junky
+    require_access_or_fail(
+        BookmarkSubject(user_uuid=owner.user_uuid, url_uuid=UUID("f" * 32)),
+        Access.WRITE,
     )
+    form = flask.request.form
+    existing_bookmark = get_bookmark_by_url_uuid(db.session, owner.user_uuid, url_uuid)
     if existing_bookmark is None:
         raise exc.NotFound()
 
@@ -486,7 +544,7 @@ def edit_bookmark(current_user: User, url_uuid: UUID) -> flask.Response:
 
     merged_bookmark = updated_bookmark.merge(existing_bookmark)
 
-    set_bookmark(db.session, current_user.user_uuid, merged_bookmark)
+    set_bookmark(db.session, owner.user_uuid, merged_bookmark)
     db.session.commit()
     flask.flash("Edited: %s" % merged_bookmark.title)
     return flask.make_response("ok")

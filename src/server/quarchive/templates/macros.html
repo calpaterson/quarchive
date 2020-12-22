@@ -35,7 +35,7 @@
         <p class="bookmark-details">
           <em>at <span class="bookmark-created" title="{{bookmark.created}}">{{bookmark.created|timeformat('h:mm a')}}</span></em> {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
           <a class="bookmark-meta"
-             href="{{ url_for('quarchive.edit_bookmark', url_uuid=bookmark.url.url_uuid) }}">edit</a>
+             href="{{ url_for('quarchive.edit_bookmark', url_uuid=bookmark.url.url_uuid, username=user.username) }}">edit</a>
           <a class="bookmark-meta" href="{{ url_for('quarchive.bookmark_archives', url_uuid=bookmark.url.url_uuid) }}">archives</a>
           {{ render_links(bookmark_view) }}
           {% for tag in bookmark.current_tags()|sort %}{{ render_tag(user, tag) }}{% if not loop.last %},{% endif %}
