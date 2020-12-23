@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package quarchive.access_tokens;
+
+message AccessToken {
+  Access access = 1;
+  oneof object {
+    BookmarkObject bookmark_object = 2;
+  }
+}
+
+enum Access {
+  NONE = 0;
+  READ = 1;
+  WRITE = 2;
+  READWRITE = 3;
+}
+
+message BookmarkObject {
+  bytes user_uuid = 1;
+  bytes url_uuid = 2;
+}
