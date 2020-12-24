@@ -9,10 +9,11 @@ import pytest
 from quarchive.value_objects import User
 from quarchive.accesscontrol import (
     Access,
-    BookmarkSubject,
-    to_access_token,
+    AccessSubject,
+    BookmarkAccessObject,
     from_access_token,
     get_access,
+    to_access_token,
 )
 
 
@@ -31,17 +32,17 @@ def test_access_combinations(inputs, expected):
 
 owner = User(user_uuid=uuid4(), username="testuser", email=None, timezone=pytz.UTC)
 other = User(user_uuid=uuid4(), username="otheruser", email=None, timezone=pytz.UTC)
-test_subject = BookmarkSubject(user_uuid=owner.user_uuid, url_uuid=uuid4())
+test_subject = BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=uuid4())
 test_token = to_access_token(test_subject, Access.READ)
 irrelevant_token = to_access_token(
-    BookmarkSubject(user_uuid=uuid4(), url_uuid=uuid4()), Access.READWRITE
+    BookmarkAccessObject(user_uuid=uuid4(), url_uuid=uuid4()), Access.READWRITE
 )
 
 
 def test_access_tokens():
     user_uuid = uuid4()
     url_uuid = uuid4()
-    subj = BookmarkSubject(user_uuid=user_uuid, url_uuid=url_uuid)
+    subj = BookmarkAccessObject(user_uuid=user_uuid, url_uuid=url_uuid)
     token = to_access_token(subj, Access.READ)
     assert json.loads(token) == {
         "n": "bookmark",
@@ -74,4 +75,4 @@ def test_access_tokens():
     ],
 )
 def test_get_access(subject, user, access_tokens, expected):
-    assert get_access(subject, user, access_tokens) == expected
+    assert get_access(AccessSubject(user, access_tokens), subject) == expected

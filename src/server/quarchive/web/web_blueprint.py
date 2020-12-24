@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timezone
-from functools import wraps, update_wrapper
+from functools import wraps
 from logging import getLogger
 from os import path, environ
 from typing import (
@@ -11,6 +11,7 @@ from typing import (
     List,
     Mapping,
     Optional,
+    Sequence,
     Set,
     Tuple,
     TypeVar,
@@ -27,8 +28,8 @@ from sqlalchemy.orm import Session
 
 from quarchive.accesscontrol import (
     get_access,
-    get_access_tokens,
-    BookmarkSubject,
+    BookmarkAccessObject,
+    AccessSubject,
     Access,
 )
 from quarchive.messaging import message_lib
@@ -81,6 +82,11 @@ def set_current_user_for_session(
     session.permanent = True
 
     flask.g.sync_credentials = "|".join([user.username, api_key.hex()])
+
+
+def get_access_tokens(request: flask.Request) -> Sequence[str]:
+    # FIXME: incomplete
+    return []
 
 
 @web_blueprint.after_request
@@ -136,7 +142,9 @@ def sign_in_required(
     return cast(Callable[..., flask.Response], wrapper)
 
 
-def require_access_or_fail(subject: BookmarkSubject, min_access: Access) -> None:
+def require_access_or_fail(
+    access_object: BookmarkAccessObject, min_access: Access
+) -> None:
     """Check that the current user has given level of access to the given object.
 
     If not, and not signed in, suggest signing in (by redirection).
@@ -145,20 +153,24 @@ def require_access_or_fail(subject: BookmarkSubject, min_access: Access) -> None
 
     """
     current_user = get_current_user()
-    access = get_access(subject, current_user, get_access_tokens(flask.request))
+    access = get_access(
+        AccessSubject(current_user, get_access_tokens(flask.request)), access_object
+    )
     if min_access in access:
         return
     else:
         if current_user is None:
             log.warning(
-                "anonymous user refused access to %s (min:%s)", subject, min_access
+                "anonymous user refused access to %s (min:%s)",
+                access_object,
+                min_access,
             )
             flask.redirect(flask.url_for("web_blueprint.sign_in")), 302
         else:
             log.warning(
                 "%s was refused access to %s (min: %s, have:%s)",
                 current_user,
-                subject,
+                access_object,
                 min_access,
                 access,
             )
@@ -344,7 +356,7 @@ def create_bookmark(username: str) -> flask.Response:
     owner = get_user_or_fail(db.session, username)
     # FIXME: sort out optional url_uuid
     require_access_or_fail(
-        BookmarkSubject(user_uuid=owner.user_uuid, url_uuid=UUID("f" * 32)),
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=UUID("f" * 32)),
         Access.WRITE,
     )
     form = flask.request.form
@@ -388,7 +400,7 @@ def create_bookmark(username: str) -> flask.Response:
 def create_bookmark_form(username: str) -> flask.Response:
     owner = get_user_or_fail(db.session, username)
     require_access_or_fail(
-        BookmarkSubject(user_uuid=owner.user_uuid, url_uuid=UUID("f" * 32)),
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=UUID("f" * 32)),
         Access.WRITE,
     )
     template_kwargs: Dict[str, Any] = {"page_title": "Create bookmark"}
@@ -406,7 +418,7 @@ def create_bookmark_form(username: str) -> flask.Response:
 def edit_bookmark_form(username: str, url_uuid: UUID) -> flask.Response:
     owner = get_user_or_fail(db.session, username)
     require_access_or_fail(
-        BookmarkSubject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.WRITE
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.WRITE
     )
     bookmark = get_bookmark_by_url_uuid(db.session, owner.user_uuid, url_uuid)
     if bookmark is None:
@@ -523,7 +535,7 @@ def edit_bookmark(username: str, url_uuid: UUID) -> flask.Response:
     owner = get_user_or_fail(db.session, username)
     # FIXME: this is junky
     require_access_or_fail(
-        BookmarkSubject(user_uuid=owner.user_uuid, url_uuid=UUID("f" * 32)),
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=UUID("f" * 32)),
         Access.WRITE,
     )
     form = flask.request.form

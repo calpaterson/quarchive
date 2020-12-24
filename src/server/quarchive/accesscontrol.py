@@ -1,11 +1,9 @@
 import json
 from uuid import UUID
-from typing import Optional, Mapping, ClassVar, Tuple, Iterable, Sequence
+from typing import Optional, Mapping, ClassVar, Tuple, Sequence
 import enum
 from functools import lru_cache
 from dataclasses import dataclass
-
-import flask
 
 from quarchive.value_objects import User
 
@@ -14,18 +12,29 @@ class Access(enum.IntFlag):
     NONE = 0
     READ = 1
     WRITE = 2
-    READWRITE = 3
+    READACCESS = 4
+    WRITEACCESS = 8
+    ALL = 15
+
+
+AccessToken = str
 
 
 @dataclass(frozen=True)
-class BookmarkSubject:
+class AccessSubject:
+    user: Optional[User]
+    tokens: Sequence[AccessToken]
+
+
+@dataclass(frozen=True)
+class BookmarkAccessObject:
     name: ClassVar[str] = "bookmark"
     user_uuid: UUID
     url_uuid: UUID
 
     def for_user(self, user: User) -> Access:
         if user.user_uuid == self.user_uuid:
-            return Access.READWRITE
+            return Access.ALL
         else:
             return Access.NONE
 
@@ -38,7 +47,7 @@ class BookmarkSubject:
 
 
 @lru_cache(16)
-def to_access_token(subject: BookmarkSubject, access: Access) -> str:
+def to_access_token(subject: BookmarkAccessObject, access: Access) -> AccessToken:
     # Try to keep it short, this will go in a cookie on every request
     # Keys are sorted to allow for loading to be cached
     return json.dumps(
@@ -49,30 +58,24 @@ def to_access_token(subject: BookmarkSubject, access: Access) -> str:
 
 
 @lru_cache(16)
-def from_access_token(token: str) -> Tuple[BookmarkSubject, Access]:
+def from_access_token(token: AccessToken) -> Tuple[BookmarkAccessObject, Access]:
     parts = json.loads(token)
     if parts["n"] == "bookmark":
-        return BookmarkSubject.from_json(parts["q"]), Access(parts["a"])
+        return BookmarkAccessObject.from_json(parts["q"]), Access(parts["a"])
     else:
         raise RuntimeError("unknown subject name: {parts['n']}")
 
 
 def get_access(
-    subject: "BookmarkSubject",
-    user: Optional[User] = None,
-    access_tokens: Iterable[str] = frozenset(),
+    access_subject: AccessSubject, access_object: "BookmarkAccessObject",
 ) -> Access:
     access = Access.NONE
     # Check by user
-    if user is not None:
-        access |= subject.for_user(user)
+    if access_subject.user is not None:
+        access |= access_object.for_user(access_subject.user)
     # Check by access token
-    for access_token in access_tokens:
-        token_subject, token_access = from_access_token(access_token)
-        if token_subject == subject:
+    for access_token in access_subject.tokens:
+        token_object, token_access = from_access_token(access_token)
+        if token_object == access_object:
             access |= token_access
     return access
-
-
-def get_access_tokens(request: flask.Request) -> Sequence[str]:
-    return []
