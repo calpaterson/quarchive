@@ -57,7 +57,7 @@ def test_access_tokens():
 @pytest.mark.parametrize(
     "subject,user,access_tokens,expected",
     [
-        pytest.param(test_subject, owner, [], Access.READWRITE, id="ownership"),
+        pytest.param(test_subject, owner, [], Access.ALL, id="ownership"),
         pytest.param(test_subject, other, [], Access.NONE, id="other"),
         pytest.param(
             test_subject, None, [test_token], Access.READ, id="access-token-based"

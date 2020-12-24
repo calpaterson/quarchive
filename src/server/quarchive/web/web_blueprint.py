@@ -27,10 +27,12 @@ from werkzeug import exceptions as exc
 from sqlalchemy.orm import Session
 
 from quarchive.accesscontrol import (
-    get_access,
-    BookmarkAccessObject,
-    AccessSubject,
     Access,
+    AccessObject,
+    AccessSubject,
+    BookmarkAccessObject,
+    UserBookmarksAccessObject,
+    get_access,
 )
 from quarchive.messaging import message_lib
 from quarchive.archive import get_archive_links, Archive
@@ -143,7 +145,7 @@ def sign_in_required(
 
 
 def require_access_or_fail(
-    access_object: BookmarkAccessObject, min_access: Access
+    access_object: AccessObject, min_access: Access
 ) -> None:
     """Check that the current user has given level of access to the given object.
 
@@ -356,7 +358,7 @@ def create_bookmark(username: str) -> flask.Response:
     owner = get_user_or_fail(db.session, username)
     # FIXME: sort out optional url_uuid
     require_access_or_fail(
-        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=UUID("f" * 32)),
+        UserBookmarksAccessObject(user_uuid=owner.user_uuid),
         Access.WRITE,
     )
     form = flask.request.form
@@ -400,7 +402,7 @@ def create_bookmark(username: str) -> flask.Response:
 def create_bookmark_form(username: str) -> flask.Response:
     owner = get_user_or_fail(db.session, username)
     require_access_or_fail(
-        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=UUID("f" * 32)),
+        UserBookmarksAccessObject(user_uuid=owner.user_uuid),
         Access.WRITE,
     )
     template_kwargs: Dict[str, Any] = {"page_title": "Create bookmark"}
@@ -533,9 +535,8 @@ def backlinks(current_user: User, url_uuid: UUID) -> flask.Response:
 @observe_redirect_to
 def edit_bookmark(username: str, url_uuid: UUID) -> flask.Response:
     owner = get_user_or_fail(db.session, username)
-    # FIXME: this is junky
     require_access_or_fail(
-        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=UUID("f" * 32)),
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid),
         Access.WRITE,
     )
     form = flask.request.form
