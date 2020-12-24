@@ -434,6 +434,7 @@ class BookmarkViewQueryBuilder:
         paged_query = self._query.offset(self._get_offset()).limit(self.page_size)
         bookmark_views: Iterable[BookmarkView] = (
             BookmarkView(
+                owner=self.user,
                 bookmark=bookmark_from_sqla(sqla_url.to_url(), sqla_bookmark),
                 icon_uuid=icon_uuid,
                 canonical_url=canonical_sqla_url.to_url()

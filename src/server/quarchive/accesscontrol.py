@@ -46,6 +46,7 @@ class AccessObject(Protocol):
 @dataclass(frozen=True)
 class BookmarkAccessObject:
     """Represents an individual bookmark"""
+
     name: ClassVar[str] = "bookmark"
     user_uuid: UUID
     url_uuid: UUID
@@ -65,6 +66,7 @@ class BookmarkAccessObject:
 class UserBookmarksAccessObject:
     """Represents a user's entire collection of bookmarks - access to this
     object required for creating a new bookmark."""
+
     name: ClassVar[str] = "user_bookmarks"
     user_uuid: UUID
 
@@ -99,9 +101,7 @@ def from_access_token(token: AccessToken) -> Tuple[BookmarkAccessObject, Access]
         raise RuntimeError("unknown subject name: {parts['n']}")
 
 
-def get_access(
-    access_subject: AccessSubject, access_object: AccessObject,
-) -> Access:
+def get_access(access_subject: AccessSubject, access_object: AccessObject) -> Access:
     access = Access.NONE
     # Check by user
     if access_subject.user is not None:

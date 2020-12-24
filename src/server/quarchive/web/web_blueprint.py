@@ -144,9 +144,7 @@ def sign_in_required(
     return cast(Callable[..., flask.Response], wrapper)
 
 
-def require_access_or_fail(
-    access_object: AccessObject, min_access: Access
-) -> None:
+def require_access_or_fail(access_object: AccessObject, min_access: Access) -> None:
     """Check that the current user has given level of access to the given object.
 
     If not, and not signed in, suggest signing in (by redirection).
@@ -358,8 +356,7 @@ def create_bookmark(username: str) -> flask.Response:
     owner = get_user_or_fail(db.session, username)
     # FIXME: sort out optional url_uuid
     require_access_or_fail(
-        UserBookmarksAccessObject(user_uuid=owner.user_uuid),
-        Access.WRITE,
+        UserBookmarksAccessObject(user_uuid=owner.user_uuid), Access.WRITE,
     )
     form = flask.request.form
     creation_time = datetime.utcnow().replace(tzinfo=timezone.utc)
@@ -402,8 +399,7 @@ def create_bookmark(username: str) -> flask.Response:
 def create_bookmark_form(username: str) -> flask.Response:
     owner = get_user_or_fail(db.session, username)
     require_access_or_fail(
-        UserBookmarksAccessObject(user_uuid=owner.user_uuid),
-        Access.WRITE,
+        UserBookmarksAccessObject(user_uuid=owner.user_uuid), Access.WRITE,
     )
     template_kwargs: Dict[str, Any] = {"page_title": "Create bookmark"}
     template_kwargs.update(form_fields_from_querystring(flask.request.args))
@@ -451,10 +447,13 @@ def edit_bookmark_form(username: str, url_uuid: UUID) -> flask.Response:
     )
 
 
-@web_blueprint.route("/bookmarks/<uuid:url_uuid>/archives", methods=["GET"])
-@sign_in_required
-def bookmark_archives(current_user: User, url_uuid: UUID) -> flask.Response:
-    bookmark = get_bookmark_by_url_uuid(db.session, current_user.user_uuid, url_uuid)
+@web_blueprint.route("/<username>/bookmarks/<uuid:url_uuid>/archives", methods=["GET"])
+def bookmark_archives(username: str, url_uuid: UUID) -> flask.Response:
+    owner = get_user_or_fail(db.session, username)
+    require_access_or_fail(
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.WRITE
+    )
+    bookmark = get_bookmark_by_url_uuid(db.session, owner.user_uuid, url_uuid)
     if bookmark is None:
         flask.abort(404, description="bookmark not found")
 

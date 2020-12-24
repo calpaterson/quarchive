@@ -18,6 +18,7 @@ def test_title(input_title, expected_title):
     bm = make_bookmark(title=input_title)
 
     view = BookmarkView(
+        owner=None,  # type: ignore
         bookmark=bm,
         icon_uuid=uuid4(),
         canonical_url=None,

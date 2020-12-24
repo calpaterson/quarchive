@@ -277,6 +277,7 @@ class BookmarkView:
     MAX_TITLE_SIZE: ClassVar[int] = 70
 
     bookmark: Bookmark
+    owner: User
     icon_uuid: Optional[UUID]
     canonical_url: Optional[URL]
     link_count: int
