@@ -187,6 +187,16 @@ def get_user_or_fail(session: Session, username: str) -> User:
         return user
 
 
+def get_bookmark_by_url_uuid_or_fail(
+    session: Session, user_uuid: UUID, url_uuid: UUID
+) -> Bookmark:
+    bookmark = get_bookmark_by_url_uuid(session, user_uuid, url_uuid)
+    if bookmark is None:
+        flask.abort(404, description="bookmark not found")
+    else:
+        return bookmark
+
+
 def observe_redirect_to(handler: V) -> V:
     @wraps(handler)
     def wrapper(*args, **kwargs):
@@ -418,10 +428,7 @@ def edit_bookmark_form(username: str, url_uuid: UUID) -> flask.Response:
     require_access_or_fail(
         BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.WRITE
     )
-    bookmark = get_bookmark_by_url_uuid(db.session, owner.user_uuid, url_uuid)
-    if bookmark is None:
-        # FIXME: er, write a test for this
-        flask.abort(404, description="bookmark not found")
+    bookmark = get_bookmark_by_url_uuid_or_fail(db.session, owner.user_uuid, url_uuid)
 
     # Step one, load the template kwargs from the bookmark
     template_kwargs: Dict[str, Any] = dict(
@@ -453,9 +460,7 @@ def bookmark_archives(username: str, url_uuid: UUID) -> flask.Response:
     require_access_or_fail(
         BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.WRITE
     )
-    bookmark = get_bookmark_by_url_uuid(db.session, owner.user_uuid, url_uuid)
-    if bookmark is None:
-        flask.abort(404, description="bookmark not found")
+    bookmark = get_bookmark_by_url_uuid_or_fail(db.session, owner.user_uuid, url_uuid)
 
     archive_links = get_archive_links(bookmark.url, circa=bookmark.created)
 
@@ -470,18 +475,17 @@ def bookmark_archives(username: str, url_uuid: UUID) -> flask.Response:
     )
 
 
-@web_blueprint.route("/bookmarks/<uuid:url_uuid>/links", methods=["GET"])
-@sign_in_required
-def links(current_user: User, url_uuid: UUID) -> flask.Response:
-    bookmark = get_bookmark_by_url_uuid(db.session, current_user.user_uuid, url_uuid)
-    if bookmark is None:
-        # FIXME: er, write a test for this
-        flask.abort(404, description="bookmark not found")
+@web_blueprint.route("/<username>/bookmarks/<uuid:url_uuid>/links", methods=["GET"])
+def links(username: str, url_uuid: UUID) -> flask.Response:
+    owner = get_user_or_fail(db.session, username)
+    require_access_or_fail(
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.WRITE
+    )
+    bookmark = get_bookmark_by_url_uuid_or_fail(db.session, owner.user_uuid, url_uuid)
 
     page = int(flask.request.args.get("page", "1"))
-    user = get_current_user()
     qb = (
-        BookmarkViewQueryBuilder(db.session, current_user, page=page)
+        BookmarkViewQueryBuilder(db.session, owner, page=page)
         .links(url_uuid)
         .order_by_created()
     )
@@ -500,18 +504,18 @@ def links(current_user: User, url_uuid: UUID) -> flask.Response:
     )
 
 
-@web_blueprint.route("/bookmarks/<uuid:url_uuid>/backlinks", methods=["GET"])
-@sign_in_required
-def backlinks(current_user: User, url_uuid: UUID) -> flask.Response:
-    bookmark = get_bookmark_by_url_uuid(db.session, current_user.user_uuid, url_uuid)
-    if bookmark is None:
-        # FIXME: er, write a test for this
-        flask.abort(404, description="bookmark not found")
+@web_blueprint.route("/<username>/bookmarks/<uuid:url_uuid>/backlinks", methods=["GET"])
+def backlinks(username: str, url_uuid: UUID) -> flask.Response:
+    owner = get_user_or_fail(db.session, username)
+    require_access_or_fail(
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.WRITE
+    )
+    bookmark = get_bookmark_by_url_uuid_or_fail(db.session, owner.user_uuid, url_uuid)
 
     page = int(flask.request.args.get("page", "1"))
     user = get_current_user()
     qb = (
-        BookmarkViewQueryBuilder(db.session, current_user, page=page)
+        BookmarkViewQueryBuilder(db.session, owner, page=page)
         .backlinks(url_uuid)
         .order_by_created()
     )
