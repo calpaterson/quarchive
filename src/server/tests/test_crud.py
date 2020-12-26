@@ -282,7 +282,7 @@ def test_editing_a_bookmark(
 def test_editing_a_bookmark_that_doesnt_exist(signed_in_client, test_user):
     response = signed_in_client.post(
         flask.url_for(
-            "quarchive.edit_bookmark_form",
+            "quarchive.edit_bookmark",
             url_uuid=UUID("f" * 32),
             username=test_user.username,
             redirect_to="/test_location",

@@ -421,7 +421,7 @@ def create_bookmark_form(username: str) -> flask.Response:
     )
 
 
-@web_blueprint.route("/<username>/bookmarks/<uuid:url_uuid>", methods=["GET"])
+@web_blueprint.route("/<username>/bookmarks/<uuid:url_uuid>/edit", methods=["GET"])
 @observe_redirect_to
 def edit_bookmark_form(username: str, url_uuid: UUID) -> flask.Response:
     owner = get_user_or_fail(db.session, username)
