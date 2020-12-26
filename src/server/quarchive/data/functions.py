@@ -422,6 +422,10 @@ class BookmarkViewQueryBuilder:
         )
         return self
 
+    def only_url(self, url_uuid: UUID) -> "BookmarkViewQueryBuilder":
+        self._query = self._query.filter(SQLAUrl.url_uuid == url_uuid)
+        return self
+
     def order_by_created(self) -> "BookmarkViewQueryBuilder":
         self._query = self._query.order_by(SQLABookmark.created.desc())
         return self

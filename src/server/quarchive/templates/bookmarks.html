@@ -39,30 +39,32 @@
 {% endblock %}
 
 {% macro render_pagination(page_number) -%}
-  <div class="pagination">
-    <span class="prev-page">
-      {% if prev_page_exists %}
-        <a
-          {% if page == 2 %}
-            href={{ modify_query(page=None) }}
+  {% if pagination != False %}
+    <div class="pagination">
+      <span class="prev-page">
+        {% if prev_page_exists %}
+          <a
+            {% if page == 2 %}
+              href={{ modify_query(page=None) }}
+            {% else %}
+              href="{{ modify_query(page=page-1) }}"
+            {% endif %}
+            class="pagination-arrow"
+            >&lt Previous</a>
           {% else %}
-            href="{{ modify_query(page=page-1) }}"
+            &lt Previous
           {% endif %}
-          class="pagination-arrow"
-          >&lt Previous</a>
+      </span>
+      -
+      <span class="page-number">Page {{ page_number }} (30 per page)</span>
+      -
+      <span class="next-page">
+        {% if next_page_exists %}
+          <a class="pagination-arrow" href="{{ modify_query(page=page+1) }}">Next &gt</a>
         {% else %}
-          &lt Previous
+          Next &gt
         {% endif %}
-    </span>
-    -
-    <span class="page-number">Page {{ page_number }} (30 per page)</span>
-    -
-    <span class="next-page">
-      {% if next_page_exists %}
-        <a class="pagination-arrow" href="{{ modify_query(page=page+1) }}">Next &gt</a>
-      {% else %}
-        Next &gt
-      {% endif %}
-    </span>
-  </div>
+      </span>
+    </div>
+  {% endif %}
 {% endmacro %}

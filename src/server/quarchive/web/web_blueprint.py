@@ -566,6 +566,23 @@ def edit_bookmark(username: str, url_uuid: UUID) -> flask.Response:
     return flask.make_response("ok")
 
 
+@web_blueprint.route("/<username>/bookmarks/<uuid:url_uuid>", methods=["GET"])
+def view_bookmark(username: str, url_uuid: UUID) -> flask.Response:
+    owner = get_user_or_fail(db.session, username)
+    require_access_or_fail(
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.READ,
+    )
+    qb = BookmarkViewQueryBuilder(db.session, owner).only_url(url_uuid)
+    return flask.make_response(
+        flask.render_template(
+            "bookmarks.html",
+            bookmark_views=qb.execute(),
+            search_query=False,
+            pagination=False,
+        )
+    )
+
+
 @web_blueprint.route("/register", methods=["GET", "POST"])
 def register() -> flask.Response:
     if flask.request.method == "GET":

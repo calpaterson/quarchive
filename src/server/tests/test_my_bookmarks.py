@@ -265,3 +265,20 @@ def test_links_and_backlinks(session, signed_in_client, test_user):
     ]
     assert bm1_as_shown["link_count"] == 3
     assert bm1_as_shown["backlink_count"] == 2
+
+
+def test_individual_bookmark(session, signed_in_client, test_user):
+    bm = make_bookmark()
+    sync_bookmarks(signed_in_client, test_user, [bm])
+
+    response = signed_in_client.get(
+        flask.url_for(
+            "quarchive.view_bookmark",
+            username=test_user.username,
+            url_uuid=bm.url.url_uuid,
+        )
+    )
+    assert response.status_code == 200
+
+    as_shown = get_bookmark_titles(response)
+    assert as_shown == [bm.title]

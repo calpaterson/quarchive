@@ -35,8 +35,7 @@
         {% endif %}
         <p class="bookmark-details">
           <em>at <span class="bookmark-created" title="{{bookmark.created}}">{{bookmark.created|timeformat('h:mm a')}}</span></em> {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
-          <a class="bookmark-meta"
-             href="{{ url_for('quarchive.edit_bookmark', url_uuid=bookmark.url.url_uuid, username=owner.username) }}">edit</a>
+          {{ render_edit_and_permalink(bookmark, owner) }}
           <a class="bookmark-meta" href="{{ url_for('quarchive.bookmark_archives', url_uuid=bookmark.url.url_uuid, username=owner.username) }}">archives</a>
           {{ render_links(bookmark_view) }}
           {% for tag in bookmark.current_tags()|sort %}{{ render_tag(owner, tag) }}{% if not loop.last %},{% endif %}
@@ -47,6 +46,12 @@
   </div>
 {% endmacro %}
 
+{% macro render_edit_and_permalink(bookmark, owner) %}
+  <a class="bookmark-meta"
+     href="{{ url_for('quarchive.edit_bookmark_form', url_uuid=bookmark.url.url_uuid, username=owner.username) }}">edit</a>
+  <a class="bookmark-meta"
+     href="{{ url_for('quarchive.view_bookmark', url_uuid=bookmark.url.url_uuid, username=owner.username) }}">permalink</a>
+{% endmacro %}
 
 {% macro render_links(bookmark_view) %}
   {% if bookmark_view.link_count > 0 %}
