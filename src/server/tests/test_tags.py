@@ -30,8 +30,9 @@ def test_user_tags_page(signed_in_client, test_user):
     )
     assert response.status_code == 200
 
-    present = get_bookmarks_from_response(response)
-    assert present == [("http://example.com/pokemon", "Pokemon")]
+    (present,) = get_bookmarks_from_response(response)
+    assert present["url"] == "http://example.com/pokemon"
+    assert present["title"] == "Pokemon"
 
 
 def test_tags_page(signed_in_client, test_user):

@@ -29,5 +29,6 @@ def test_user_netloc_page(signed_in_client, test_user):
     )
     assert response.status_code == 200
 
-    present = get_bookmarks_from_response(response)
-    assert present == [("http://pokemon.com/", "Pokemon")]
+    (present,) = get_bookmarks_from_response(response)
+    assert present["url"] == "http://pokemon.com/"
+    assert present["title"] == "Pokemon"

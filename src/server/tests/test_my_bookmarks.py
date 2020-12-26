@@ -20,16 +20,15 @@ from .conftest import (
 from .utils import sync_bookmarks
 
 import quarchive as sut
+from quarchive.data.functions import upsert_links
+from .utils import get_bookmarks_from_response
 
 pytestmark = pytest.mark.web
 
 
 def get_bookmark_titles(response) -> List[str]:
-    html_parser = etree.HTMLParser()
-    root = etree.fromstring(response.get_data(), html_parser)
-    # Perhaps there should be a class used in the html for this
-    bookmarks = CSSSelector(".bookmark-title")(root)
-    return [b.text for b in bookmarks]
+    """Returns a list of bookmark titles present in response"""
+    return [b["title"] for b in get_bookmarks_from_response(response)]
 
 
 def test_not_signed_in_my_bookmarks(client):
@@ -238,3 +237,31 @@ def test_user_timezones_are_observed(session, app, client):
     selector = CSSSelector(".bookmark-created")
     element = selector(root)[0]
     assert element.text == "4:00 pm"
+
+
+def test_links_and_backlinks(session, signed_in_client, test_user):
+    bm1 = make_bookmark()
+    bm1_link1 = make_bookmark()
+    bm1_link2 = make_bookmark()
+    bm1_link3 = make_bookmark()
+    bm1_backlinker1 = make_bookmark()
+    bm1_backlinker2 = make_bookmark()
+    sync_bookmarks(
+        signed_in_client,
+        test_user,
+        [bm1, bm1_link1, bm1_link2, bm1_link3, bm1_backlinker1, bm1_backlinker2],
+    )
+
+    upsert_links(session, bm1.url, {bm1_link1.url, bm1_link2.url, bm1_link3.url})
+    upsert_links(session, bm1_backlinker1.url, {bm1.url})
+    upsert_links(session, bm1_backlinker2.url, {bm1.url})
+
+    response = signed_in_client.get(flask.url_for("quarchive.my_bookmarks"))
+    assert response.status_code == 200
+    (bm1_as_shown,) = [
+        b
+        for b in get_bookmarks_from_response(response)
+        if b["url"] == bm1.url.to_string()
+    ]
+    assert bm1_as_shown["link_count"] == 3
+    assert bm1_as_shown["backlink_count"] == 2
