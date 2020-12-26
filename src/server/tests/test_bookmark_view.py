@@ -11,7 +11,7 @@ from .conftest import make_bookmark
     [
         ("normal title", "normal title"),
         ("", "[no title]"),
-        ("f" * 200, ("f" * 65) + "[...]"),
+        ("f" * 200, ("f" * 67) + "..."),
     ],
 )
 def test_title(input_title, expected_title):

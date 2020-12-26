@@ -296,7 +296,7 @@ class BookmarkView:
         if len(title) == 0:
             return "[no title]"
         elif len(title) > self.MAX_TITLE_SIZE:
-            return title[: self.MAX_TITLE_SIZE - 5] + "[...]"
+            return title[: self.MAX_TITLE_SIZE - 3] + "..."
         else:
             return title
 
