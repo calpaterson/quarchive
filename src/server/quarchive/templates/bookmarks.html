@@ -30,7 +30,7 @@
           <span>{{view.bookmark.created.date()|dateformat('full')}}</span>
         </p>
       {% endif %}
-      {{ macros.render_bookmark(view) }}
+      {{ macros.render_bookmark(view, explicit_owner=view.owner != get_current_user()) }}
     {% endfor %}
   </div>
 

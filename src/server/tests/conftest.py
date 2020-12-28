@@ -235,6 +235,9 @@ def sign_in_as(client, user: ExtendedUser):
 def sign_out(client):
     with client.session_transaction() as sess:
         sess.clear()
+    # FIXME: This is a hack because flask now has g scoped to the app context
+    # and not the request context
+    del flask.g._quarchive_user
 
 
 def register_user(

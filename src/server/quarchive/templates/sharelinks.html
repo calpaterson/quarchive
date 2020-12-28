@@ -1,0 +1,8 @@
+{# -*- mode: jinja2 -*- #}
+{% extends "base.html" %}
+
+{% import 'macros.html' as macros %}
+
+{% block main %}
+Your share link is: <a id="share-link" href="{{ sharelink }}">{{sharelink}}</a>.
+{% endblock %}

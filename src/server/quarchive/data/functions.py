@@ -18,6 +18,12 @@ from sqlalchemy.dialects.postgresql import (
 )
 from sqlalchemy.orm import sessionmaker, Session, aliased, joinedload
 
+from quarchive.accesscontrol import (
+    AccessObject,
+    Access,
+    ShareGrant,
+    BookmarkAccessObject,
+)
 from quarchive.html_metadata import HTMLMetadata
 from quarchive.value_objects import (
     Bookmark,
@@ -41,6 +47,8 @@ from .models import (
     Link,
     SQLABookmark,
     SQLAUrl,
+    SQLAccessObject,
+    SQLShareGrant,
     SQLUser,
     Tag,
     URLIcon,
@@ -166,6 +174,8 @@ def user_from_username_if_exists(
 
 
 def user_from_user_uuid(session, cache: Cache, user_uuid: UUID) -> User:
+    # FIXME: This should return a nullable type as the user for this user uuid
+    # may have been deleted (among other things)
     key = UserUUIDToUserKey(user_uuid)
     user = cache.get(key)
     if user is not None:
@@ -913,3 +923,73 @@ def record_domain_icon(session: Session, icon_url: URL, hash_bytes: bytes) -> UU
     )
     session.add(domain_icon)
     return icon_uuid
+
+
+def create_share_grant(
+    session: Session, access_object: AccessObject, access_verb: Access
+) -> ShareGrant:
+    # 18 bytes is still fairly secure (more bits of randomness than our uuids)
+    # and encodes nicely in base64 without any '='s at the end which can be a
+    # useability problem when copying and pasting
+    SHARE_TOKEN_LENGTH = 18
+    share_token = secrets.token_bytes(SHARE_TOKEN_LENGTH)
+
+    access_obj_stmt = (
+        pg_insert(SQLAccessObject.__table__)
+        .values(
+            access_object_name=access_object.name, params=access_object.to_params(),
+        )
+        .on_conflict_do_nothing(index_elements=["access_object_name", "params"])
+        .returning(SQLAccessObject.__table__.c.access_object_id)
+    )
+    rs = session.execute(access_obj_stmt)
+    (access_obj_id,) = rs.fetchone()
+
+    sql_share_grant = SQLShareGrant(
+        access_object_id=access_obj_id,
+        access_verb_id=int(access_verb),
+        revoked=False,
+        share_token=share_token,
+    )
+    session.add(sql_share_grant)
+
+    return ShareGrant(
+        share_token=sql_share_grant.share_token,
+        expiry=None,
+        access_object=access_object,
+        access_verb=access_verb,
+        revoked=sql_share_grant.revoked,
+    )
+
+
+def get_share_grant_by_token(
+    session: Session, share_token: bytes
+) -> Optional[ShareGrant]:
+    rs = (
+        session.query(
+            SQLShareGrant.share_token,
+            SQLShareGrant.revoked,
+            SQLAccessObject.access_object_name,
+            SQLAccessObject.params,
+            SQLShareGrant.access_verb_id,
+        )
+        .join(
+            SQLAccessObject,
+            SQLShareGrant.access_object_id == SQLAccessObject.access_object_id,
+        )
+        .filter(SQLShareGrant.share_token == share_token)
+        .first()
+    )
+    if rs is None:
+        return None
+    else:
+        share_token, revoked, ao_name, ao_params, av_id = rs
+        access_object = BookmarkAccessObject.from_params(ao_params)
+        access_verb = Access(av_id)
+        return ShareGrant(
+            share_token=share_token,
+            expiry=None,
+            access_object=access_object,
+            access_verb=access_verb,
+            revoked=revoked,
+        )

@@ -179,6 +179,10 @@ p.bookmark-date {
     font-size: smaller;
 }
 
+p.radio-form-input {
+    margin: 0;
+}
+
 textarea, input, button, select {
     font-family: inherit;
     font-size: inherit;

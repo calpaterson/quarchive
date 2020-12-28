@@ -1,8 +1,8 @@
-import json
+from datetime import datetime
+from base64 import urlsafe_b64encode
 from uuid import UUID
-from typing import Optional, Mapping, ClassVar, Tuple, Sequence
+from typing import Optional, Mapping, ClassVar, Sequence
 import enum
-from functools import lru_cache
 from dataclasses import dataclass
 
 from typing_extensions import Protocol
@@ -26,7 +26,7 @@ AccessToken = str
 @dataclass(frozen=True)
 class AccessSubject:
     user: Optional[User]
-    tokens: Sequence[AccessToken]
+    grants: Sequence["ShareGrant"]
 
 
 class AccessObject(Protocol):
@@ -35,11 +35,11 @@ class AccessObject(Protocol):
     def for_user(self, user: User) -> Access:
         ...
 
-    def to_json(self) -> Mapping:
+    def to_params(self) -> Mapping:
         ...
 
     @classmethod
-    def from_json(cls, q: Mapping) -> "AccessObject":
+    def from_params(cls, q: Mapping) -> "AccessObject":
         ...
 
 
@@ -54,11 +54,11 @@ class BookmarkAccessObject:
     def for_user(self, user: User) -> Access:
         return Access.ALL if user.user_uuid == self.user_uuid else Access.NONE
 
-    def to_json(self) -> Mapping:
+    def to_params(self) -> Mapping:
         return {"user_uuid": self.user_uuid.hex, "url_uuid": self.url_uuid.hex}
 
     @classmethod
-    def from_json(cls, q: Mapping):
+    def from_params(cls, q: Mapping):
         return cls(user_uuid=UUID(q["user_uuid"]), url_uuid=UUID(q["url_uuid"]))
 
 
@@ -73,32 +73,12 @@ class UserBookmarksAccessObject:
     def for_user(self, user) -> Access:
         return Access.ALL if user.user_uuid == self.user_uuid else Access.NONE
 
-    def to_json(self) -> Mapping:
+    def to_params(self) -> Mapping:
         return {"user_uuid": self.user_uuid.hex}
 
     @classmethod
-    def from_json(cls, q: Mapping):
+    def from_params(cls, q: Mapping):
         return cls(user_uuid=UUID(q["user_uuid"]))
-
-
-@lru_cache(16)
-def to_access_token(subject: BookmarkAccessObject, access: Access) -> AccessToken:
-    # Try to keep it short, this will go in a cookie on every request
-    # Keys are sorted to allow for loading to be cached
-    return json.dumps(
-        {"q": subject.to_json(), "n": subject.name, "a": int(access)},
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-
-
-@lru_cache(16)
-def from_access_token(token: AccessToken) -> Tuple[BookmarkAccessObject, Access]:
-    parts = json.loads(token)
-    if parts["n"] == "bookmark":
-        return BookmarkAccessObject.from_json(parts["q"]), Access(parts["a"])
-    else:
-        raise RuntimeError("unknown subject name: {parts['n']}")
 
 
 def get_access(access_subject: AccessSubject, access_object: AccessObject) -> Access:
@@ -107,8 +87,20 @@ def get_access(access_subject: AccessSubject, access_object: AccessObject) -> Ac
     if access_subject.user is not None:
         access |= access_object.for_user(access_subject.user)
     # Check by access token
-    for access_token in access_subject.tokens:
-        token_object, token_access = from_access_token(access_token)
-        if token_object == access_object:
-            access |= token_access
+    for grant in access_subject.grants:
+        # FIXME: consider expiry here
+        if grant.access_object == access_object and not grant.revoked:
+            access |= grant.access_verb
     return access
+
+
+@dataclass(frozen=True)
+class ShareGrant:
+    share_token: bytes
+    expiry: Optional[datetime]
+    access_object: AccessObject
+    access_verb: Access
+    revoked: bool
+
+    def base64_token(self):
+        return urlsafe_b64encode(self.share_token)

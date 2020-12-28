@@ -19,6 +19,7 @@ from typing import (
     cast,
 )
 from uuid import UUID
+from base64 import urlsafe_b64decode
 
 import pytz
 import flask
@@ -31,6 +32,7 @@ from quarchive.accesscontrol import (
     AccessObject,
     AccessSubject,
     BookmarkAccessObject,
+    ShareGrant,
     UserBookmarksAccessObject,
     get_access,
 )
@@ -51,6 +53,8 @@ from quarchive.data.functions import (
     user_from_user_uuid,
     user_from_username_if_exists,
     username_exists,
+    create_share_grant,
+    get_share_grant_by_token,
 )
 from quarchive.search import parse_search_str
 from quarchive.value_objects import (
@@ -86,9 +90,11 @@ def set_current_user_for_session(
     flask.g.sync_credentials = "|".join([user.username, api_key.hex()])
 
 
-def get_access_tokens(request: flask.Request) -> Sequence[str]:
-    # FIXME: incomplete
-    return []
+def get_share_grants() -> Sequence[ShareGrant]:
+    rv = []
+    for base64_token in flask.session.get("share-tokens", ()):
+        rv.append(share_grant_or_fail(db.session, base64_token))
+    return rv
 
 
 @web_blueprint.after_request
@@ -153,22 +159,21 @@ def require_access_or_fail(access_object: AccessObject, min_access: Access) -> N
 
     """
     current_user = get_current_user()
-    access = get_access(
-        AccessSubject(current_user, get_access_tokens(flask.request)), access_object
-    )
+    access = get_access(AccessSubject(current_user, get_share_grants()), access_object)
     if min_access in access:
         return
     else:
         if current_user is None:
             log.warning(
-                "anonymous user refused access to %s (min:%s)",
+                "anonymous user refused access to %s (min:%s, has:%s)",
                 access_object,
                 min_access,
+                access,
             )
-            flask.redirect(flask.url_for("web_blueprint.sign_in")), 302
+            flask.abort(403, "you don't have access to that (try logging in)")
         else:
             log.warning(
-                "%s was refused access to %s (min: %s, have:%s)",
+                "%s was refused access to %s (min: %s, has:%s)",
                 current_user,
                 access_object,
                 min_access,
@@ -195,6 +200,28 @@ def get_bookmark_by_url_uuid_or_fail(
         flask.abort(404, description="bookmark not found")
     else:
         return bookmark
+
+
+def share_grant_or_fail(session: Session, base64_share_token: str) -> ShareGrant:
+    share_grant = get_share_grant_by_token(
+        db.session, urlsafe_b64decode(base64_share_token)
+    )
+    if share_grant is None:
+        flask.abort(400, "share token can't be resolved")
+    return share_grant
+
+
+def share_grant_to_url(session: Session, share_grant: ShareGrant) -> str:
+    access_obj = share_grant.access_object
+    if isinstance(access_obj, BookmarkAccessObject):
+        user = user_from_user_uuid(session, get_cache(), access_obj.user_uuid)
+        return flask.url_for(
+            "quarchive.view_bookmark",
+            username=user.username,
+            url_uuid=access_obj.url_uuid,
+        )
+    else:
+        raise NotImplementedError("no implementation for other kinds of access obj")
 
 
 def observe_redirect_to(handler: V) -> V:
@@ -458,7 +485,7 @@ def edit_bookmark_form(username: str, url_uuid: UUID) -> flask.Response:
 def bookmark_archives(username: str, url_uuid: UUID) -> flask.Response:
     owner = get_user_or_fail(db.session, username)
     require_access_or_fail(
-        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.WRITE
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.READ
     )
     bookmark = get_bookmark_by_url_uuid_or_fail(db.session, owner.user_uuid, url_uuid)
 
@@ -479,7 +506,7 @@ def bookmark_archives(username: str, url_uuid: UUID) -> flask.Response:
 def links(username: str, url_uuid: UUID) -> flask.Response:
     owner = get_user_or_fail(db.session, username)
     require_access_or_fail(
-        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.WRITE
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.READ
     )
     bookmark = get_bookmark_by_url_uuid_or_fail(db.session, owner.user_uuid, url_uuid)
 
@@ -508,7 +535,7 @@ def links(username: str, url_uuid: UUID) -> flask.Response:
 def backlinks(username: str, url_uuid: UUID) -> flask.Response:
     owner = get_user_or_fail(db.session, username)
     require_access_or_fail(
-        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.WRITE
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.READ
     )
     bookmark = get_bookmark_by_url_uuid_or_fail(db.session, owner.user_uuid, url_uuid)
 
@@ -581,6 +608,89 @@ def view_bookmark(username: str, url_uuid: UUID) -> flask.Response:
             pagination=False,
         )
     )
+
+
+@web_blueprint.route(
+    "/<username>/bookmarks/<uuid:url_uuid>/share-form", methods=["GET"]
+)
+def share_form(username: str, url_uuid: UUID):
+    owner = get_user_or_fail(db.session, username)
+    require_access_or_fail(
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid),
+        Access.WRITEACCESS,
+    )
+    bv = list(BookmarkViewQueryBuilder(db.session, owner).only_url(url_uuid).execute())[
+        0
+    ]
+
+    return flask.make_response(
+        flask.render_template("share-form.html", bookmark_view=bv)
+    )
+
+
+@web_blueprint.route("/<username>/bookmarks/<uuid:url_uuid>/share", methods=["POST"])
+def create_share(username: str, url_uuid: UUID) -> flask.Response:
+    owner = get_user_or_fail(db.session, username)
+    access_object = BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid)
+    require_access_or_fail(
+        access_object, Access.WRITEACCESS,
+    )
+
+    share_grant = create_share_grant(db.session, access_object, Access.READ)
+    db.session.commit()
+
+    base64_share_token = share_grant.base64_token()
+    response = flask.make_response("Redirecting...", 303)
+    response.headers["Location"] = flask.url_for(
+        "quarchive.view_share",
+        username=username,
+        url_uuid=url_uuid,
+        base64_share_token=base64_share_token,
+    )
+    return response
+
+
+@web_blueprint.route(
+    "/<username>/bookmarks/<uuid:url_uuid>/share-links/<base64_share_token>",
+    methods=["GET"],
+)
+def view_share(
+    username: str, url_uuid: UUID, base64_share_token: str
+) -> flask.Response:
+    owner = get_user_or_fail(db.session, username)
+    access_object = BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid)
+    require_access_or_fail(
+        access_object, Access.READACCESS,
+    )
+
+    share_grant = share_grant_or_fail(db.session, base64_share_token)
+    bv = list(BookmarkViewQueryBuilder(db.session, owner).only_url(url_uuid).execute())[
+        0
+    ]
+    sharelink = flask.url_for(
+        "quarchive.sharelink",
+        base64_share_token=share_grant.base64_token(),
+        _external=True,
+    )
+
+    return flask.make_response(
+        flask.render_template(
+            "sharelinks.html",
+            bookmark_view=bv,
+            share_grant=share_grant,
+            sharelink=sharelink,
+        )
+    )
+
+
+@web_blueprint.route("/shares/<base64_share_token>", methods=["GET"])
+def sharelink(base64_share_token: str) -> flask.Response:
+    share_grant = share_grant_or_fail(db.session, base64_share_token)
+    flask.session.setdefault("share-tokens", []).append(share_grant.base64_token())
+    flask.session.modified = True
+    response = flask.make_response("Redirecting...", 303)
+    response.headers["Location"] = share_grant_to_url(db.session, share_grant)
+    return response
 
 
 @web_blueprint.route("/register", methods=["GET", "POST"])

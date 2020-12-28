@@ -324,3 +324,34 @@ class Icon(Base):
     # BLAKE2b hash to help deduplicate the same icon file served from different
     # locations
     source_blake2b_hash = Column(BYTEA(length=64), nullable=False, unique=True)
+
+
+class SQLShareGrant(Base):
+    __tablename__ = "share_grants"
+
+    access_object_id = Column(
+        satypes.BigInteger,
+        ForeignKey("access_objects.access_object_id"),
+        nullable=False,
+    )
+    access_verb_id = Column(
+        satypes.SmallInteger, ForeignKey("access_verbs.access_verb_id"), nullable=False
+    )
+    revoked = Column(satypes.Boolean, nullable=False, index=True)
+    share_token = Column(BYTEA(), nullable=False, primary_key=True)
+
+
+class SQLAccessObject(Base):
+    __tablename__ = "access_objects"
+    __table_args__ = (UniqueConstraint("access_object_name", "params"),)
+
+    access_object_id = Column(satypes.BigInteger, primary_key=True, autoincrement=True)
+    access_object_name = Column(satypes.String, nullable=False)
+    params = Column(JSONB(), nullable=False)
+
+
+class SQLAccessVerb(Base):
+    __tablename__ = "access_verbs"
+
+    access_verb_id = Column(satypes.SmallInteger, primary_key=True, autoincrement=False)
+    access_verb_name = Column(satypes.String, unique=True, nullable=False)

@@ -1,0 +1,69 @@
+{# -*- mode: jinja2 -*- #}
+{% extends "base.html" %}
+
+{% import 'macros.html' as macros %}
+
+{% block main %}
+<form
+  id="share-form"
+  method="POST"
+  action="{{ url_for('quarchive.create_share', username=bookmark_view.owner.username, url_uuid=bookmark_view.bookmark.url.url_uuid) }}"
+  >
+  <h1>Share "{{ bookmark_view.title() }}"</h1>
+
+  <p>
+    When you share this bookmark, the people you share it with will be able to see:
+  </p>
+  <p>
+    <ul>
+      <li>The bookmark itself
+        <ul><li>including your title for it and when you created it</li></ul>
+      </li>
+      <li>Your bookmarks that link to this bookmark</li>
+      <li>Your bookmarks that are linked from this bookmark</li>
+      <li>Your username</li>
+    </ul>
+  </p>
+
+  <p>It will look like this:</p>
+  {{ macros.render_bookmark(bookmark_view, explicit_owner=True) }}
+
+  <p>
+    Share for
+  </p>
+  <p class="radio-form-input">
+    <input disabled type="radio" id="share-for-7d" name="share-period" value="7d">
+    <label for="share-for-7d">7 days</label>
+  </p>
+  <p class="radio-form-input">
+    <input disabled type="radio" id="share-for-30d" name="share-period" value="30d">
+    <label for="share-for-30d">30 days</label>
+  </p>
+  <p class="radio-form-input">
+    <input disabled type="radio" id="share-for-1y" name="share-period" value="1y">
+    <label for="share-for-1y">a year</label>
+  </p>
+  <p class="radio-form-input">
+    <input checked type="radio" id="share-forever" name="share-period" value="forever">
+    <label for="share-for-forever">forever</label>
+  </p>
+
+  <p>
+    Share by
+  </p>
+  <p class="radio-form-input">
+  <input checked type="radio" id="share-by-link" name="share-by" value="link">
+  <label for="share-by-link">magic link</label>
+  </p>
+  <p class="radio-form-input">
+  <input disabled type="radio" id="share-by-email" name="share-by" value="link">
+  <label for="share-by-email">email</label>
+  </p>
+
+  <p>
+    <button name="share-bookmark-button" type="submit">Share bookmark</button>
+  </p>
+
+</form>
+
+{% endblock %}

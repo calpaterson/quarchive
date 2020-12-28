@@ -236,7 +236,7 @@ def test_user_timezones_are_observed(session, app, client):
     root = etree.fromstring(response.get_data(), html_parser)
     selector = CSSSelector(".bookmark-created")
     element = selector(root)[0]
-    assert element.text == "4:00 pm"
+    assert element.text == "4:00 pm on Wed 31 Dec 1970"
 
 
 def test_links_and_backlinks(session, signed_in_client, test_user):

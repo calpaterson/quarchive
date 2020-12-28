@@ -11,9 +11,7 @@ from quarchive.accesscontrol import (
     Access,
     AccessSubject,
     BookmarkAccessObject,
-    from_access_token,
     get_access,
-    to_access_token,
 )
 
 
@@ -38,20 +36,16 @@ irrelevant_token = to_access_token(
     BookmarkAccessObject(user_uuid=uuid4(), url_uuid=uuid4()), Access.READWRITE
 )
 
-
-def test_access_tokens():
+def test_share_params():
     user_uuid = uuid4()
     url_uuid = uuid4()
     subj = BookmarkAccessObject(user_uuid=user_uuid, url_uuid=url_uuid)
-    token = to_access_token(subj, Access.READ)
-    assert json.loads(token) == {
-        "n": "bookmark",
-        "q": {"user_uuid": user_uuid.hex, "url_uuid": url_uuid.hex},
-        "a": 1,
+    assert subj.to_params() == {
+        "user_uuid": user_uuid.hex,
+        "url_uuid": url_uuid.hex,
     }
+    assert BookmarkAccessObject.from_params(subj.to_params()) == subj
 
-    assert from_access_token(token) == (subj, Access.READ)
-    assert len(token) == 121
 
 
 @pytest.mark.parametrize(
