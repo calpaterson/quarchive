@@ -217,10 +217,15 @@ def test_html_injection(app, signed_in_client, test_user):
     html_parser = etree.HTMLParser()
     root = etree.fromstring(response.get_data(), html_parser)
 
-    selectors = [".bookmark-title", ".bookmark-url > a", ".bookmark-description"]
+    selectors = [".bookmark-title", ".bookmark-url > a"]
     for selector in selectors:
         element = CSSSelector(selector)(root)[0]
         assert element.getchildren() == []
+
+    # Commonmark library outputs html here in a slightly special way
+    description_element = CSSSelector(".bookmark-description")(root)[0]
+    (comment_elem,) = description_element.getchildren()
+    assert comment_elem.text == " raw HTML omitted "
 
 
 def test_user_timezones_are_observed(session, app, client):

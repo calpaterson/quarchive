@@ -28,9 +28,10 @@
             <a href="{{bookmark.url.to_string()}}">{{bookmark.url.to_string()}}</a>
           {% endif %}
         </p>
-        {% if bookmark.description|length > 0 %}
+        {% set description = bookmark_view.html_description() %}
+        {% if description|length > 0 %}
           <blockquote class="bookmark-description">
-            {{ bookmark.description }}
+            {{ description|safe }}
           </blockquote>
         {% endif %}
         <p class="bookmark-details">

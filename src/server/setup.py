@@ -18,6 +18,7 @@ setup(
         "bcrypt~=3.1.7",
         "boto3~=1.11.0",
         "click~=7.0.0",
+        "commonmark~=0.9.1",
         "flask-cors~=3.0.8",
         "flask-sqlalchemy~=2.4.1",
         "flask~=1.1.1",

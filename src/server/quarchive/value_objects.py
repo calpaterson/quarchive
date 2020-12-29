@@ -1,4 +1,5 @@
 import itertools
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from logging import getLogger
@@ -7,6 +8,7 @@ from urllib.parse import urlsplit, urlunsplit, urljoin
 from uuid import NAMESPACE_URL as UUID_URL_NAMESPACE, UUID, uuid5
 from enum import Enum
 
+from quarchive.commonmark import convert_commonmark
 import pytz
 from dateutil.parser import isoparse
 from werkzeug.datastructures import Headers as WerkzeugHeaders
@@ -269,6 +271,9 @@ class FeedNotification:
     notification_dt: datetime
 
 
+WHITESPACE_REGEX = re.compile(r"^\s+$")
+
+
 @dataclass
 class BookmarkView:
     """A bookmark with all the associated metadata to allow it to be displayed
@@ -299,6 +304,15 @@ class BookmarkView:
             return title[: self.MAX_TITLE_SIZE - 3] + "..."
         else:
             return title
+
+    def html_description(self) -> str:
+        """Convert any markdown into html, or return "" if no description"""
+        description = self.bookmark.description
+        # Skip the whole process if it's empty (as it often is)
+        if WHITESPACE_REGEX.match(description):
+            return ""
+        else:
+            return convert_commonmark(description)
 
 
 class IconScope(Enum):

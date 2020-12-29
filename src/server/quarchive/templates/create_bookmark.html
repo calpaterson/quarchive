@@ -40,6 +40,7 @@
       <label for="description-textarea">Description</label>
     </p>
     <textarea id="description-textarea" name="description">{{ description }}</textarea>
+    <span class="input-copy">You can enter <a href="https://commonmark.org/help/">markdown</a> here (except raw HTML)</span>
     <p>
       <input id="unread-input" name="unread" type="checkbox" {% if unread %}checked{% endif %}>
       <label for="unread-input">Unread</label>

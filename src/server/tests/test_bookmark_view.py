@@ -27,3 +27,35 @@ def test_title(input_title, expected_title):
     )
 
     assert view.title() == expected_title
+
+
+@pytest.mark.parametrize(
+    "input_markdown,expected_html",
+    [
+        pytest.param("*emphasis!*", "<p><em>emphasis!</em></p>\n", id="emphasis"),
+        pytest.param("", "", id="empty string"),
+        pytest.param(" ", "", id="whitespace"),
+        pytest.param(
+            """<script>alert("worrying...")</script>""",
+            "<!-- raw HTML omitted -->\n",
+            id="evil html",
+        ),
+        pytest.param(
+            "> a blockquote",
+            "<blockquote>\n<p>a blockquote</p>\n</blockquote>\n",
+            id="blockquotes",
+        ),
+    ],
+)
+def test_markdown_output(input_markdown, expected_html):
+    bm = make_bookmark(description=input_markdown)
+    view = BookmarkView(
+        owner=None,  # type: ignore
+        bookmark=bm,
+        icon_uuid=uuid4(),
+        canonical_url=None,
+        link_count=0,
+        backlink_count=0,
+    )
+
+    assert view.html_description() == expected_html
