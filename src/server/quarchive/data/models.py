@@ -195,6 +195,7 @@ class SQLUser(Base):
     )
     password = Column(satypes.String, nullable=False)
     timezone = Column(satypes.String, nullable=False)
+    registered = Column(satypes.DateTime(timezone=True), nullable=False)
 
     email_obj: "RelationshipProperty[UserEmail]" = relationship(
         "UserEmail", uselist=False, backref="user"

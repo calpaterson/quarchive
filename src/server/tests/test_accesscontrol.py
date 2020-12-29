@@ -1,7 +1,7 @@
-import json
 from uuid import uuid4
 from functools import reduce
 import operator
+from datetime import datetime
 
 import pytz
 import pytest
@@ -40,8 +40,20 @@ def test_share_params():
     assert BookmarkAccessObject.from_params(subj.to_params()) == subj
 
 
-owner = User(user_uuid=uuid4(), username="testuser", email=None, timezone=pytz.UTC)
-other = User(user_uuid=uuid4(), username="otheruser", email=None, timezone=pytz.UTC)
+owner = User(
+    user_uuid=uuid4(),
+    username="testuser",
+    email=None,
+    timezone=pytz.UTC,
+    registered=datetime.utcnow(),
+)
+other = User(
+    user_uuid=uuid4(),
+    username="otheruser",
+    email=None,
+    timezone=pytz.UTC,
+    registered=datetime.utcnow(),
+)
 test_subject = BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=uuid4())
 test_grant = ShareGrant(
     share_token=b"",

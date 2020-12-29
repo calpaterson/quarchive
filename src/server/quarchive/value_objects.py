@@ -244,6 +244,7 @@ class User:
     username: str
     email: Optional[str]
     timezone: pytz.BaseTzInfo
+    registered: datetime
 
 
 @dataclass

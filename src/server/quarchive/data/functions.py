@@ -150,24 +150,30 @@ def user_from_username_if_exists(
     if user is not None:
         return user
 
-    user_triple = (
-        session.query(SQLUser.user_uuid, UserEmail.email_address, SQLUser.timezone)
+    user_tuple = (
+        session.query(
+            SQLUser.user_uuid,
+            UserEmail.email_address,
+            SQLUser.timezone,
+            SQLUser.registered,
+        )
         .outerjoin(UserEmail)
         .filter(SQLUser.username == username)
         .first()
     )
 
     # User doesn't exist
-    if user_triple is None:
+    if user_tuple is None:
         return None
 
-    user_uuid, email, timezone = user_triple
+    user_uuid, email, timezone, registered = user_tuple
 
     user = User(
         user_uuid=user_uuid,
         username=username,
         email=email,
         timezone=pytz.timezone(timezone),
+        registered=registered,
     )
     put_user_in_cache(cache, user)
     return user
@@ -181,7 +187,7 @@ def user_from_user_uuid(session, cache: Cache, user_uuid: UUID) -> User:
     if user is not None:
         return user
 
-    username, email, timezone = (
+    username, email, timezone, registered = (
         session.query(SQLUser.username, UserEmail.email_address, SQLUser.timezone)
         .outerjoin(UserEmail)
         .filter(SQLUser.user_uuid == user_uuid)
@@ -192,6 +198,7 @@ def user_from_user_uuid(session, cache: Cache, user_uuid: UUID) -> User:
         username=username,
         email=email,
         timezone=pytz.timezone(timezone),
+        registered=registered,
     )
     put_user_in_cache(cache, user)
     return user
@@ -213,7 +220,7 @@ def create_user(
     username: str,
     password_plain: str,
     email: Optional[str] = None,
-    timezone="Europe/London",
+    user_timezone="Europe/London",
 ) -> Tuple[User, bytes]:
     """Creates a new user, returns User object and api_key"""
     user_uuid = uuid4()
@@ -221,13 +228,15 @@ def create_user(
     key = UserUUIDToUserKey(user_uuid)
 
     password_hashed = crypt_context.hash(password_plain)
+    registered = datetime.utcnow().replace(tzinfo=timezone.utc)
     # FIXME: accept timezone as an argument (infer it somehow, from IP
     # address?)
     sql_user = SQLUser(
         user_uuid=user_uuid,
         username=username,
         password=password_hashed,
-        timezone=timezone,
+        timezone=user_timezone,
+        registered=registered,
     )
 
     if email is not None:
@@ -244,7 +253,8 @@ def create_user(
         user_uuid=user_uuid,
         username=username,
         email=email,
-        timezone=pytz.timezone(timezone),
+        timezone=pytz.timezone(user_timezone),
+        registered=registered,
     )
     put_user_in_cache(cache, user)
 

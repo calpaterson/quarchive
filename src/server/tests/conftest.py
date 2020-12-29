@@ -209,6 +209,7 @@ class ExtendedUser(value_objects.User):
             username=self.username,
             email=self.email,
             timezone=self.timezone,
+            registered=self.registered,
         )
 
 
@@ -267,11 +268,12 @@ def register_user(
                 data={"timezone": timezone},
             )
 
-    api_key, user_uuid, user_timezone = (
+    api_key, user_uuid, user_timezone, registered = (
         session.query(
             sut_models.APIKey.api_key,
             sut_models.SQLUser.user_uuid,
             sut_models.SQLUser.timezone,
+            sut_models.SQLUser.registered,
         )
         .join(sut.SQLUser)
         .filter(sut.SQLUser.username == username)
@@ -285,6 +287,7 @@ def register_user(
         user_uuid=user_uuid,
         email=email,
         timezone=pytz.timezone(user_timezone),
+        registered=registered,
     )
 
 
