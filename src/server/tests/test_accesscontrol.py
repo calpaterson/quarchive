@@ -11,6 +11,7 @@ from quarchive.accesscontrol import (
     Access,
     AccessSubject,
     BookmarkAccessObject,
+    ShareGrant,
     get_access,
 )
 
@@ -28,14 +29,6 @@ def test_access_combinations(inputs, expected):
     reduce(operator.and_, inputs, Access.NONE) == expected
 
 
-owner = User(user_uuid=uuid4(), username="testuser", email=None, timezone=pytz.UTC)
-other = User(user_uuid=uuid4(), username="otheruser", email=None, timezone=pytz.UTC)
-test_subject = BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=uuid4())
-test_token = to_access_token(test_subject, Access.READ)
-irrelevant_token = to_access_token(
-    BookmarkAccessObject(user_uuid=uuid4(), url_uuid=uuid4()), Access.READWRITE
-)
-
 def test_share_params():
     user_uuid = uuid4()
     url_uuid = uuid4()
@@ -47,26 +40,44 @@ def test_share_params():
     assert BookmarkAccessObject.from_params(subj.to_params()) == subj
 
 
+owner = User(user_uuid=uuid4(), username="testuser", email=None, timezone=pytz.UTC)
+other = User(user_uuid=uuid4(), username="otheruser", email=None, timezone=pytz.UTC)
+test_subject = BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=uuid4())
+test_grant = ShareGrant(
+    share_token=b"",
+    expiry=None,
+    access_object=test_subject,
+    access_verb=Access.READ,
+    revoked=False,
+)
+irrelevant_grant = ShareGrant(
+    share_token=b"",
+    expiry=None,
+    access_object=BookmarkAccessObject(user_uuid=uuid4(), url_uuid=uuid4()),
+    access_verb=Access.READWRITE,
+    revoked=False,
+)
+
 
 @pytest.mark.parametrize(
-    "subject,user,access_tokens,expected",
+    "subject,user,grants,expected",
     [
         pytest.param(test_subject, owner, [], Access.ALL, id="ownership"),
         pytest.param(test_subject, other, [], Access.NONE, id="other"),
         pytest.param(
-            test_subject, None, [test_token], Access.READ, id="access-token-based"
+            test_subject, None, [test_grant], Access.READ, id="access-token-based"
         ),
         pytest.param(
-            test_subject, None, [irrelevant_token], Access.NONE, id="no relevant token"
+            test_subject, None, [irrelevant_grant], Access.NONE, id="no relevant token"
         ),
         pytest.param(
             test_subject,
             None,
-            [irrelevant_token, test_token],
+            [irrelevant_grant, test_grant],
             Access.READ,
             id="two tokens token",
         ),
     ],
 )
-def test_get_access(subject, user, access_tokens, expected):
-    assert get_access(AccessSubject(user, access_tokens), subject) == expected
+def test_get_access(subject, user, grants, expected):
+    assert get_access(AccessSubject(user, grants), subject) == expected
