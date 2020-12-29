@@ -34,15 +34,10 @@
   section: User data
   slug: data-export
 
-- question: How can I reset my password?
+- question: How can I change my password/username/email?
   answer: This is currently a manual process - please email cal@calpaterson.com
   section: Account
-  slug: password-reset
-
-- question: Can I change my username?
-  answer: This is a manual process too - again, please email cal@calpaterson.com
-  section: Account
-  slug: change-username
+  slug: change-user-data
 
 - question: Do I have to enter an email address when I register?
   answer: |

@@ -2,6 +2,7 @@
 {% extends "base.html" %}
 {% block main %}
     <h1>{{user.username}}</h1>
+    <p>Registered since {{user.registered|dateformat}}</p>
     {% if user == get_current_user() %}
       <h2>API key</h2>
       <pre>{{ api_key.hex() }}</pre>
@@ -9,7 +10,15 @@
       <h2>Settings</h2>
       <form method="POST">
         <p>
-          <label>Timezone</label>
+          <label for="email-address">Email address</label>
+        </p>
+        <p>
+          <input type="email"
+                 placeholder="{{ 'no email set' if not user.email }}"
+                 value="{{ user.email or '' }}" disabled>
+          <span class="input-copy">Can't be changed with this form at the moment, sorry - see the <a href="{{url_for('quarchive.faq', _anchor='faq-change-user-data')}}">FAQ!</a></span>
+        <p>
+          <label for="timezone">Timezone</label>
         </p>
         <p>
           <select name="timezone">
