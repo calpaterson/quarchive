@@ -686,8 +686,10 @@ def view_share(
 @web_blueprint.route("/shares/<base64_share_token>", methods=["GET"])
 def sharelink(base64_share_token: str) -> flask.Response:
     share_grant = share_grant_or_fail(db.session, base64_share_token)
-    flask.session.setdefault("share-tokens", []).append(share_grant.base64_token())
-    flask.session.modified = True
+    session_share_tokens = flask.session.setdefault("share-tokens", [])
+    if share_grant.base64_token() not in session_share_tokens:
+        session_share_tokens.append(share_grant.base64_token())
+        flask.session.modified = True
     response = flask.make_response("Redirecting...", 303)
     response.headers["Location"] = share_grant_to_url(db.session, share_grant)
     return response
