@@ -188,7 +188,12 @@ def user_from_user_uuid(session, cache: Cache, user_uuid: UUID) -> User:
         return user
 
     username, email, timezone, registered = (
-        session.query(SQLUser.username, UserEmail.email_address, SQLUser.timezone)
+        session.query(
+            SQLUser.username,
+            UserEmail.email_address,
+            SQLUser.timezone,
+            SQLUser.registered,
+        )
         .outerjoin(UserEmail)
         .filter(SQLUser.user_uuid == user_uuid)
         .one()
@@ -952,8 +957,16 @@ def create_share_grant(
         .on_conflict_do_nothing(index_elements=["access_object_name", "params"])
         .returning(SQLAccessObject.__table__.c.access_object_id)
     )
-    rs = session.execute(access_obj_stmt)
-    (access_obj_id,) = rs.fetchone()
+    rs = session.execute(access_obj_stmt).fetchone()
+    if rs is not None:
+        (access_obj_id,) = rs
+    else:
+        access_obj_id = (
+            session.query(SQLAccessObject.access_object_id)
+            .filter(SQLAccessObject.access_object_name == access_object.name)
+            .filter(SQLAccessObject.params == access_object.to_params())
+            .scalar()
+        )
 
     sql_share_grant = SQLShareGrant(
         access_object_id=access_obj_id,

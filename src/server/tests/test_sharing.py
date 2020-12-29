@@ -67,3 +67,33 @@ def test_access_via_sharelink(signed_in_client, test_user):
     # ...and assert that we got access
     with_share_response = signed_in_client.get(expected_view_url)
     assert with_share_response == 200
+
+
+def test_sharing_with_two_different_links(signed_in_client, test_user):
+    """Check that if we share a link multiple times, we get different urls"""
+    bm = make_bookmark()
+    sync_bookmarks(signed_in_client, test_user, [bm])
+
+    post_form_response1 = signed_in_client.post(
+        flask.url_for(
+            "quarchive.create_share",
+            username=test_user.username,
+            url_uuid=bm.url.url_uuid,
+        )
+    )
+    assert post_form_response1 == 303
+    view_url1 = post_form_response1.headers["Location"]
+    share_token1 = view_url1.split("/")[-1]
+
+    post_form_response2 = signed_in_client.post(
+        flask.url_for(
+            "quarchive.create_share",
+            username=test_user.username,
+            url_uuid=bm.url.url_uuid,
+        )
+    )
+    assert post_form_response2 == 303
+    view_url2 = post_form_response2.headers["Location"]
+    share_token2 = view_url2.split("/")[-1]
+
+    assert share_token1 != share_token2
