@@ -10,9 +10,9 @@ import missive
 import missive.dlq.sqlite
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
+from quarchive.io import RewindingIO
 from quarchive.config import load_config
 from quarchive.value_objects import (
-    Request,
     HTTPVerb,
     CrawlRequest,
     Request,
@@ -151,10 +151,11 @@ def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
     event = cast(CrawlRequested, message.get_obj())
     session = get_session(ctx)
     http_client = get_http_client(ctx)
-    crawl_uuid = crawler.crawl_url(session, http_client, event.crawl_request.request)
+    crawl_result = crawler.crawl(session, http_client, event.crawl_request.request)
     session.commit()
     publish_message(
-        IndexRequested(crawl_uuid=crawl_uuid), environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
+        IndexRequested(crawl_uuid=crawl_result.crawl_uuid),
+        environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
     )
     ctx.ack()
 
@@ -179,15 +180,16 @@ def on_new_icon_found(message: PickleMessage, ctx: missive.HandlingContext):
         log.info("already have icon at %s", icon_url)
         if page_url is not None:
             upsert_icon_for_url(session, page_url, existing_icon_uuid)
-            session.commit()
     else:
-        blake2b_hash, crawled_filelike = crawler.crawl_icon(
+        blake2b_hash, response = crawler.crawl_icon(
             session, http_client, Request(verb=HTTPVerb.GET, url=icon_url)
         )
-        indexing.index_icon(
-            session, icon_url, crawled_filelike, blake2b_hash, page_url=page_url
-        )
-        session.commit()
+        body = cast(RewindingIO, response.body)
+        with body as wind:
+            indexing.index_icon(
+                session, icon_url, wind, blake2b_hash, page_url=page_url
+            )
+    session.commit()
 
     ctx.ack()
 

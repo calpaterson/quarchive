@@ -8,6 +8,7 @@ from urllib.parse import urlsplit, urlunsplit, urljoin
 from uuid import NAMESPACE_URL as UUID_URL_NAMESPACE, UUID, uuid5
 from enum import Enum
 
+from quarchive.io import RewindingIO
 from quarchive.commonmark import convert_commonmark
 import pytz
 from dateutil.parser import isoparse
@@ -333,6 +334,15 @@ class Request:
     url: URL
     headers: WerkzeugHeaders = field(default_factory=WerkzeugHeaders)
     body: Optional[bytes] = None
+
+
+@dataclass
+class Response:
+    crawl_uuid: UUID
+    request: Request
+    status_code: Optional[int] = None
+    headers: Optional[Mapping] = None
+    body: Optional[RewindingIO] = None
 
 
 @dataclass

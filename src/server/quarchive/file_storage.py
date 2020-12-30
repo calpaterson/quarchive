@@ -2,7 +2,7 @@ from uuid import UUID
 from os import environ
 from logging import getLogger
 from functools import lru_cache
-from typing import BinaryIO, IO, Optional
+from typing import IO, Optional
 import tempfile
 import shutil
 import gzip
@@ -61,7 +61,7 @@ def get_icon_bucket():
     return bucket
 
 
-def upload_file(bucket, filelike: BinaryIO, filename: str) -> None:
+def upload_file(bucket, filelike: IO[bytes], filename: str) -> None:
     """Upload a fileobj into the bucket (compressed)"""
     with tempfile.TemporaryFile(mode="w+b") as temp_file:
         gzip_fileobj = gzip.GzipFile(mode="w+b", fileobj=temp_file)

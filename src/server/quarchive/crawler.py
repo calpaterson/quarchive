@@ -1,24 +1,21 @@
-from os import environ
 import io
+import shutil
 from logging import getLogger
-from uuid import uuid4, UUID
-from typing import Tuple, BinaryIO, cast
+from uuid import uuid4
+from typing import Tuple, BinaryIO, cast, Optional, Mapping
 import hashlib
 from tempfile import TemporaryFile
 
 from sqlalchemy.orm import Session
 from requests import exceptions, Session as HTTPClient
 
+from quarchive.io import RewindingIO
 from quarchive import file_storage
-from quarchive.messaging.message_lib import CrawlRequested
-from quarchive.messaging.publication import publish_message
-from quarchive.value_objects import URL, Request
+from quarchive.value_objects import Request, Response
 from quarchive.data.functions import (
-    is_crawled,
     create_crawl_request,
     mark_crawl_request_with_response,
     add_crawl_response,
-    get_uncrawled_urls,
 )
 
 log = getLogger(__name__)
@@ -27,7 +24,11 @@ log = getLogger(__name__)
 REQUESTS_TIMEOUT = 30
 
 
-def crawl_url(session: Session, http_client: HTTPClient, request: Request) -> UUID:
+def crawl(session: Session, http_client: HTTPClient, request: Request) -> Response:
+    """Makes a request, records the outcome in the database and returns the
+    result for any futher processing.
+
+    """
     crawl_uuid = uuid4()
     bucket = file_storage.get_response_body_bucket()
     create_crawl_request(session, crawl_uuid, request)
@@ -41,7 +42,7 @@ def crawl_url(session: Session, http_client: HTTPClient, request: Request) -> UU
         )
     except exceptions.RequestException as e:
         log.warning("unable to issue request %s - %s", request, e)
-        return crawl_uuid
+        return Response(crawl_uuid, request)
 
     mark_crawl_request_with_response(session, crawl_uuid)
 
@@ -55,11 +56,16 @@ def crawl_url(session: Session, http_client: HTTPClient, request: Request) -> UU
     # Otherwise we'll get the raw stream (often gzipped) rather than the
     # raw payload (usually html bytes)
     response.raw.decode_content = True
-
-    file_storage.upload_file(bucket, response.raw, str(body_uuid))
+    rwio = RewindingIO(TemporaryFile(mode="w+b"))
+    with rwio as wind_1:
+        shutil.copyfileobj(response.raw, wind_1)
     response.close()
+
+    with rwio as wind_2:
+        file_storage.upload_file(bucket, wind_2, str(body_uuid))
+
     log.info("crawled %s", request)
-    return crawl_uuid
+    return Response(crawl_uuid, request, response.status_code, lowered_headers, rwio)
 
 
 class CrawlException(Exception):
@@ -68,47 +74,19 @@ class CrawlException(Exception):
 
 def crawl_icon(
     session: Session, http_client: HTTPClient, request: Request
-) -> Tuple[hashlib.blake2b, BinaryIO]:
-    # FIXME: Lots of duplicated code here
+) -> Tuple[hashlib.blake2b, Response]:
     """Crawl an icon, returning a hash and the bytes themselves"""
-    crawl_uuid = uuid4()
-    create_crawl_request(session, crawl_uuid, request)
+    response = crawl(session, http_client, request)
+    if response.body is None:
+        # FIXME: This needs proper error handling
+        raise CrawlException("didn't get icon")
+    with response.body as wind:
+        hashobj = hashlib.blake2b()
 
-    try:
-        response = http_client.get(
-            request.url.to_string(), stream=True, timeout=REQUESTS_TIMEOUT
-        )
-    except exceptions.RequestException as e:
-        log.warning("unable to request %s - %s", request, e)
-        raise CrawlException()
-    log.info("crawled %s", request)
+        while True:
+            buff = wind.read(io.DEFAULT_BUFFER_SIZE)
+            if not buff:
+                break
+            hashobj.update(buff)
 
-    mark_crawl_request_with_response(session, crawl_uuid)
-
-    body_uuid = uuid4()
-
-    lowered_headers = dict(response.headers.lower_items())
-    add_crawl_response(
-        session, crawl_uuid, body_uuid, lowered_headers, response.status_code
-    )
-
-    # Otherwise we'll get the raw stream (often gzipped) rather than the
-    # raw payload (usually html bytes)
-    response.raw.decode_content = True
-
-    temp_filelike = cast(BinaryIO, TemporaryFile())
-    hashobj = hashlib.blake2b()
-
-    while True:
-        buff = response.raw.read(io.DEFAULT_BUFFER_SIZE)
-        if not buff:
-            break
-        temp_filelike.write(buff)
-        hashobj.update(buff)
-
-    temp_filelike.seek(0)
-    bucket = file_storage.get_response_body_bucket()
-    file_storage.upload_file(bucket, temp_filelike, str(body_uuid))
-
-    temp_filelike.seek(0)
-    return hashobj, temp_filelike
+    return hashobj, response

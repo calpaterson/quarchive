@@ -1,4 +1,4 @@
-from typing import TypeVar, Generic, List, Optional, IO, Iterable
+from typing import TypeVar, Generic, IO
 from contextlib import AbstractContextManager
 
 
