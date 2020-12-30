@@ -1,5 +1,5 @@
 import logging
-from typing import Tuple, IO
+from typing import Tuple, IO, Mapping
 from uuid import uuid4
 from io import BytesIO
 import random
@@ -10,8 +10,17 @@ from PIL import Image
 import responses
 from missive import TestAdapter
 
+from quarchive.discussions import get_hn_api_url
 from quarchive import file_storage
-from quarchive.value_objects import URL, Request, CrawlRequest, MetadataReason, HTTPVerb
+from quarchive.value_objects import (
+    URL,
+    Request,
+    CrawlRequest,
+    BookmarkCrawlReason,
+    HTTPVerb,
+    DiscussionCrawlReason,
+    DiscussionSource,
+)
 from quarchive.data.models import (
     Icon,
     DomainIcon,
@@ -21,10 +30,12 @@ from quarchive.data.models import (
     IconSource,
     CrawlRequest as SQLACrawlRequest,
     CrawlResponse as SQLACrawlResponse,
+    SQLDiscussion,
 )
 from quarchive.data.functions import upsert_url
 from quarchive.messaging.receipt import PickleMessage
 from quarchive.messaging.message_lib import (
+    CrawlRequested,
     HelloEvent,
     NewIconFound,
     IndexRequested,
@@ -32,7 +43,7 @@ from quarchive.messaging.message_lib import (
     BookmarkCreated,
 )
 
-from .conftest import random_string
+from .conftest import random_string, random_url, random_numeric_id
 from .test_indexing import make_crawl_with_response
 
 
@@ -99,7 +110,8 @@ def test_crawl_requested(session, bg_worker, mock_s3, requests_mock):
         PickleMessage.from_obj(
             CrawlRequested(
                 CrawlRequest(
-                    request=Request(HTTPVerb.GET, url=url,), reason=MetadataReason()
+                    request=Request(HTTPVerb.GET, url=url),
+                    reason=BookmarkCrawlReason(),
                 )
             )
         )
@@ -376,7 +388,7 @@ def test_new_icon_found_for_page_url_duplicated_by_content(
 
 
 def test_new_icon_found_for_page_url_duplicated_by_url(
-    session, requests_mock, bg_client: TestAdapter[PickleMessage], mock_s3
+    session, bg_client: TestAdapter[PickleMessage], mock_s3, requests_mock
 ):
     """Test that when a new page icon is found that is the same icon by hash as
     an existing icon, that it is recorded."""
@@ -411,3 +423,69 @@ def test_new_icon_found_for_page_url_duplicated_by_url(
 
     assert url_icon_obj_1.icon == url_icon_obj_2.icon
     assert url_icon_obj_1.icon.source_blake2b_hash == hash_bytes
+
+
+def make_algolia_hit(**kwargs) -> Mapping:
+    rv = {
+        "created_at": "2018-01-03T09:00:00.000Z",
+        "created_at_i": 1514970000,
+        "num_comments": 1,
+        "objectID": random_numeric_id(),
+        "title": "Example",
+        "url": random_url().to_string(),
+    }
+    rv.update(kwargs)
+    return rv
+
+
+def make_algolia_resp(**kwargs) -> Mapping:
+    url_str = random_url().to_string()
+    rv = {
+        "exhaustiveNbHits": True,
+        "hits": [make_algolia_hit(url=url_str)],
+        "hitsPerPage": 20,
+        "nbHits": 1,
+        "nbPages": 1,
+        "page": 0,
+        "query": url_str,
+    }
+    rv.update(kwargs)
+    return rv
+
+
+def test_crawl_hn_api(
+    session, bg_client: TestAdapter[PickleMessage], mock_s3, requests_mock
+):
+    url = random_url()
+    upsert_url(session, url)
+    session.commit()
+
+    hn_id = random_numeric_id()
+
+    api_url = get_hn_api_url(url)
+    requests_mock.add(
+        responses.GET,
+        url=api_url.to_string(),
+        json=make_algolia_resp(
+            hits=[make_algolia_hit(objectID=hn_id, url=url.to_string())]
+        ),
+        status=200,
+    )
+
+    event = CrawlRequested(
+        CrawlRequest(
+            request=Request(HTTPVerb.GET, url=get_hn_api_url(url)),
+            reason=DiscussionCrawlReason(for_url=url.url_uuid),
+        )
+    )
+
+    bg_client.send(PickleMessage.from_obj(event))
+
+    discussion = (
+        session.query(SQLDiscussion)
+        .filter(SQLDiscussion.discussion_source_id == DiscussionSource.HN.value)
+        .filter(SQLDiscussion.external_discussion_id == str(hn_id))
+        .one()
+    )
+    assert discussion is not None
+    # FIXME: more asserts here later

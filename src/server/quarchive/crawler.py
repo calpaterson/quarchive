@@ -2,7 +2,7 @@ import io
 import shutil
 from logging import getLogger
 from uuid import uuid4
-from typing import Tuple, BinaryIO, cast, Optional, Mapping
+from typing import Tuple, cast, Optional, Mapping, IO
 import hashlib
 from tempfile import TemporaryFile
 
@@ -24,7 +24,9 @@ log = getLogger(__name__)
 REQUESTS_TIMEOUT = 30
 
 
-def crawl(session: Session, http_client: HTTPClient, request: Request) -> Response:
+def crawl(
+    session: Session, http_client: HTTPClient, request: Request, stream=True
+) -> Response:
     """Makes a request, records the outcome in the database and returns the
     result for any futher processing.
 
@@ -33,16 +35,19 @@ def crawl(session: Session, http_client: HTTPClient, request: Request) -> Respon
     bucket = file_storage.get_response_body_bucket()
     create_crawl_request(session, crawl_uuid, request)
 
+    log.info("crawling %s", request.url)
     try:
         response = http_client.request(
             method=request.verb.name,
             url=request.url.to_string(),
-            stream=True,
+            stream=stream,
             timeout=REQUESTS_TIMEOUT,
         )
     except exceptions.RequestException as e:
         log.warning("unable to issue request %s - %s", request, e)
         return Response(crawl_uuid, request)
+
+    log.info("got %d from %s", response.status_code, request.url)
 
     mark_crawl_request_with_response(session, crawl_uuid)
 
@@ -53,10 +58,18 @@ def crawl(session: Session, http_client: HTTPClient, request: Request) -> Respon
         session, crawl_uuid, body_uuid, lowered_headers, response.status_code
     )
 
-    # Otherwise we'll get the raw stream (often gzipped) rather than the
-    # raw payload (usually html bytes)
-    response.raw.decode_content = True
-    rwio = RewindingIO(TemporaryFile(mode="w+b"))
+    # Unfortunately request's (usually very helpful) automatic JSON decoding
+    # can't be disabled so we need to check to see if it consumed our buffer
+    # and if so, copy into a new buffer
+    if response.raw.tell() != 0:
+        inner_io: IO[bytes] = io.BytesIO(response.content)
+        rwio = RewindingIO(inner_io)
+    else:
+        # Need to decode, otherwise we'll get the raw stream (often gzipped)
+        # rather than the raw payload (usually html bytes)
+        response.raw.decode_content = True
+        rwio = RewindingIO(TemporaryFile(mode="w+b"))
+
     with rwio as wind_1:
         shutil.copyfileobj(response.raw, wind_1)
     response.close()

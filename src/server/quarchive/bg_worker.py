@@ -10,6 +10,7 @@ import missive
 import missive.dlq.sqlite
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
+from quarchive import discussions
 from quarchive.io import RewindingIO
 from quarchive.config import load_config
 from quarchive.value_objects import (
@@ -17,6 +18,7 @@ from quarchive.value_objects import (
     CrawlRequest,
     Request,
     BookmarkCrawlReason,
+    DiscussionCrawlReason,
 )
 from quarchive.html_metadata import best_icon, HTMLMetadata, IconScope
 from quarchive.logging import configure_logging, LOG_LEVELS
@@ -98,6 +100,14 @@ class ClassMatcher:
         return isinstance(message.get_obj(), self.required_class)
 
 
+class LogicalAndMatcher:
+    def __init__(self, matchers: Sequence[missive.Matcher]):
+        self.matchers = matchers
+
+    def __call__(self, message: PickleMessage) -> bool:
+        return all(matcher(message) for matcher in self.matchers)
+
+
 class LogicalOrMatcher:
     def __init__(self, matchers: Sequence[missive.Matcher]):
         self.matchers = matchers
@@ -146,8 +156,17 @@ def on_bookmark_created(message: PickleMessage, ctx: missive.HandlingContext):
     ctx.ack()
 
 
-@proc.handle_for(ClassMatcher(CrawlRequested))
-def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
+@proc.handle_for(
+    LogicalAndMatcher(
+        [
+            ClassMatcher(CrawlRequested),
+            lambda pm: isinstance(
+                pm.get_obj().crawl_request.reason, BookmarkCrawlReason
+            ),
+        ]
+    )
+)
+def on_bookmark_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
     event = cast(CrawlRequested, message.get_obj())
     session = get_session(ctx)
     http_client = get_http_client(ctx)
@@ -157,6 +176,31 @@ def on_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
         IndexRequested(crawl_uuid=crawl_result.crawl_uuid),
         environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
     )
+    ctx.ack()
+
+
+@proc.handle_for(
+    LogicalAndMatcher(
+        [
+            ClassMatcher(CrawlRequested),
+            lambda pm: isinstance(
+                pm.get_obj().crawl_request.reason, DiscussionCrawlReason
+            ),
+        ]
+    )
+)
+def on_discussion_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
+    event = cast(CrawlRequested, message.get_obj())
+    session = get_session(ctx)
+    http_client = get_http_client(ctx)
+    response = crawler.crawl(
+        session, http_client, event.crawl_request.request, stream=True
+    )
+    if response.body is not None:
+        discussions.upsert_hn_discussions(session, response.body)
+    else:
+        log.error("unable to read from algolia")
+    session.commit()
     ctx.ack()
 
 

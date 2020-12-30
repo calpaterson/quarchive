@@ -7,7 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import RelationshipProperty, foreign, relationship, remote, backref
 from sqlalchemy.schema import CheckConstraint
 
-from quarchive.value_objects import URL
+from quarchive.value_objects import URL, Discussion, DiscussionSource
 
 # https://github.com/dropbox/sqlalchemy-stubs/issues/94
 if TYPE_CHECKING:
@@ -356,3 +356,27 @@ class SQLAccessVerb(Base):
 
     access_verb_id = Column(satypes.SmallInteger, primary_key=True, autoincrement=False)
     access_verb_name = Column(satypes.String, unique=True, nullable=False)
+
+
+class SQLDiscussion(Base):
+    __tablename__ = "discussions"
+
+    external_discussion_id = Column(satypes.String, primary_key=True)
+    discussion_source_id = Column(
+        satypes.SmallInteger,
+        ForeignKey("discussion_sources.discussion_source_id"),
+        primary_key=True,
+    )
+    url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), index=True, nullable=False)
+    comment_count = Column(satypes.Integer, nullable=False)
+    created_at = Column(satypes.DateTime(timezone=True), nullable=False)
+    title = Column(satypes.String, nullable=False)
+
+
+class SQLDiscussionSource(Base):
+    __tablename__ = "discussion_sources"
+
+    discussion_source_id = Column(
+        satypes.SmallInteger, primary_key=True, autoincrement=False
+    )
+    discussion_source_name = Column(satypes.String, unique=True, nullable=False)

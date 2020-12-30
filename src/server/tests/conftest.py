@@ -180,6 +180,8 @@ def requests_mock_session():
 @pytest.fixture(scope="function")
 def requests_mock(requests_mock_session):
     """Returns the (cleared) requests mock"""
+    # NOTE: if you are looking at this and wondering why your requests aren't
+    # being matched: this needs to run AFTER mock_s3
     requests_mock_session.reset()
     requests_mock_session.start()
     yield requests_mock_session
@@ -297,3 +299,14 @@ def random_string() -> str:
 
 def random_bytes(n) -> bytes:
     return bytearray(random.getrandbits(8) for _ in range(n))
+
+
+def random_numeric_id() -> int:
+    """Returns a random id within the pg BIGINTEGER range"""
+    return random.getrandbits(63)
+
+
+def random_url() -> value_objects.URL:
+    return value_objects.URL.from_string(
+        f"http://{random_string()}.example.com/{random_string()}.html"
+    )

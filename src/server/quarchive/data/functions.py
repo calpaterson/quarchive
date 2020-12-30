@@ -28,6 +28,8 @@ from quarchive.html_metadata import HTMLMetadata
 from quarchive.value_objects import (
     Bookmark,
     BookmarkView,
+    Discussion,
+    DiscussionSource,
     Request,
     URL,
     User,
@@ -48,6 +50,7 @@ from .models import (
     SQLABookmark,
     SQLAUrl,
     SQLAccessObject,
+    SQLDiscussion,
     SQLShareGrant,
     SQLUser,
     Tag,
@@ -1016,3 +1019,31 @@ def get_share_grant_by_token(
             access_verb=access_verb,
             revoked=revoked,
         )
+
+
+# def sql_discussion_to_discussion(url: URL, sql_discussion: SQLDiscussion) -> Discussion:
+#     return Discussion(
+#         external_id = sql_discussion.external_discussion_id,
+#         source = DiscussionSource(sql_discussion.discussion_source_id),
+#         url = url,
+#         title=sql_discussion.title,
+#         created_at=sql_discussion.created_at,
+#         comment_count=sql_discussion.comment_count,
+#     )
+
+
+def upsert_discussions(session: Session, discussions: Iterable[Discussion]) -> None:
+    insert_stmt = pg_insert(SQLDiscussion.__table__).values(
+        [
+            {
+                "external_discussion_id": d.external_id,
+                "discussion_source_id": d.source.value,
+                "url_uuid": d.url.url_uuid,
+                "comment_count": d.comment_count,
+                "created_at": d.created_at,
+                "title": d.title,
+            }
+            for d in discussions
+        ]
+    )
+    session.execute(insert_stmt)

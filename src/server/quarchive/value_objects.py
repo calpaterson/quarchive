@@ -374,3 +374,18 @@ class CrawlRequest:
     reason: Union[
         DiscussionCrawlReason, IconCrawlReason, BookmarkCrawlReason, MetadataReason
     ]
+
+
+@dataclass
+class Discussion:
+    external_id: str
+    source: "DiscussionSource"
+    url: URL
+    comment_count: int
+    created_at: datetime
+    title: str
+
+
+class DiscussionSource(Enum):
+    HN = 1
+    REDDIT = 2
