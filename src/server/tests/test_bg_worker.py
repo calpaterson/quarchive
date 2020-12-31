@@ -4,6 +4,7 @@ from uuid import uuid4
 from io import BytesIO
 import random
 import hashlib
+from datetime import datetime, timezone
 
 from tempfile import TemporaryFile
 from PIL import Image
@@ -487,5 +488,71 @@ def test_crawl_hn_api(
         .filter(SQLDiscussion.external_discussion_id == str(hn_id))
         .one()
     )
-    assert discussion is not None
-    # FIXME: more asserts here later
+    assert discussion.external_discussion_id == str(hn_id)
+    assert discussion.discussion_source_id == DiscussionSource.HN.value
+    assert discussion.comment_count == 1
+    assert discussion.url_uuid == url.url_uuid
+
+
+def test_recrawl_of_hn_api(
+    session, bg_client: TestAdapter[PickleMessage], mock_s3, requests_mock
+):
+    url = random_url()
+    upsert_url(session, url)
+    session.commit()
+
+    hn_id = random_numeric_id()
+
+    api_url = get_hn_api_url(url)
+    requests_mock.add(
+        responses.GET,
+        url=api_url.to_string(),
+        json=make_algolia_resp(
+            hits=[make_algolia_hit(objectID=hn_id, url=url.to_string())]
+        ),
+        status=200,
+    )
+
+    event = CrawlRequested(
+        CrawlRequest(
+            request=Request(HTTPVerb.GET, url=get_hn_api_url(url)),
+            reason=DiscussionCrawlReason(for_url=url.url_uuid),
+        )
+    )
+
+    bg_client.send(PickleMessage.from_obj(event))
+
+    # And again, but with a different comment count
+    requests_mock.remove(responses.GET, url=api_url.to_string())
+    requests_mock.add(
+        responses.GET,
+        url=api_url.to_string(),
+        json=make_algolia_resp(
+            hits=[
+                make_algolia_hit(
+                    objectID=hn_id,
+                    url=url.to_string(),
+                    num_comments=5,
+                    title="Other example",
+                    created_at_i=int(datetime(2018, 1, 4).timestamp()),
+                )
+            ]
+        ),
+        status=200,
+    )
+
+    # and again
+    bg_client.send(PickleMessage.from_obj(event))
+
+    discussion = (
+        session.query(SQLDiscussion)
+        .filter(SQLDiscussion.discussion_source_id == DiscussionSource.HN.value)
+        .filter(SQLDiscussion.external_discussion_id == str(hn_id))
+        .one()
+    )
+    assert discussion.comment_count == 5
+    assert discussion.url_uuid == url.url_uuid
+    assert discussion.title == "Other example"
+    assert discussion.created_at == datetime(2018, 1, 4, tzinfo=timezone.utc)
+
+

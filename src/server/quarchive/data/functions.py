@@ -1046,4 +1046,13 @@ def upsert_discussions(session: Session, discussions: Iterable[Discussion]) -> N
             for d in discussions
         ]
     )
-    session.execute(insert_stmt)
+    upsert_stmt = insert_stmt.on_conflict_do_update(
+        index_elements=["discussion_source_id", "external_discussion_id"],
+        set_={
+            "url_uuid": insert_stmt.excluded.url_uuid,
+            "comment_count": insert_stmt.excluded.comment_count,
+            "created_at": insert_stmt.excluded.created_at,
+            "title": insert_stmt.excluded.title,
+        },
+    )
+    session.execute(upsert_stmt)
