@@ -1,8 +1,9 @@
 from os import environ
 import json
 from datetime import datetime, timezone
-from typing import Type, cast, Sequence, Optional
+from typing import Type, cast, Sequence, Optional, List, Iterable
 from logging import getLogger
+import itertools
 
 import requests
 from sqlalchemy.orm import Session, sessionmaker
@@ -20,6 +21,7 @@ from quarchive.value_objects import (
     Request,
     BookmarkCrawlReason,
     DiscussionCrawlReason,
+    Discussion,
 )
 from quarchive.html_metadata import best_icon, HTMLMetadata, IconScope
 from quarchive.logging import configure_logging, LOG_LEVELS
@@ -196,18 +198,20 @@ def on_discussion_crawl_requested(message: PickleMessage, ctx: missive.HandlingC
     session = get_session(ctx)
     http_client = get_http_client(ctx)
     request: Optional[Request] = event.crawl_request.request
+    discussion_iters: List[Iterable[Discussion]] = []
     while request is not None:
         response = crawler.crawl(session, http_client, request, stream=True)
         if response.body is not None:
             with response.body as wind:
                 response_document = json.load(wind)
-            ds = discussions.extract_hn_discussions(response_document)
-            upsert_discussions(session, ds)
+            discussion_iters.append(
+                discussions.extract_hn_discussions(response_document)
+            )
             request = discussions.hn_turn_page(response.request.url, response_document)
         else:
             log.error("unable to read from algolia: %s", response)
             raise RuntimeError("unable to read from algolia")
-
+    upsert_discussions(session, itertools.chain(*discussion_iters))
     session.commit()
     ctx.ack()
 

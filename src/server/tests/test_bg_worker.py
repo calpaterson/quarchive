@@ -556,9 +556,6 @@ def test_recrawl_of_hn_api(
     assert discussion.created_at == datetime(2018, 1, 4, tzinfo=timezone.utc)
 
 
-import pytest
-
-# @pytest.mark.skip(reason="not yet")
 def test_multi_page_hn_api(
     session, bg_client: TestAdapter[PickleMessage], mock_s3, requests_mock
 ):
