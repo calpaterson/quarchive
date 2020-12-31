@@ -11,7 +11,7 @@ from PIL import Image
 import responses
 from missive import TestAdapter
 
-from quarchive.discussions import get_hn_api_url
+from quarchive.discussions import get_hn_api_url, hn_turn_page
 from quarchive import file_storage
 from quarchive.value_objects import (
     URL,
@@ -556,3 +556,52 @@ def test_recrawl_of_hn_api(
     assert discussion.created_at == datetime(2018, 1, 4, tzinfo=timezone.utc)
 
 
+import pytest
+
+# @pytest.mark.skip(reason="not yet")
+def test_multi_page_hn_api(
+    session, bg_client: TestAdapter[PickleMessage], mock_s3, requests_mock
+):
+    url = random_url()
+    upsert_url(session, url)
+    session.commit()
+
+    api_url1 = get_hn_api_url(url)
+    api_url2 = URL.from_string(api_url1.to_string() + "&page=1")
+    print(api_url2.to_string())
+    requests_mock.add(
+        responses.GET,
+        url=api_url1.to_string(),
+        json=make_algolia_resp(
+            nbPages=2, hitsPerPage=1, hits=[make_algolia_hit(url=url.to_string())]
+        ),
+        status=200,
+    )
+    requests_mock.add(
+        responses.GET,
+        url=api_url2.to_string(),
+        json=make_algolia_resp(
+            nbPages=2,
+            page=1,
+            hitsPerPage=1,
+            hits=[make_algolia_hit(url=url.to_string())],
+        ),
+        status=200,
+    )
+
+    event = CrawlRequested(
+        CrawlRequest(
+            request=Request(HTTPVerb.GET, url=get_hn_api_url(url)),
+            reason=DiscussionCrawlReason(for_url=url.url_uuid),
+        )
+    )
+
+    bg_client.send(PickleMessage.from_obj(event))
+
+    discussion_count = (
+        session.query(SQLDiscussion)
+        .filter(SQLDiscussion.discussion_source_id == DiscussionSource.HN.value)
+        .filter(SQLDiscussion.url_uuid == url.url_uuid)
+        .count()
+    )
+    assert discussion_count == 2

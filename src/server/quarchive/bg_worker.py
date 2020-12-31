@@ -1,4 +1,5 @@
 from os import environ
+import json
 from datetime import datetime, timezone
 from typing import Type, cast, Sequence, Optional
 from logging import getLogger
@@ -24,6 +25,7 @@ from quarchive.html_metadata import best_icon, HTMLMetadata, IconScope
 from quarchive.logging import configure_logging, LOG_LEVELS
 from quarchive import crawler, indexing
 from quarchive.data.functions import (
+    upsert_discussions,
     upsert_url,
     upsert_icon_for_url,
     icon_at_url,
@@ -193,13 +195,19 @@ def on_discussion_crawl_requested(message: PickleMessage, ctx: missive.HandlingC
     event = cast(CrawlRequested, message.get_obj())
     session = get_session(ctx)
     http_client = get_http_client(ctx)
-    response = crawler.crawl(
-        session, http_client, event.crawl_request.request, stream=True
-    )
-    if response.body is not None:
-        discussions.upsert_hn_discussions(session, response.body)
-    else:
-        log.error("unable to read from algolia")
+    request: Optional[Request] = event.crawl_request.request
+    while request is not None:
+        response = crawler.crawl(session, http_client, request, stream=True)
+        if response.body is not None:
+            with response.body as wind:
+                response_document = json.load(wind)
+            ds = discussions.extract_hn_discussions(response_document)
+            upsert_discussions(session, ds)
+            request = discussions.hn_turn_page(response.request.url, response_document)
+        else:
+            log.error("unable to read from algolia: %s", response)
+            raise RuntimeError("unable to read from algolia")
+
     session.commit()
     ctx.ack()
 
