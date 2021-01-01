@@ -1,9 +1,12 @@
-import json
-from datetime import datetime
+from datetime import datetime, timedelta
+from uuid import getnode
+from hashlib import blake2b
+
 from urllib.parse import quote_plus, urlencode, parse_qs
-from typing import Optional, List, Iterator, Mapping
+from typing import Optional, Iterator, Mapping, Iterable
 from logging import getLogger
 
+import requests
 
 from quarchive.value_objects import (
     URL,
@@ -13,6 +16,9 @@ from quarchive.value_objects import (
     Response,
     HTTPVerb,
 )
+
+# FIXME: move version around to include the version in here
+REDDIT_USER_AGENT = "linux:com.quarchive:1.0 (by /u/calp)"
 
 log = getLogger(__name__)
 
@@ -49,3 +55,132 @@ def hn_turn_page(url: URL, response_body: Mapping) -> Optional[Request]:
         new_url = url.follow("?" + urlencode(q_dict, doseq=True))
         return Request(verb=HTTPVerb.GET, url=new_url)
     return None
+
+
+class RedditTokenClient:
+    ACCESS_TOKEN_URL = "https://www.reddit.com/api/v1/access_token"
+    MAX_DEVICE_ID_LENGTH = 30
+
+    def __init__(
+        self, http_client: requests.Session, client_id: str, client_secret: str
+    ):
+        self.http_client = http_client
+        self.device_id = self.get_device_id()
+        self.expiry = datetime(1970, 1, 1)
+        self.client_id = client_id
+        self.client_secret = client_secret
+
+    def get_device_id(self) -> str:
+        """The Reddit API wants a unique device id that stays constant over
+        time.  This hashes the mac address to provide such an id.
+
+        """
+        mac = getnode().to_bytes(6, byteorder="big")
+        device_id = blake2b(mac, digest_size=self.MAX_DEVICE_ID_LENGTH // 2).hexdigest()
+        log.info(
+            "have chosen device id %s based on mac address %s", device_id, mac.hex()
+        )
+        return device_id
+
+    def fetch_token(self):
+        """Fetch a new token from the api"""
+        log.info("fetching a new reddit token")
+        response = self.http_client.post(
+            url=self.ACCESS_TOKEN_URL,
+            auth=(self.client_id, self.client_secret),
+            data={
+                "grant_type": "https://oauth.reddit.com/grants/installed_client",
+                "device_id": self.get_device_id(),
+                "scope": "read",
+            },
+            # FIXME: These fields should be set globally somehow
+            headers={"User-Agent": REDDIT_USER_AGENT},
+            timeout=30,
+        )
+        log.debug(
+            "got %d response from reddit token api: %s",
+            response.status_code,
+            response.content,
+        )
+        try:
+            response.raise_for_status()
+        except requests.exceptions.RequestException:
+            log.error(
+                "got bad response %d from reddit access_token api",
+                response.status_code,
+                response.content,
+            )
+            raise
+        doc = response.json()
+        self._token = doc["access_token"]
+        self.expiry = datetime.utcnow() + timedelta(seconds=doc["expires_in"])
+        # Expire it 60 seconds early to reduce the chances that we're using an
+        # out of date token towards the end of the time period
+        self.expiry -= timedelta(seconds=60)
+
+    def get_token(self) -> str:
+        if datetime.utcnow() > self.expiry:
+            log.info("reddit token expired")
+            self.fetch_token()
+        return self._token
+
+
+class RedditDiscussionClient:
+    API_SEARCH_URL = "https://api.reddit.com/search"
+
+    def __init__(
+        self, http_client: requests.Session, client_id: str, client_secret: str
+    ):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.token_client = RedditTokenClient(http_client, client_id, client_secret)
+        self.http_client = http_client
+
+    def _discussion_from_child_data(self, child_data: Mapping) -> Discussion:
+        return Discussion(
+            external_id=child_data["id"],
+            source=DiscussionSource.REDDIT,
+            url=URL.from_string(child_data["url"]),
+            comment_count=child_data["num_comments"],
+            created_at=datetime.utcfromtimestamp(child_data["created_utc"]),
+            title=f'{child_data["subreddit_name_prefixed"]}: {child_data["title"]}',
+        )
+
+    def discussions_for_url(self, url: URL) -> Iterable[Discussion]:
+        # FIXME: Should step across pages here
+        token = self.token_client.get_token()
+        response = self.http_client.get(
+            self.API_SEARCH_URL,
+            auth=("bearer", token),
+            params={
+                "q": f"url:{url.to_string()}",
+                "include_facts": "false",
+                "limit": 100,
+                "sort": "comments",
+                "type": "link",
+                "sr_detail": "false",
+            },
+            headers={"User-Agent": REDDIT_USER_AGENT},
+            timeout=30,
+        )
+        log.debug(
+            "got %d response from reddit search api: %s",
+            response.status_code,
+            response.content,
+        )
+        try:
+            response.raise_for_status()
+        except requests.exceptions.RequestException:
+            log.error(
+                "got bad response %d from reddit search api",
+                response.status_code,
+                response.content,
+            )
+            raise
+        doc = response.json()
+        for child in doc["data"]["children"]:
+            if child["kind"] != "t3":
+                log.warning("found non-link in response for url search, probably a bug")
+                continue
+            else:
+                yield self._discussion_from_child_data(child["data"])

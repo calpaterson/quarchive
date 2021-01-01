@@ -63,6 +63,8 @@ def config():
             "QM_AWS_SECRET_ACCESS_KEY": "123",
             "QM_AWS_ACCESS_KEY": "abc",
             "QM_AWS_REGION_NAME": "moon",
+            "QM_REDDIT_CLIENT_ID": "client",
+            "QM_REDDIT_CLIENT_SECRET": "reddit-secret",
             "QM_AWS_S3_ENDPOINT_URL": "UNSET",
             "QM_RABBITMQ_URL": "amqp:///test",
             "QM_RABBITMQ_BG_WORKER_TOPIC": "bg_q",
