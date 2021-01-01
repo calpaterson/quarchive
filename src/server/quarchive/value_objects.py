@@ -353,11 +353,6 @@ class MetadataReason:
 
 
 @dataclass
-class DiscussionCrawlReason:
-    for_url: UUID
-
-
-@dataclass
 class IconCrawlReason:
     for_url: UUID
     icon_type: IconScope
@@ -371,9 +366,7 @@ class BookmarkCrawlReason:
 @dataclass
 class CrawlRequest:
     request: Request
-    reason: Union[
-        DiscussionCrawlReason, IconCrawlReason, BookmarkCrawlReason, MetadataReason
-    ]
+    reason: Union[IconCrawlReason, BookmarkCrawlReason, MetadataReason]
 
 
 @dataclass

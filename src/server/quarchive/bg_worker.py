@@ -1,5 +1,4 @@
 from os import environ
-import json
 from datetime import datetime, timezone
 from typing import Type, cast, Sequence, Optional, List, Iterable
 from logging import getLogger
@@ -16,11 +15,12 @@ from quarchive import discussions
 from quarchive.io import RewindingIO
 from quarchive.config import load_config
 from quarchive.value_objects import (
+    URL,
     HTTPVerb,
     CrawlRequest,
     Request,
     BookmarkCrawlReason,
-    DiscussionCrawlReason,
+    DiscussionSource,
     Discussion,
 )
 from quarchive.html_metadata import best_icon, HTMLMetadata, IconScope
@@ -37,10 +37,11 @@ from quarchive.data.functions import (
 )
 from quarchive.messaging.publication import publish_message
 from quarchive.messaging.message_lib import (
-    Event,
-    HelloEvent,
     BookmarkCreated,
     CrawlRequested,
+    Event,
+    FetchDiscussionsCommand,
+    HelloEvent,
     IndexRequested,
     NewIconFound,
 )
@@ -186,31 +187,27 @@ def on_bookmark_crawl_requested(message: PickleMessage, ctx: missive.HandlingCon
 @proc.handle_for(
     LogicalAndMatcher(
         [
-            ClassMatcher(CrawlRequested),
-            lambda pm: isinstance(
-                pm.get_obj().crawl_request.reason, DiscussionCrawlReason
-            ),
+            ClassMatcher(FetchDiscussionsCommand),
+            lambda pm: pm.get_obj().source == DiscussionSource.HN,
         ]
     )
 )
 def on_discussion_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
-    event = cast(CrawlRequested, message.get_obj())
+    event = cast(FetchDiscussionsCommand, message.get_obj())
     session = get_session(ctx)
     http_client = get_http_client(ctx)
-    request: Optional[Request] = event.crawl_request.request
+    url = get_url_by_url_uuid(session, event.url_uuid)
+    if url is None:
+        # FIXME: improve this...
+        raise RuntimeError("url does not exist!")
     discussion_iters: List[Iterable[Discussion]] = []
-    while request is not None:
-        response = crawler.crawl(session, http_client, request, stream=True)
-        if response.body is not None:
-            with response.body as wind:
-                response_document = json.load(wind)
-            discussion_iters.append(
-                discussions.extract_hn_discussions(response_document)
-            )
-            request = discussions.hn_turn_page(response.request.url, response_document)
-        else:
-            log.error("unable to read from algolia: %s", response)
-            raise RuntimeError("unable to read from algolia")
+    api_url: Optional[URL] = discussions.get_hn_api_url(url)
+    while api_url is not None:
+        response = http_client.get(api_url.to_string())
+        response.raise_for_status()
+        document = response.json()
+        discussion_iters.append(discussions.extract_hn_discussions(document))
+        api_url = discussions.hn_turn_page(api_url, document)
     upsert_discussions(session, itertools.chain(*discussion_iters))
     session.commit()
     ctx.ack()

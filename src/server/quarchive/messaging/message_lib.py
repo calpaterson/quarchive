@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 from datetime import datetime, timezone
 import attr
 
-from quarchive.value_objects import CrawlRequest
+from quarchive.value_objects import CrawlRequest, DiscussionSource
 
 
 @attr.s(auto_attribs=True)
@@ -35,6 +35,12 @@ class CrawlRequested(Event):
     user action."""
 
     crawl_request: CrawlRequest
+
+
+@attr.s(auto_attribs=True)
+class FetchDiscussionsCommand(Event):
+    url_uuid: UUID
+    source: DiscussionSource
 
 
 @attr.s(auto_attribs=True)

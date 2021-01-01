@@ -11,7 +11,7 @@ from PIL import Image
 import responses
 from missive import TestAdapter
 
-from quarchive.discussions import get_hn_api_url, hn_turn_page
+from quarchive.discussions import get_hn_api_url
 from quarchive import file_storage
 from quarchive.value_objects import (
     URL,
@@ -19,7 +19,6 @@ from quarchive.value_objects import (
     CrawlRequest,
     BookmarkCrawlReason,
     HTTPVerb,
-    DiscussionCrawlReason,
     DiscussionSource,
 )
 from quarchive.data.models import (
@@ -36,12 +35,12 @@ from quarchive.data.models import (
 from quarchive.data.functions import upsert_url
 from quarchive.messaging.receipt import PickleMessage
 from quarchive.messaging.message_lib import (
-    CrawlRequested,
-    HelloEvent,
-    NewIconFound,
-    IndexRequested,
-    CrawlRequested,
     BookmarkCreated,
+    CrawlRequested,
+    FetchDiscussionsCommand,
+    HelloEvent,
+    IndexRequested,
+    NewIconFound,
 )
 
 from .conftest import random_string, random_url, random_numeric_id
@@ -473,13 +472,7 @@ def test_crawl_hn_api(
         status=200,
     )
 
-    event = CrawlRequested(
-        CrawlRequest(
-            request=Request(HTTPVerb.GET, url=get_hn_api_url(url)),
-            reason=DiscussionCrawlReason(for_url=url.url_uuid),
-        )
-    )
-
+    event = FetchDiscussionsCommand(url_uuid=url.url_uuid, source=DiscussionSource.HN)
     bg_client.send(PickleMessage.from_obj(event))
 
     discussion = (
@@ -513,13 +506,7 @@ def test_recrawl_of_hn_api(
         status=200,
     )
 
-    event = CrawlRequested(
-        CrawlRequest(
-            request=Request(HTTPVerb.GET, url=get_hn_api_url(url)),
-            reason=DiscussionCrawlReason(for_url=url.url_uuid),
-        )
-    )
-
+    event = FetchDiscussionsCommand(url_uuid=url.url_uuid, source=DiscussionSource.HN)
     bg_client.send(PickleMessage.from_obj(event))
 
     # And again, but with a different comment count
@@ -565,7 +552,6 @@ def test_multi_page_hn_api(
 
     api_url1 = get_hn_api_url(url)
     api_url2 = URL.from_string(api_url1.to_string() + "&page=1")
-    print(api_url2.to_string())
     requests_mock.add(
         responses.GET,
         url=api_url1.to_string(),
@@ -586,13 +572,7 @@ def test_multi_page_hn_api(
         status=200,
     )
 
-    event = CrawlRequested(
-        CrawlRequest(
-            request=Request(HTTPVerb.GET, url=get_hn_api_url(url)),
-            reason=DiscussionCrawlReason(for_url=url.url_uuid),
-        )
-    )
-
+    event = FetchDiscussionsCommand(url_uuid=url.url_uuid, source=DiscussionSource.HN)
     bg_client.send(PickleMessage.from_obj(event))
 
     discussion_count = (

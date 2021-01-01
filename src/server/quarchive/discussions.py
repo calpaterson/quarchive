@@ -46,14 +46,14 @@ def extract_hn_discussions(response_body: Mapping) -> Iterator[Discussion]:
         )
 
 
-def hn_turn_page(url: URL, response_body: Mapping) -> Optional[Request]:
+def hn_turn_page(url: URL, response_body: Mapping) -> Optional[URL]:
     final_page = response_body["nbPages"] - 1
     current_page = response_body["page"]
     if current_page < final_page:
         q_dict = parse_qs(url.query)
         q_dict["page"] = current_page + 1
         new_url = url.follow("?" + urlencode(q_dict, doseq=True))
-        return Request(verb=HTTPVerb.GET, url=new_url)
+        return new_url
     return None
 
 
