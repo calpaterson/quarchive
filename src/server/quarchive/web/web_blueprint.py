@@ -40,9 +40,9 @@ from quarchive.messaging import message_lib
 from quarchive.archive import get_archive_links, Archive
 from quarchive.messaging.publication import publish_message
 from quarchive.cache import get_cache
+from quarchive.data.bvqb import BookmarkViewQueryBuilder
 from quarchive.data.functions import (
     BookmarkView,
-    BookmarkViewQueryBuilder,
     create_user,
     get_api_key,
     get_bookmark_by_url_uuid,

@@ -1,16 +1,19 @@
+from datetime import datetime
+
 import pytest
 
-from quarchive.value_objects import URL
+from quarchive.value_objects import URL, Discussion, DiscussionSource
 from quarchive.data.models import CanonicalUrl
+from quarchive.data.bvqb import BookmarkViewQueryBuilder
 from quarchive.data.functions import (
-    BookmarkViewQueryBuilder,
+    upsert_discussions,
     record_page_icon,
     set_bookmark,
     upsert_links,
     upsert_url,
 )
 
-from .conftest import make_bookmark, random_bytes, random_string
+from .conftest import make_bookmark, random_bytes, random_string, random_numeric_id
 
 
 def test_simple_bookmark(session, test_user):
@@ -83,3 +86,62 @@ def test_icon_uuids_url_icon(session, test_user, canonical_url):
 
     (bm1_view,) = (f for f in BookmarkViewQueryBuilder(session, test_user).execute())
     assert bm1_view.icon_uuid == icon_uuid
+
+
+def test_discussion_digests_no_discussions(session, test_user):
+    bm = make_bookmark()
+    set_bookmark(session, test_user.user_uuid, bm)
+
+    (bm1_view,) = (f for f in BookmarkViewQueryBuilder(session, test_user).execute())
+    assert bm1_view.discussion_digest.comment_count == 0
+    assert bm1_view.discussion_digest.discussion_count == 0
+    assert bm1_view.discussion_digest.sources == set()
+
+
+def test_discussion_digests(session, test_user):
+    bm = make_bookmark()
+    set_bookmark(session, test_user.user_uuid, bm)
+
+    discussions = [
+        Discussion(
+            external_id=str(random_numeric_id()),
+            source=DiscussionSource.HN,
+            url=bm.url,
+            comment_count=1,
+            created_at=datetime(2018, 1, 3),
+            title="example",
+        ),
+        Discussion(
+            external_id=str(random_numeric_id()),
+            source=DiscussionSource.HN,
+            url=bm.url,
+            comment_count=0,
+            created_at=datetime(2018, 1, 3),
+            title="example",
+        ),
+        Discussion(
+            external_id=str(random_numeric_id()),
+            source=DiscussionSource.HN,
+            url=bm.url,
+            comment_count=100,
+            created_at=datetime(2018, 1, 3),
+            title="example",
+        ),
+        Discussion(
+            external_id=str(random_numeric_id()),
+            source=DiscussionSource.REDDIT,
+            url=bm.url,
+            comment_count=1,
+            created_at=datetime(2018, 1, 3),
+            title="example",
+        ),
+    ]
+
+    upsert_discussions(session, discussions)
+    (bm1_view,) = (f for f in BookmarkViewQueryBuilder(session, test_user).execute())
+    assert bm1_view.discussion_digest.comment_count == 102
+    assert bm1_view.discussion_digest.discussion_count == 4
+    assert bm1_view.discussion_digest.sources == {
+        DiscussionSource.HN,
+        DiscussionSource.REDDIT,
+    }

@@ -289,7 +289,7 @@ class BookmarkView:
     canonical_url: Optional[URL]
     link_count: int
     backlink_count: int
-    # discussions: DiscussionDigest
+    discussion_digest: "DiscussionDigest"
 
     def has_canonical_url(self):
         """Returns true when there is a canonical url and it's different to the original url"""
@@ -315,6 +315,13 @@ class BookmarkView:
             return ""
         else:
             return convert_commonmark(description)
+
+
+@dataclass
+class DiscussionDigest:
+    comment_count: int
+    discussion_count: int
+    sources: Set["DiscussionSource"]
 
 
 class IconScope(Enum):

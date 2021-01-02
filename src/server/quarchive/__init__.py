@@ -30,7 +30,6 @@ from .data.functions import (
     set_bookmark,
     merge_bookmarks,
     all_bookmarks,
-    bookmarks_with_tag,
     tags_with_count,
     bookmark_from_sqla,
 )

@@ -1,7 +1,7 @@
 from uuid import uuid4
 import pytest
 
-from quarchive.value_objects import BookmarkView
+from quarchive.value_objects import BookmarkView, DiscussionDigest
 
 from .conftest import make_bookmark
 
@@ -24,6 +24,9 @@ def test_title(input_title, expected_title):
         canonical_url=None,
         link_count=0,
         backlink_count=0,
+        discussion_digest=DiscussionDigest(
+            comment_count=0, discussion_count=0, sources=set()
+        ),
     )
 
     assert view.title() == expected_title
@@ -56,6 +59,9 @@ def test_markdown_output(input_markdown, expected_html):
         canonical_url=None,
         link_count=0,
         backlink_count=0,
+        discussion_digest=DiscussionDigest(
+            comment_count=0, discussion_count=0, sources=set()
+        ),
     )
 
     assert view.html_description() == expected_html
