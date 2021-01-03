@@ -59,14 +59,20 @@ def create_session_cls(proc_ctx: missive.ProcessingContext[PickleMessage]):
 
 
 @proc.before_processing
-def create_http_client(proc_ctx):
-    proc_ctx.state.http_client = requests.Session()
+def create_http_clients(proc_ctx):
+    http_client = requests.Session()
+    proc_ctx.state.http_client = http_client
+    proc_ctx.state.reddit_client = discussions.RedditDiscussionClient(
+        http_client,
+        environ["QM_REDDIT_CLIENT_ID"],
+        environ["QM_REDDIT_CLIENT_SECRET"],
+    )
 
 
 @proc.before_handling
-def place_http_client(proc_ctx, handling_ctx):
+def place_http_clients(proc_ctx, handling_ctx):
     handling_ctx.state.http_client = proc_ctx.state.http_client
-
+    handling_ctx.state.reddit_client = proc_ctx.state.reddit_client
 
 @proc.before_handling
 def create_session(
@@ -95,6 +101,10 @@ def get_session(ctx: missive.HandlingContext) -> Session:
 
 def get_http_client(ctx: missive.HandlingContext) -> requests.Session:
     return ctx.state.http_client
+
+
+def get_reddit_client(ctx: missive.HandlingContext) -> discussions.RedditDiscussionClient:
+    return ctx.state.reddit_client
 
 
 class ClassMatcher:
@@ -184,14 +194,7 @@ def on_bookmark_crawl_requested(message: PickleMessage, ctx: missive.HandlingCon
     ctx.ack()
 
 
-@proc.handle_for(
-    LogicalAndMatcher(
-        [
-            ClassMatcher(FetchDiscussionsCommand),
-            lambda pm: pm.get_obj().source == DiscussionSource.HN,
-        ]
-    )
-)
+@proc.handle_for(ClassMatcher(FetchDiscussionsCommand))
 def on_discussion_crawl_requested(message: PickleMessage, ctx: missive.HandlingContext):
     event = cast(FetchDiscussionsCommand, message.get_obj())
     session = get_session(ctx)
@@ -200,8 +203,12 @@ def on_discussion_crawl_requested(message: PickleMessage, ctx: missive.HandlingC
     if url is None:
         # FIXME: improve this...
         raise RuntimeError("url does not exist!")
-    hn_client = discussions.HNAlgoliaClient(http_client)
-    upsert_discussions(session, hn_client.discussions_for_url(url))
+    source = event.source
+    if event.source == DiscussionSource.HN:
+        client = discussions.HNAlgoliaClient(http_client)
+    else:
+        client = get_reddit_client(ctx)
+    upsert_discussions(session, client.discussions_for_url(url))
     session.commit()
     ctx.ack()
 

@@ -924,7 +924,6 @@ def get_discussion_frontier(
                 ),
             )
         )
-        .where(ds.c.discussion_source_id == 1)
         .where(~u.c.netloc.like("%example.com"))
     )
     for url_uuid, discussion_source_id in session.execute(query):

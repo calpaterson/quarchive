@@ -90,6 +90,8 @@ def fetch(url: str):
     url_obj = URL.from_string(url)
     event = FetchDiscussionsCommand(url_obj.url_uuid, DiscussionSource.HN)
     publish_message(event, routing_key=environ["QM_RABBITMQ_BG_WORKER_TOPIC"])
+    event = FetchDiscussionsCommand(url_obj.url_uuid, DiscussionSource.REDDIT)
+    publish_message(event, routing_key=environ["QM_RABBITMQ_BG_WORKER_TOPIC"])
 
 
 @click.command(help="Requests a (re)index of the most recent crawl for each bookmark")
