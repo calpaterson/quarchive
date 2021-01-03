@@ -383,7 +383,7 @@ class SQLDiscussionSource(Base):
 
 
 class SQLDiscussionFetch(Base):
-    __tablename__ = "sql_discussion_fetches"
+    __tablename__ = "discussion_fetches"
 
     url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), primary_key=True)
     discussion_source_id = Column(
