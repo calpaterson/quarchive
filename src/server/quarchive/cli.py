@@ -2,25 +2,29 @@ import io
 from uuid import UUID
 from sys import stdout
 import contextlib
+from typing import Optional
 from logging import getLogger
 from os import environ
 
 import click
 
 from quarchive.web.app import init_app
-from quarchive.value_objects import URL
+from quarchive.value_objects import URL, DiscussionSource
 from quarchive import file_storage
 from quarchive.logging import LOG_LEVELS, configure_logging
-from quarchive.messaging.publication import get_producer
-from quarchive.messaging.message_lib import HelloEvent
+from quarchive.messaging.publication import get_producer, publish_message
+from quarchive.messaging.message_lib import (
+    HelloEvent,
+    IndexRequested,
+    FetchDiscussionsCommand,
+)
 from quarchive.data.functions import (
+    get_discussion_frontier,
     get_most_recent_crawl,
     most_recent_successful_bookmark_crawls,
     get_crawl_metadata,
     get_session_cls,
 )
-from quarchive.messaging.message_lib import IndexRequested
-from quarchive.messaging.publication import publish_message
 
 log = getLogger(__name__)
 
@@ -55,6 +59,37 @@ def send_hello(message, loop):
         while True:
             hello_event = HelloEvent(message)
             publish_message(hello_event, routing_key=routing_key)
+
+
+@quarchive_cli.group(help="Discussion related sub-commands")
+def discussions():
+    pass
+
+
+@discussions.command(help="(Re)fetch all discussions that are due")
+@click.option("--limit", type=click.INT, default=None)
+def refetch(limit: Optional[int]):
+    Session = get_session_cls()
+    count = 0
+    with contextlib.closing(Session()) as session:
+        for url_uuid, discussion_source in get_discussion_frontier(session):
+            publish_message(
+                FetchDiscussionsCommand(url_uuid, discussion_source),
+                routing_key=environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
+            )
+            count += 1
+            if limit is not None and count >= limit:
+                log.info("hit limit of %d", limit)
+                break
+    log.info("requested %d fetches", count)
+
+
+@discussions.command(help="Fetch discussions for a url")
+@click.argument("url")
+def fetch(url: str):
+    url_obj = URL.from_string(url)
+    event = FetchDiscussionsCommand(url_obj.url_uuid, DiscussionSource.HN)
+    publish_message(event, routing_key=environ["QM_RABBITMQ_BG_WORKER_TOPIC"])
 
 
 @click.command(help="Requests a (re)index of the most recent crawl for each bookmark")

@@ -3,7 +3,7 @@ import secrets
 from logging import getLogger
 from typing import Any, Iterable, Optional, Set, Tuple, Dict
 from uuid import UUID, uuid4
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass
 
 import pytz
@@ -17,6 +17,7 @@ from sqlalchemy.dialects.postgresql import (
     insert as pg_insert,
 )
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.sql.expression import select, literal
 
 from quarchive.accesscontrol import (
     AccessObject,
@@ -26,8 +27,8 @@ from quarchive.accesscontrol import (
 )
 from quarchive.html_metadata import HTMLMetadata
 from quarchive.value_objects import (
+    DiscussionSource,
     Bookmark,
-    BookmarkView,
     Discussion,
     Request,
     URL,
@@ -50,6 +51,8 @@ from .models import (
     SQLAUrl,
     SQLAccessObject,
     SQLDiscussion,
+    SQLDiscussionSource,
+    SQLDiscussionFetch,
     SQLShareGrant,
     SQLUser,
     Tag,
@@ -315,6 +318,28 @@ def upsert_url(session: Session, url: URL) -> UUID:
     session.execute(url_stmt)
 
     return url.url_uuid
+
+
+def upsert_urls(session: Session, urls: Iterable[URL]):
+    """Upsert urls en masse"""
+    url_stmt = (
+        pg_insert(SQLAUrl.__table__)
+        .values(
+            [
+                dict(
+                    url_uuid=url.url_uuid,
+                    scheme=url.scheme,
+                    netloc=url.netloc,
+                    path=url.path,
+                    query=url.query,
+                    fragment=url.fragment,
+                )
+                for url in urls
+            ]
+        )
+        .on_conflict_do_nothing(index_elements=["url_uuid"])
+    )
+    session.execute(url_stmt)
 
 
 def get_url_by_url_uuid(session: Session, url_uuid: UUID) -> Optional[URL]:
@@ -843,8 +868,11 @@ def get_share_grant_by_token(
 
 
 def upsert_discussions(session: Session, discussions: Iterable[Discussion]) -> None:
-    insert_stmt = pg_insert(SQLDiscussion.__table__).values(
-        [
+    stmt_values = []
+    urls = set()
+    for d in discussions:
+        urls.add(d.url)
+        stmt_values.append(
             {
                 "external_discussion_id": d.external_id,
                 "discussion_source_id": d.source.value,
@@ -853,9 +881,10 @@ def upsert_discussions(session: Session, discussions: Iterable[Discussion]) -> N
                 "created_at": d.created_at,
                 "title": d.title,
             }
-            for d in discussions
-        ]
-    )
+        )
+
+    upsert_urls(session, urls)
+    insert_stmt = pg_insert(SQLDiscussion.__table__).values(stmt_values)
     upsert_stmt = insert_stmt.on_conflict_do_update(
         index_elements=["discussion_source_id", "external_discussion_id"],
         set_={
@@ -866,3 +895,37 @@ def upsert_discussions(session: Session, discussions: Iterable[Discussion]) -> N
         },
     )
     session.execute(upsert_stmt)
+
+
+def get_discussion_frontier(
+    session: Session, cutoff=None
+) -> Iterable[Tuple[UUID, DiscussionSource]]:
+    """Returns an iterable of url uuids that are due (not fetched in the past
+    month) to be fetched."""
+    if cutoff is None:
+        cutoff = datetime.utcnow() - timedelta(days=31)
+    # Cross joins apparently not possible with the ORM so using core
+    b = SQLABookmark.__table__
+    ds = SQLDiscussionSource.__table__
+    df = SQLDiscussionFetch.__table__
+    u = SQLAUrl.__table__
+    query = (
+        select([b.c.url_uuid, ds.c.discussion_source_id])
+        .select_from(
+            b.join(u)
+            .join(ds, literal(True))
+            .outerjoin(
+                df,
+                and_(
+                    df.c.url_uuid == b.c.url_uuid,
+                    df.c.discussion_source_id == ds.c.discussion_source_id,
+                    df.c.status_code != 200,
+                    df.c.retrieved > cutoff,
+                ),
+            )
+        )
+        .where(ds.c.discussion_source_id == 1)
+        .where(~u.c.netloc.like("%example.com"))
+    )
+    for url_uuid, discussion_source_id in session.execute(query):
+        yield (url_uuid, DiscussionSource(discussion_source_id))

@@ -40,6 +40,8 @@
                    class="bookmark-created"
                    title="{{bookmark.created}}"
                    >{{bookmark.created|datetimeformat('h:mm a on EEE d MMM YYYY')}}</span></em> {%- if bookmark.unread -%}, <strong>unread</strong>{% endif %}
+        </p>
+        <p class="bookmark-details">
           {% if not as_owner %}
             {{ render_owner(owner) }}
           {% endif %}
@@ -49,6 +51,7 @@
           {% endif %}
           {{ render_archives(bookmark, owner) }}
           {{ render_links(bookmark_view) }}
+          {{ render_discussions(bookmark_view.discussion_digest) }}
           {% if as_owner %}
             {{ render_share(bookmark, owner) }}
           {% endif %}
@@ -59,6 +62,19 @@
       </div>
     </div>
   </div>
+{% endmacro %}
+
+{% macro render_discussions(discussion_digest) %}
+  {% set digest = discussion_digest %}
+  <a class="bookmark-meta" href="#">
+     {%- if digest.comment_count == 0 -%}
+       0 comments
+     {%- elif digest.comment_count == 1 -%}
+       1 comment
+     {%- else -%}
+       {{digest.comment_count}} comments {%- if digest.discussion_count > 1 %} in {{digest.discussion_count}} discussions{%- endif -%}
+     {%- endif -%}
+  </a>
 {% endmacro %}
 
 {% macro render_archives(bookmark, owner) %}

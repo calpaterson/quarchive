@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from uuid import getnode
 from hashlib import blake2b
+import itertools
+from typing import List
 
 from urllib.parse import quote_plus, urlencode, parse_qs
 from typing import Optional, Iterator, Mapping, Iterable
@@ -12,9 +14,6 @@ from quarchive.value_objects import (
     URL,
     Discussion,
     DiscussionSource,
-    Request,
-    Response,
-    HTTPVerb,
 )
 
 # FIXME: move version around to include the version in here
@@ -27,13 +26,11 @@ ALGOLIA_BASE_URL = URL.from_string("https://hn.algolia.com/api/v1/search")
 
 def get_hn_api_url(original_url: URL) -> URL:
     quoted = quote_plus(original_url.to_string())
-    relative = f"?query={quoted}&restrictSearchableAttributes=url"
+    relative = f"?query={quoted}&restrictSearchableAttributes=url&hitsPerPage=1000"
     return ALGOLIA_BASE_URL.follow(relative)
 
 
 def extract_hn_discussions(response_body: Mapping) -> Iterator[Discussion]:
-    # FIXME: Check the url matches what we expect - to avoid putting irrelevant
-    # stuff in the db
     log.debug("hn search api returned: %s", response_body)
     for hit in response_body["hits"]:
         yield Discussion(
@@ -184,3 +181,19 @@ class RedditDiscussionClient:
                 continue
             else:
                 yield self._discussion_from_child_data(child["data"])
+
+
+class HNAlgoliaClient:
+    def __init__(self, http_client: requests.Session):
+        self.http_client = http_client
+
+    def discussions_for_url(self, url: URL) -> Iterable[Discussion]:
+        discussion_iters: List[Iterable[Discussion]] = []
+        api_url: Optional[URL] = get_hn_api_url(url)
+        while api_url is not None:
+            response = self.http_client.get(api_url.to_string())
+            response.raise_for_status()
+            document = response.json()
+            discussion_iters.append(extract_hn_discussions(document))
+            api_url = hn_turn_page(api_url, document)
+        return itertools.chain(*discussion_iters)

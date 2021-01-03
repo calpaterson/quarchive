@@ -42,7 +42,6 @@ from quarchive.messaging.publication import publish_message
 from quarchive.cache import get_cache
 from quarchive.data.bvqb import BookmarkViewQueryBuilder
 from quarchive.data.functions import (
-    BookmarkView,
     create_user,
     get_api_key,
     get_bookmark_by_url_uuid,
@@ -59,6 +58,7 @@ from quarchive.data.functions import (
 from quarchive.search import parse_search_str
 from quarchive.value_objects import (
     Bookmark,
+    BookmarkView,
     DisallowedSchemeException,
     TagTriples,
     URL,

@@ -380,3 +380,16 @@ class SQLDiscussionSource(Base):
         satypes.SmallInteger, primary_key=True, autoincrement=False
     )
     discussion_source_name = Column(satypes.String, unique=True, nullable=False)
+
+
+class SQLDiscussionFetch(Base):
+    __tablename__ = "sql_discussion_fetches"
+
+    url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), primary_key=True)
+    discussion_source_id = Column(
+        satypes.SmallInteger,
+        ForeignKey("discussion_sources.discussion_source_id"),
+        primary_key=True,
+    )
+    status_code = Column(satypes.SmallInteger, nullable=False, index=True)
+    retrieved = Column(satypes.DateTime(timezone=True), nullable=False, index=True)

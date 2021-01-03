@@ -200,15 +200,8 @@ def on_discussion_crawl_requested(message: PickleMessage, ctx: missive.HandlingC
     if url is None:
         # FIXME: improve this...
         raise RuntimeError("url does not exist!")
-    discussion_iters: List[Iterable[Discussion]] = []
-    api_url: Optional[URL] = discussions.get_hn_api_url(url)
-    while api_url is not None:
-        response = http_client.get(api_url.to_string())
-        response.raise_for_status()
-        document = response.json()
-        discussion_iters.append(discussions.extract_hn_discussions(document))
-        api_url = discussions.hn_turn_page(api_url, document)
-    upsert_discussions(session, itertools.chain(*discussion_iters))
+    hn_client = discussions.HNAlgoliaClient(http_client)
+    upsert_discussions(session, hn_client.discussions_for_url(url))
     session.commit()
     ctx.ack()
 
