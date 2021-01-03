@@ -28,6 +28,7 @@ from quarchive.logging import configure_logging, LOG_LEVELS
 from quarchive import crawler, indexing
 from quarchive.data.functions import (
     upsert_discussions,
+    record_discussion_fetch,
     upsert_url,
     upsert_icon_for_url,
     icon_at_url,
@@ -63,9 +64,7 @@ def create_http_clients(proc_ctx):
     http_client = requests.Session()
     proc_ctx.state.http_client = http_client
     proc_ctx.state.reddit_client = discussions.RedditDiscussionClient(
-        http_client,
-        environ["QM_REDDIT_CLIENT_ID"],
-        environ["QM_REDDIT_CLIENT_SECRET"],
+        http_client, environ["QM_REDDIT_CLIENT_ID"], environ["QM_REDDIT_CLIENT_SECRET"],
     )
 
 
@@ -73,6 +72,7 @@ def create_http_clients(proc_ctx):
 def place_http_clients(proc_ctx, handling_ctx):
     handling_ctx.state.http_client = proc_ctx.state.http_client
     handling_ctx.state.reddit_client = proc_ctx.state.reddit_client
+
 
 @proc.before_handling
 def create_session(
@@ -103,7 +103,9 @@ def get_http_client(ctx: missive.HandlingContext) -> requests.Session:
     return ctx.state.http_client
 
 
-def get_reddit_client(ctx: missive.HandlingContext) -> discussions.RedditDiscussionClient:
+def get_reddit_client(
+    ctx: missive.HandlingContext,
+) -> discussions.RedditDiscussionClient:
     return ctx.state.reddit_client
 
 
@@ -209,6 +211,7 @@ def on_discussion_crawl_requested(message: PickleMessage, ctx: missive.HandlingC
     else:
         client = get_reddit_client(ctx)
     upsert_discussions(session, client.discussions_for_url(url))
+    record_discussion_fetch(session, url, event.source)
     session.commit()
     ctx.ack()
 

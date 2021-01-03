@@ -928,3 +928,16 @@ def get_discussion_frontier(
     )
     for url_uuid, discussion_source_id in session.execute(query):
         yield (url_uuid, DiscussionSource(discussion_source_id))
+
+
+def record_discussion_fetch(
+    session: Session, url: URL, source: DiscussionSource
+) -> None:
+    session.add(
+        SQLDiscussionFetch(
+            url_uuid=url.url_uuid,
+            discussion_source_id=source.value,
+            status_code=200,  # FIXME: this column should probably have been a boolean
+            retrieved=datetime.utcnow().replace(tzinfo=timezone.utc),
+        )
+    )
