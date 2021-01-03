@@ -61,14 +61,13 @@ setup(
     },
     entry_points={
         "console_scripts": [
+            "quarchive=quarchive.cli:quarchive_cli",
             "qm-pinboard-import=quarchive.pinboard:pinboard_import",
             "quarchive-bg-worker=quarchive.bg_worker:bg_worker",
             "quarchive-get-crawl-body=quarchive.cli:get_crawl_body",
             "quarchive-reindex-url=quarchive.cli:reindex_url",
             "quarchive-reindex-bookmarks=quarchive.cli:reindex_bookmarks",
-            "quarchive-send-hello=quarchive.messaging.publication:send_hello",
             "quarchive-url-recheck=quarchive:url_recheck",
-            "quarchive=quarchive.local:main",
         ]
     },
 )

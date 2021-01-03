@@ -10,6 +10,7 @@ from flask_cors import CORS
 from passlib.context import CryptContext
 from werkzeug.urls import url_encode
 
+from quarchive.logging import configure_logging
 from quarchive.config import load_config
 
 from .users import get_current_user
@@ -34,6 +35,7 @@ def tag_colour(tag: str) -> int:
 
 
 def init_app() -> flask.Flask:
+    configure_logging()
     load_config(env_ini=environ.get("QM_ENV_INI", None))
     app = flask.Flask("quarchive")
     app.config["SECRET_KEY"] = environ["QM_SECRET_KEY"]

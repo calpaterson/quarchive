@@ -14,6 +14,8 @@ LOG_LEVELS = [
     "DEBUG",
 ]
 
+CONFIGURED = False
+
 
 def turn_down_noisy_loggers():
     # Some libraries (particularly Amazon's) have extremely verbose debug logs
@@ -23,15 +25,18 @@ def turn_down_noisy_loggers():
 
 
 def configure_logging(level: str = "INFO"):
-    """Configure our logging - stderr by default but logging nicely the journal
-    under systemd."""
-    under_systemd = "INVOCATION_ID" in environ
-    kwargs: Dict[str, Any] = dict(level=level)
-    if under_systemd:
-        kwargs["format"] = "%(message)s"
-        kwargs["handlers"] = [JournalHandler()]
-    else:
-        kwargs["format"] = "%(asctime)s %(levelname)-8s %(name)-35s - %(message)s"
-        kwargs["stream"] = stderr
-    logging.basicConfig(**kwargs)
-    turn_down_noisy_loggers()
+    """Configure our logging - stderr by default but logging nicely to the
+    journal under systemd."""
+    global CONFIGURED
+    if not CONFIGURED:
+        under_systemd = "INVOCATION_ID" in environ
+        kwargs: Dict[str, Any] = dict(level=level)
+        if under_systemd:
+            kwargs["format"] = "%(message)s"
+            kwargs["handlers"] = [JournalHandler()]
+        else:
+            kwargs["format"] = "%(asctime)s %(levelname)-8s %(name)-35s - %(message)s"
+            kwargs["stream"] = stderr
+        logging.basicConfig(**kwargs)
+        turn_down_noisy_loggers()
+    CONFIGURED = True

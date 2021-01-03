@@ -7,9 +7,12 @@ from os import environ
 
 import click
 
+from quarchive.web.app import init_app
 from quarchive.value_objects import URL
 from quarchive import file_storage
 from quarchive.logging import LOG_LEVELS, configure_logging
+from quarchive.messaging.publication import get_producer
+from quarchive.messaging.message_lib import HelloEvent
 from quarchive.data.functions import (
     get_most_recent_crawl,
     most_recent_successful_bookmark_crawls,
@@ -20,6 +23,38 @@ from quarchive.messaging.message_lib import IndexRequested
 from quarchive.messaging.publication import publish_message
 
 log = getLogger(__name__)
+
+
+@click.group()
+@click.option("--log-level", type=click.Choice(LOG_LEVELS), default="INFO")
+def quarchive_cli(log_level) -> None:
+    configure_logging(log_level)
+
+
+@quarchive_cli.command(help="Start web server")
+def web() -> None:
+    app = init_app()
+    app.run()
+
+
+@quarchive_cli.command(help="Send a hello message")
+@click.argument("message")
+@click.option(
+    "--loop", is_flag=True, help="send the message repeatedly (as a load generator)"
+)
+def send_hello(message, loop):
+    routing_key: str = environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
+
+    # call this for side-effects - to ensure things are set up so that the
+    # timing numbers are accurate
+    get_producer()
+
+    hello_event = HelloEvent(message)
+    publish_message(hello_event, routing_key=routing_key)
+    if loop:
+        while True:
+            hello_event = HelloEvent(message)
+            publish_message(hello_event, routing_key=routing_key)
 
 
 @click.command(help="Requests a (re)index of the most recent crawl for each bookmark")

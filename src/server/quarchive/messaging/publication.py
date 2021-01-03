@@ -2,11 +2,9 @@ from logging import getLogger
 from os import environ
 import pickle
 
-import click
 import kombu
 
-from quarchive.logging import LOG_LEVELS, configure_logging
-from .message_lib import Event, HelloEvent
+from .message_lib import Event
 
 _connection = None
 
@@ -51,24 +49,3 @@ def publish_message(message: Event, routing_key: str) -> None:
         pickle.dumps(message, protocol=PICKLE_PROTOCOL), routing_key=routing_key
     )
     log.info("published %s message to with %s", message, routing_key)
-
-
-@click.command()
-@click.argument("message")
-@click.option("--log-level", type=click.Choice(LOG_LEVELS), default="INFO")
-@click.option(
-    "--loop", is_flag=True, help="send the message repeatedly (as a load generator)"
-)
-def send_hello(message, loop, log_level):
-    configure_logging(log_level)
-    routing_key: str = environ["QM_RABBITMQ_BG_WORKER_TOPIC"]
-
-    # call this for side-effects - to ensure things are set up so that the timing numbers are accurate
-    get_producer()
-
-    hello_event = HelloEvent(message)
-    publish_message(hello_event, routing_key=routing_key)
-    if loop:
-        while True:
-            hello_event = HelloEvent(message)
-            publish_message(hello_event, routing_key=routing_key)
