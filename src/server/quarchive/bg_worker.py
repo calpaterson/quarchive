@@ -1,8 +1,7 @@
 from os import environ
 from datetime import datetime, timezone
-from typing import Type, cast, Sequence, Optional, List, Iterable
+from typing import Type, cast, Sequence, Optional, Union
 from logging import getLogger
-import itertools
 
 import requests
 from sqlalchemy.orm import Session, sessionmaker
@@ -15,13 +14,11 @@ from quarchive import discussions
 from quarchive.io import RewindingIO
 from quarchive.config import load_config
 from quarchive.value_objects import (
-    URL,
     HTTPVerb,
     CrawlRequest,
     Request,
     BookmarkCrawlReason,
     DiscussionSource,
-    Discussion,
 )
 from quarchive.html_metadata import best_icon, HTMLMetadata, IconScope
 from quarchive.logging import configure_logging, LOG_LEVELS
@@ -206,6 +203,7 @@ def on_discussion_crawl_requested(message: PickleMessage, ctx: missive.HandlingC
         # FIXME: improve this...
         raise RuntimeError("url does not exist!")
     source = event.source
+    client: Union[discussions.HNAlgoliaClient, discussions.RedditDiscussionClient]
     if event.source == DiscussionSource.HN:
         client = discussions.HNAlgoliaClient(http_client)
     else:

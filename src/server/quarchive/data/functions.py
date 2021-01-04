@@ -933,11 +933,17 @@ def get_discussion_frontier(
 def record_discussion_fetch(
     session: Session, url: URL, source: DiscussionSource
 ) -> None:
-    session.add(
-        SQLDiscussionFetch(
-            url_uuid=url.url_uuid,
-            discussion_source_id=source.value,
-            status_code=200,  # FIXME: this column should probably have been a boolean
-            retrieved=datetime.utcnow().replace(tzinfo=timezone.utc),
-        )
+    insert_stmt = pg_insert(SQLDiscussionFetch.__table__).values(dict(
+        url_uuid=url.url_uuid,
+        discussion_source_id=source.value,
+        status_code=200,  # FIXME: this column should probably have been a boolean
+        retrieved=datetime.utcnow().replace(tzinfo=timezone.utc)
+    ))
+    upsert_stmt = insert_stmt.on_conflict_do_update(
+        index_elements=["url_uuid", "discussion_source_id"],
+        set_={
+            "status_code": insert_stmt.excluded.status_code,
+            "retrieved": insert_stmt.excluded.retrieved,
+        }
     )
+    session.execute(upsert_stmt)

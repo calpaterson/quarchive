@@ -4,7 +4,7 @@ default: build
 # Server
 # ------
 py_files := $(shell find src/server -name '*.py' -not -path "src/server/.tox/*" -not -path "src/server/build/**")
-server_version_file := src/server/VERSION
+server_version_file := src/server/quarchive/VERSION
 server_version := $(shell cat $(server_version_file))
 artefact := quarchive-$(server_version)-py3-none-any.whl
 

@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = open("VERSION").read().strip()
+VERSION = open("quarchive/VERSION").read().strip()
 
 setup(
     name="quarchive",
