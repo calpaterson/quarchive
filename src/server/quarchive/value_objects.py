@@ -90,20 +90,25 @@ class URL:
         - http
         - https
 
-        coerce_canonicalisation=True skips checks and just forces the url into
-        shape
+        coerce_canonicalisation=True tries to help by removing trailing junk
 
         """
         s, n, p, q, f = urlsplit(url_str)
         if s not in SCHEME_WHITELIST:
             raise DisallowedSchemeException(url_str)
-        if p == "":
-            if coerce_canonicalisation:
+        if coerce_canonicalisation:
+            if p == "":
                 p = "/"
-                # Need to overwrite this variable too, else the url_uuid will
-                # be wrong
-                url_str = urlunsplit((s, n, p, q, f))
-            else:
+            if q == "?":
+                q = ""
+            if f == "#":
+                f = ""
+
+            # Need to overwrite this variable too, else the url_uuid will
+            # be wrong
+            url_str = urlunsplit((s, n, p, q, f))
+        else:
+            if p == "":
                 raise BadCanonicalisationException(url_str)
 
         url_uuid = uuid5(UUID_URL_NAMESPACE, url_str)
@@ -112,7 +117,7 @@ class URL:
         # Make completely sure that we can regenerate this exact string from
         # our object - otherwise raise an exception to avoid any problem urls
         # being processed
-        if url_str != url.to_string() and not coerce_canonicalisation:
+        if url_str != url.to_string():
             raise BadCanonicalisationException(url_str)
 
         return url

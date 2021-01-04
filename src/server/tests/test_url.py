@@ -41,7 +41,15 @@ def test_to_string():
 
 @pytest.mark.parametrize(
     "badly_canonicalised_url_string",
-    ["http://example.com", "http://example.com?", "http://example.com#"],
+    [
+        "http://example.com",
+        "http://example.com?",
+        "http://example.com#",
+        "http://example.com?#",
+        "http://example.com/#",
+        "http://example.com/?",
+        "http://example.com/?#",
+    ],
 )
 def test_coerce(badly_canonicalised_url_string):
     expected = URL.from_string("http://example.com/")
@@ -57,7 +65,7 @@ def test_url_uuid_stability(url):
     # This is not a piece of code as such but an important property - need to
     # be sure that urlsplit, urlunsplit and create_url_uuid work together and
     # are stable.
-    URL.from_string(urlunsplit(urlsplit(url))) == URL.from_string(url)
+    assert URL.from_string(urlunsplit(urlsplit(url))) == URL.from_string(url)
 
 
 @pytest.mark.parametrize("problem_url", ["http://example.com?", "http://example.com#",])
