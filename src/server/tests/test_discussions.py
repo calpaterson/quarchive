@@ -17,12 +17,15 @@ from quarchive.discussions import (
 import pytest
 
 
+# FIXME: test hn no results!!
+
+
 @pytest.mark.parametrize(
     "input_url, expected_url",
     [
         pytest.param(
             "http://example.com/",
-            "https://hn.algolia.com/api/v1/search?query=http%3A%2F%2Fexample.com%2F&restrictSearchableAttributes=url",
+            "https://hn.algolia.com/api/v1/search?query=http%3A%2F%2Fexample.com%2F&restrictSearchableAttributes=url&hitsPerPage=1000",
             id="example.com",
         )
     ],
