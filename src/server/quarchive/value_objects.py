@@ -77,6 +77,12 @@ class URL:
             coerce_canonicalisation=coerce_canonicalisation,
         )
 
+    # FIXME: This method should be split into two, with one for working with
+    # known canonicalised urls (eg, sent from the extension) and one for
+    # dealing with possibly non-canonicalised urls.  The former should return
+    # URL or raise an exception and the latter should return Optional[URL] to
+    # require callers to think about what to do if the URL isn't canonicalised
+    # enough
     @classmethod
     def from_string(self, url_str: str, coerce_canonicalisation: bool = False) -> "URL":
         """Construct from a url string.
