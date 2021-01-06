@@ -51,7 +51,7 @@ def lower_requests_timeout():
         yield
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def config():
     with mock.patch.dict(
         environ,
