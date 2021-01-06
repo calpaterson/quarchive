@@ -10,6 +10,7 @@ from logging import getLogger
 
 import requests
 
+from quarchive.version import get_version
 from quarchive.value_objects import (
     URL,
     Discussion,
@@ -17,7 +18,7 @@ from quarchive.value_objects import (
 )
 
 # FIXME: move version around to include the version in here
-REDDIT_USER_AGENT = "linux:com.quarchive:1.0 (by /u/calp)"
+REDDIT_USER_AGENT = f"linux:com.quarchive:{get_version()} (by /u/calp)"
 
 log = getLogger(__name__)
 
