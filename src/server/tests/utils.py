@@ -1,4 +1,4 @@
-from typing import Iterable, Any, Dict, List
+from typing import Iterable, Any, Dict, List, Mapping
 import re
 
 from quarchive import Bookmark
@@ -6,7 +6,7 @@ from quarchive import Bookmark
 from lxml import etree
 from lxml.cssselect import CSSSelector
 
-from .conftest import ExtendedUser
+from .conftest import ExtendedUser, random_url, random_numeric_id
 
 
 def sync_bookmarks(client, user: ExtendedUser, bookmarks: Iterable[Bookmark]):
@@ -55,3 +55,31 @@ def _get_count(elems):
         match_obj = regex.match(elems[0].text)
         count = int(match_obj.groups()[0])  # type: ignore
         return count
+
+
+def make_algolia_hit(**kwargs) -> Mapping:
+    rv = {
+        "created_at": "2018-01-03T09:00:00.000Z",
+        "created_at_i": 1514970000,
+        "num_comments": 1,
+        "objectID": random_numeric_id(),
+        "title": "Example",
+        "url": random_url().to_string(),
+    }
+    rv.update(kwargs)
+    return rv
+
+
+def make_algolia_resp(**kwargs) -> Mapping:
+    url_str = random_url().to_string()
+    rv = {
+        "exhaustiveNbHits": True,
+        "hits": [make_algolia_hit(url=url_str)],
+        "hitsPerPage": 20,
+        "nbHits": 1,
+        "nbPages": 1,
+        "page": 0,
+        "query": url_str,
+    }
+    rv.update(kwargs)
+    return rv

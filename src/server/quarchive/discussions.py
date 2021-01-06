@@ -24,36 +24,6 @@ log = getLogger(__name__)
 ALGOLIA_BASE_URL = URL.from_string("https://hn.algolia.com/api/v1/search")
 
 
-def get_hn_api_url(original_url: URL) -> URL:
-    quoted = quote_plus(original_url.to_string())
-    relative = f"?query={quoted}&restrictSearchableAttributes=url&hitsPerPage=1000"
-    return ALGOLIA_BASE_URL.follow(relative)
-
-
-def extract_hn_discussions(response_body: Mapping) -> Iterator[Discussion]:
-    log.debug("hn search api returned: %s", response_body)
-    for hit in response_body["hits"]:
-        yield Discussion(
-            comment_count=hit.get("num_comments", 0),
-            created_at=datetime.utcfromtimestamp(hit["created_at_i"]),
-            external_id=hit["objectID"],
-            title=hit.get("title", ""),
-            url=URL.from_string(hit["url"], coerce_canonicalisation=True),
-            source=DiscussionSource.HN,
-        )
-
-
-def hn_turn_page(url: URL, response_body: Mapping) -> Optional[URL]:
-    final_page = response_body["nbPages"] - 1
-    current_page = response_body["page"]
-    if current_page < final_page:
-        q_dict = parse_qs(url.query)
-        q_dict["page"] = current_page + 1
-        new_url = url.follow("?" + urlencode(q_dict, doseq=True))
-        return new_url
-    return None
-
-
 class RedditTokenClient:
     ACCESS_TOKEN_URL = "https://www.reddit.com/api/v1/access_token"
     MAX_DEVICE_ID_LENGTH = 30
@@ -181,6 +151,36 @@ class RedditDiscussionClient:
                 continue
             else:
                 yield self._discussion_from_child_data(child["data"])
+
+
+def get_hn_api_url(original_url: URL) -> URL:
+    quoted = quote_plus(original_url.to_string())
+    relative = f"?query={quoted}&restrictSearchableAttributes=url&hitsPerPage=1000"
+    return ALGOLIA_BASE_URL.follow(relative)
+
+
+def extract_hn_discussions(response_body: Mapping) -> Iterator[Discussion]:
+    log.debug("hn search api returned: %s", response_body)
+    for hit in response_body["hits"]:
+        yield Discussion(
+            comment_count=hit.get("num_comments", 0),
+            created_at=datetime.utcfromtimestamp(hit["created_at_i"]),
+            external_id=hit["objectID"],
+            title=hit.get("title", ""),
+            url=URL.from_string(hit["url"], coerce_canonicalisation=True),
+            source=DiscussionSource.HN,
+        )
+
+
+def hn_turn_page(url: URL, response_body: Mapping) -> Optional[URL]:
+    final_page = response_body["nbPages"] - 1
+    current_page = response_body["page"]
+    if current_page < final_page:
+        q_dict = parse_qs(url.query)
+        q_dict["page"] = current_page + 1
+        new_url = url.follow("?" + urlencode(q_dict, doseq=True))
+        return new_url
+    return None
 
 
 class HNAlgoliaClient:

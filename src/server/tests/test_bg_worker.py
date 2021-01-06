@@ -45,6 +45,7 @@ from quarchive.messaging.message_lib import (
 
 from .conftest import random_string, random_url, random_numeric_id
 from .test_indexing import make_crawl_with_response
+from .utils import make_algolia_hit, make_algolia_resp
 
 
 def random_image(size: Tuple[int, int] = (32, 32)):
@@ -423,34 +424,6 @@ def test_new_icon_found_for_page_url_duplicated_by_url(
 
     assert url_icon_obj_1.icon == url_icon_obj_2.icon
     assert url_icon_obj_1.icon.source_blake2b_hash == hash_bytes
-
-
-def make_algolia_hit(**kwargs) -> Mapping:
-    rv = {
-        "created_at": "2018-01-03T09:00:00.000Z",
-        "created_at_i": 1514970000,
-        "num_comments": 1,
-        "objectID": random_numeric_id(),
-        "title": "Example",
-        "url": random_url().to_string(),
-    }
-    rv.update(kwargs)
-    return rv
-
-
-def make_algolia_resp(**kwargs) -> Mapping:
-    url_str = random_url().to_string()
-    rv = {
-        "exhaustiveNbHits": True,
-        "hits": [make_algolia_hit(url=url_str)],
-        "hitsPerPage": 20,
-        "nbHits": 1,
-        "nbPages": 1,
-        "page": 0,
-        "query": url_str,
-    }
-    rv.update(kwargs)
-    return rv
 
 
 def test_crawl_hn_api(

@@ -4,20 +4,29 @@ import re
 
 import requests
 
-import responses
-from .conftest import random_url
-
 from quarchive.value_objects import URL, Discussion, DiscussionSource
 from quarchive.discussions import (
     get_hn_api_url,
     RedditTokenClient,
     RedditDiscussionClient,
+    HNAlgoliaClient,
 )
 
 import pytest
+import responses
+from .conftest import random_url
+from .utils import make_algolia_resp
 
 
-# FIXME: test hn no results!!
+def test_hn_client_no_results(http_client, requests_mock):
+    client = HNAlgoliaClient(http_client)
+    requests_mock.add(
+        responses.GET,
+        re.compile("https://hn.algolia.com/api/v1/search.*"),
+        json=make_algolia_resp(hits=[]),
+    )
+    discussions = list(client.discussions_for_url(random_url()))
+    assert discussions == []
 
 
 @pytest.mark.parametrize(
@@ -25,7 +34,8 @@ import pytest
     [
         pytest.param(
             "http://example.com/",
-            "https://hn.algolia.com/api/v1/search?query=http%3A%2F%2Fexample.com%2F&restrictSearchableAttributes=url&hitsPerPage=1000",
+            "https://hn.algolia.com/api/v1/search?query=http%3A%2F%2F"
+            "example.com%2F&restrictSearchableAttributes=url&hitsPerPage=1000",
             id="example.com",
         )
     ],
