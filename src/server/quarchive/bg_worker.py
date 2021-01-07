@@ -23,9 +23,11 @@ from quarchive.value_objects import (
 from quarchive.html_metadata import best_icon, HTMLMetadata, IconScope
 from quarchive.logging import configure_logging, LOG_LEVELS
 from quarchive import crawler, indexing
-from quarchive.data.functions import (
+from quarchive.data.discussion_functions import (
     upsert_discussions,
     record_discussion_fetch,
+)
+from quarchive.data.functions import (
     upsert_url,
     upsert_icon_for_url,
     icon_at_url,

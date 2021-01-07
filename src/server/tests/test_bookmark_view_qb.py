@@ -5,8 +5,8 @@ import pytest
 from quarchive.value_objects import URL, Discussion, DiscussionSource
 from quarchive.data.models import CanonicalUrl
 from quarchive.data.bvqb import BookmarkViewQueryBuilder
+from quarchive.data.discussion_functions import upsert_discussions
 from quarchive.data.functions import (
-    upsert_discussions,
     record_page_icon,
     set_bookmark,
     upsert_links,

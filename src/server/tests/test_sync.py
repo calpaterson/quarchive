@@ -7,7 +7,7 @@ import quarchive as sut
 
 import pytest
 
-from .conftest import make_bookmark, random_string
+from .conftest import make_bookmark, random_string, random_url
 
 
 def test_check_api_key_user_does_not_exist(client, session):
@@ -200,12 +200,8 @@ def test_syncing_bookmark_that_already_exists_but_is_old(
 
 @pytest.mark.full_sync
 def test_multiple_bookmarks(client, session, use_jl, test_user):
-    bm_1 = make_bookmark(
-        url=sut.URL.from_string("http://example/com/1"), title="Example 1"
-    )
-    bm_2 = make_bookmark(
-        url=sut.URL.from_string("http://example/com/2"), title="Example 2"
-    )
+    bm_1 = make_bookmark(url=random_url(), title="Example 1")
+    bm_2 = make_bookmark(url=random_url(), title="Example 2")
 
     response = post_bookmarks(
         client, test_user, [bm_1, bm_2], use_jsonlines=use_jl, full=True
@@ -267,7 +263,7 @@ def test_syncing_with_an_extension_that_doesnt_know_about_tags(
 ):
     """This test checks that syncs from extensions that don't know about tags
     don't clober existing tags."""
-    url = sut.URL.from_string("http://example/com/1")
+    url = random_url()
     bm_1 = make_bookmark(url=url, title="Example 1")
 
     initial_sync = post_bookmarks(client, test_user, [bm_1])

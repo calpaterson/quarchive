@@ -18,8 +18,8 @@ from quarchive.messaging.message_lib import (
     IndexRequested,
     FetchDiscussionsCommand,
 )
+from quarchive.data.discussion_functions import DiscussionFrontier
 from quarchive.data.functions import (
-    get_discussion_frontier,
     get_most_recent_crawl,
     most_recent_successful_bookmark_crawls,
     get_crawl_metadata,
@@ -66,21 +66,19 @@ def discussions():
     pass
 
 
-@discussions.command(help="(Re)fetch all discussions that are due")
+@discussions.command(help="(Re)fetch the discussion frontier")
 @click.option("--limit", type=click.INT, default=None)
-def refetch(limit: Optional[int]):
+def fetch_frontier(limit: Optional[int]):
     Session = get_session_cls()
     count = 0
     with contextlib.closing(Session()) as session:
-        for url_uuid, discussion_source in get_discussion_frontier(session):
+        frontier = DiscussionFrontier(session)
+        for url_uuid, discussion_source in frontier.iter(limit):
             publish_message(
                 FetchDiscussionsCommand(url_uuid, discussion_source),
                 routing_key=environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
             )
             count += 1
-            if limit is not None and count >= limit:
-                log.info("hit limit of %d", limit)
-                break
     log.info("requested %d fetches", count)
 
 
