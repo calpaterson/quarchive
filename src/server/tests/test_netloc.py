@@ -10,12 +10,12 @@ from .utils import sync_bookmarks, get_bookmarks_from_response
 def test_user_netloc_page(signed_in_client, test_user):
     epoch_start = datetime(1970, 1, 1, tzinfo=timezone.utc)
     bm1 = make_bookmark(
-        url=URL.from_string("http://pokemon.com/"),
+        url=URL.from_string("http://pokemon.example.com/"),
         title="Pokemon",
         tag_triples=frozenset([("pokemon", epoch_start, False)]),
     )
     bm2 = make_bookmark(
-        url=URL.from_string("http://digimon.com/"),
+        url=URL.from_string("http://digimon.example.com/"),
         title="Digimon",
         tag_triples=frozenset([("digimon", epoch_start, False)]),
     )
@@ -24,11 +24,13 @@ def test_user_netloc_page(signed_in_client, test_user):
 
     response = signed_in_client.get(
         flask.url_for(
-            "quarchive.user_netloc", username=test_user.username, netloc="pokemon.com"
+            "quarchive.user_netloc",
+            username=test_user.username,
+            netloc="pokemon.example.com",
         )
     )
     assert response.status_code == 200
 
     (present,) = get_bookmarks_from_response(response)
-    assert present["url"] == "http://pokemon.com/"
+    assert present["url"] == "http://pokemon.example.com/"
     assert present["title"] == "Pokemon"
