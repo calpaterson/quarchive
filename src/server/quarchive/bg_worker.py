@@ -202,6 +202,7 @@ def on_discussion_crawl_requested(message: PickleMessage, ctx: missive.HandlingC
     if url is None:
         # FIXME: improve this...
         raise RuntimeError("url does not exist!")
+    log.info("fetching discussions for %s from %s", url, event.source)
     client: Union[discussions.HNAlgoliaClient, discussions.RedditDiscussionClient]
     if event.source == DiscussionSource.HN:
         client = discussions.HNAlgoliaClient(http_client)

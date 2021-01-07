@@ -1,15 +1,16 @@
 import logging
-from typing import Tuple, IO, Mapping
+from typing import Tuple, IO
 from uuid import uuid4
 from io import BytesIO
 import random
 import hashlib
 from datetime import datetime, timezone
-
 from tempfile import TemporaryFile
+
 from PIL import Image
 import responses
 from missive import TestAdapter
+from freezegun import freeze_time
 
 from quarchive.discussions import get_hn_api_url
 from quarchive import file_storage
@@ -31,6 +32,7 @@ from quarchive.data.models import (
     CrawlRequest as SQLACrawlRequest,
     CrawlResponse as SQLACrawlResponse,
     SQLDiscussion,
+    SQLDiscussionFetch,
 )
 from quarchive.data.functions import upsert_url
 from quarchive.messaging.receipt import PickleMessage
@@ -458,6 +460,41 @@ def test_crawl_hn_api(
     assert discussion.discussion_source_id == DiscussionSource.HN.value
     assert discussion.comment_count == 1
     assert discussion.url_uuid == url.url_uuid
+
+
+@freeze_time("2018-01-03")
+def test_crawl_hn_api_no_discussions(session, bg_client, requests_mock):
+    url = random_url()
+    upsert_url(session, url)
+    session.commit()
+
+    api_url = get_hn_api_url(url)
+    requests_mock.add(
+        responses.GET,
+        url=api_url.to_string(),
+        json=make_algolia_resp(hits=[]),
+        status=200,
+    )
+
+    event = FetchDiscussionsCommand(url_uuid=url.url_uuid, source=DiscussionSource.HN)
+    bg_client.send(PickleMessage.from_obj(event))
+
+    discussion = (
+        session.query(SQLDiscussion)
+        .filter(SQLDiscussion.discussion_source_id == DiscussionSource.HN.value)
+        .filter(SQLDiscussion.url_uuid == url.url_uuid)
+        .first()
+    )
+    assert discussion is None
+
+    discussion_fetch = (
+        session.query(SQLDiscussionFetch)
+        .filter(SQLDiscussionFetch.url_uuid == url.url_uuid)
+        .one()
+    )
+    assert discussion_fetch.discussion_source_id == DiscussionSource.HN.value
+    assert discussion_fetch.status_code == 200
+    assert discussion_fetch.retrieved == datetime(2018, 1, 3, tzinfo=timezone.utc)
 
 
 def test_recrawl_of_hn_api(

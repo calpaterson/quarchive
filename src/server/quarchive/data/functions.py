@@ -322,24 +322,24 @@ def upsert_url(session: Session, url: URL) -> UUID:
 
 def upsert_urls(session: Session, urls: Iterable[URL]):
     """Upsert urls en masse"""
+    values = [
+        dict(
+            url_uuid=url.url_uuid,
+            scheme=url.scheme,
+            netloc=url.netloc,
+            path=url.path,
+            query=url.query,
+            fragment=url.fragment,
+        )
+        for url in urls
+    ]
     url_stmt = (
         pg_insert(SQLAUrl.__table__)
-        .values(
-            [
-                dict(
-                    url_uuid=url.url_uuid,
-                    scheme=url.scheme,
-                    netloc=url.netloc,
-                    path=url.path,
-                    query=url.query,
-                    fragment=url.fragment,
-                )
-                for url in urls
-            ]
-        )
+        .values(values)
         .on_conflict_do_nothing(index_elements=["url_uuid"])
     )
     session.execute(url_stmt)
+    log.info("upserted %d urls", len(values))
 
 
 def get_url_by_url_uuid(session: Session, url_uuid: UUID) -> Optional[URL]:
@@ -882,7 +882,9 @@ def upsert_discussions(session: Session, discussions: Iterable[Discussion]) -> N
                 "title": d.title,
             }
         )
-
+    if len(stmt_values) == 0:
+        # Nothing to upsert
+        return
     upsert_urls(session, urls)
     insert_stmt = pg_insert(SQLDiscussion.__table__).values(stmt_values)
     upsert_stmt = insert_stmt.on_conflict_do_update(
@@ -895,6 +897,7 @@ def upsert_discussions(session: Session, discussions: Iterable[Discussion]) -> N
         },
     )
     session.execute(upsert_stmt)
+    log.info("upserted %d discussions", len(stmt_values))
 
 
 def get_discussion_frontier(
@@ -912,19 +915,20 @@ def get_discussion_frontier(
     query = (
         select([b.c.url_uuid, ds.c.discussion_source_id])
         .select_from(
-            b.join(u)
+            u.join(b)
             .join(ds, literal(True))
             .outerjoin(
                 df,
                 and_(
                     df.c.url_uuid == b.c.url_uuid,
                     df.c.discussion_source_id == ds.c.discussion_source_id,
-                    df.c.status_code != 200,
+                    df.c.status_code == 200,
                     df.c.retrieved > cutoff,
                 ),
             )
         )
         .where(~u.c.netloc.like("%example.com"))
+        .where(df.c.url_uuid.is_(None))
     )
     for url_uuid, discussion_source_id in session.execute(query):
         yield (url_uuid, DiscussionSource(discussion_source_id))
