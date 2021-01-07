@@ -17,7 +17,6 @@ from quarchive.value_objects import (
     DiscussionSource,
 )
 
-# FIXME: move version around to include the version in here
 REDDIT_USER_AGENT = f"linux:com.quarchive:{get_version()} (by /u/calp)"
 
 log = getLogger(__name__)
@@ -46,13 +45,15 @@ class RedditTokenClient:
         mac = getnode().to_bytes(6, byteorder="big")
         device_id = blake2b(mac, digest_size=self.MAX_DEVICE_ID_LENGTH // 2).hexdigest()
         log.info(
-            "have chosen device id %s based on mac address %s", device_id, mac.hex()
+            "using reddit device id '%s' based on mac address '%s'",
+            device_id,
+            mac.hex(),
         )
         return device_id
 
     def fetch_token(self):
         """Fetch a new token from the api"""
-        log.info("fetching a new reddit token")
+        log.info("fetching a new reddit access token")
         response = self.http_client.post(
             url=self.ACCESS_TOKEN_URL,
             auth=(self.client_id, self.client_secret),
@@ -66,7 +67,7 @@ class RedditTokenClient:
             timeout=30,
         )
         log.debug(
-            "got %d response from reddit token api: %s",
+            "got %d response from reddit access token api: %s",
             response.status_code,
             response.content,
         )
@@ -74,7 +75,7 @@ class RedditTokenClient:
             response.raise_for_status()
         except requests.exceptions.RequestException:
             log.error(
-                "got bad response %d from reddit access_token api",
+                "got bad response %d from reddit access token api",
                 response.status_code,
                 response.content,
             )
@@ -85,10 +86,11 @@ class RedditTokenClient:
         # Expire it 60 seconds early to reduce the chances that we're using an
         # out of date token towards the end of the time period
         self.expiry -= timedelta(seconds=60)
+        log.info("got a new reddit auth token, will expire at: %s", self.expiry)
 
     def get_token(self) -> str:
         if datetime.utcnow() > self.expiry:
-            log.info("reddit token expired")
+            log.info("reddit access token unset or expired")
             self.fetch_token()
         return self._token
 
@@ -117,6 +119,7 @@ class RedditDiscussionClient:
     def discussions_for_url(self, url: URL) -> Iterable[Discussion]:
         # FIXME: Should step across pages here
         token = self.token_client.get_token()
+        log.info("getting reddit discussions for %s", url)
         response = self.http_client.get(
             self.API_SEARCH_URL,
             auth=("bearer", token),
@@ -147,8 +150,12 @@ class RedditDiscussionClient:
             raise
         doc = response.json()
         for child in doc["data"]["children"]:
-            if child["kind"] != "t3":
-                log.warning("found non-link in response for url search, probably a bug")
+            kind = child["kind"]
+            if kind != "t3":
+                log.warning(
+                    "found non-link (kind: '%s') in response for url search, probably a bug",
+                    kind,
+                )
                 continue
             else:
                 yield self._discussion_from_child_data(child["data"])
@@ -189,12 +196,11 @@ class HNAlgoliaClient:
         self.http_client = http_client
 
     def discussions_for_url(self, url: URL) -> Iterable[Discussion]:
-        discussion_iters: List[Iterable[Discussion]] = []
+        log.info("getting HN discussions for %s", url)
         api_url: Optional[URL] = get_hn_api_url(url)
         while api_url is not None:
             response = self.http_client.get(api_url.to_string())
             response.raise_for_status()
             document = response.json()
-            discussion_iters.append(extract_hn_discussions(document))
+            yield from extract_hn_discussions(document)
             api_url = hn_turn_page(api_url, document)
-        return itertools.chain(*discussion_iters)

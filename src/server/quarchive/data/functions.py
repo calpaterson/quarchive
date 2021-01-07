@@ -882,7 +882,9 @@ def upsert_discussions(session: Session, discussions: Iterable[Discussion]) -> N
                 "title": d.title,
             }
         )
-    if len(stmt_values) == 0:
+    discussion_count = len(stmt_values)
+    log.info("upserting %d discussions across %d urls", discussion_count, len(urls))
+    if discussion_count == 0:
         # Nothing to upsert
         return
     upsert_urls(session, urls)
@@ -897,7 +899,6 @@ def upsert_discussions(session: Session, discussions: Iterable[Discussion]) -> N
         },
     )
     session.execute(upsert_stmt)
-    log.info("upserted %d discussions", len(stmt_values))
 
 
 def get_discussion_frontier(
