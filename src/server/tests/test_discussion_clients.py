@@ -10,6 +10,7 @@ from quarchive.discussions import (
     RedditTokenClient,
     RedditDiscussionClient,
     HNAlgoliaClient,
+    DiscussionAPIError,
 )
 
 import pytest
@@ -134,3 +135,32 @@ def test_reddit_client(http_client, requests_mock):
         created_at=datetime(2018, 1, 3),
         url=url,
     )
+
+def test_reddit_client_non_200(session, http_client, requests_mock):
+    url = random_url()
+
+    reddit_client = RedditDiscussionClient(http_client, client_id="", client_secret="")
+    # Manually set these
+    reddit_client.token_client.expiry = datetime.utcnow() + timedelta(minutes=30)
+    reddit_client.token_client._token = "abc123"
+
+    expected_id = "def654"
+
+    requests_mock.add(
+        responses.GET,
+        re.compile(fr"^https://api\.reddit\.com/search.*"),
+        status=429, # Reddit sends this to tell us to back off
+    )
+    with pytest.raises(DiscussionAPIError):
+        list(reddit_client.discussions_for_url(url))
+
+
+def test_hn_client_non_200(http_client, requests_mock):
+    client = HNAlgoliaClient(http_client)
+    requests_mock.add(
+        responses.GET,
+        re.compile(r"https://hn\.algolia\.com/api/v1/search.*"),
+        status=500,
+    )
+    with pytest.raises(DiscussionAPIError):
+        list(client.discussions_for_url(random_url()))

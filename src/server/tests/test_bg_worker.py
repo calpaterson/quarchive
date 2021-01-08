@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Tuple, IO
 from uuid import uuid4
 from io import BytesIO
@@ -85,6 +86,10 @@ def test_bookmark_created(session, bg_worker, mock_s3, requests_mock, test_user)
 
     requests_mock.add(
         responses.GET, url=url.to_string(), body="Hello!", status=200, stream=True,
+    )
+    # Hack added to avoid a mess
+    requests_mock.add(
+        responses.GET, url=re.compile(".*(algolia|reddit).*"), body="{}", status=500,
     )
 
     bg_worker.send(

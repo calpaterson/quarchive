@@ -23,6 +23,9 @@ log = getLogger(__name__)
 
 ALGOLIA_BASE_URL = URL.from_string("https://hn.algolia.com/api/v1/search")
 
+class DiscussionAPIError(Exception):
+    def __init__(self, response):
+        self.response = response
 
 class RedditTokenClient:
     ACCESS_TOKEN_URL = "https://www.reddit.com/api/v1/access_token"
@@ -147,7 +150,7 @@ class RedditDiscussionClient:
                 response.status_code,
                 response.content,
             )
-            raise
+            raise DiscussionAPIError(response)
         doc = response.json()
         for child in doc["data"]["children"]:
             kind = child["kind"]
@@ -200,7 +203,11 @@ class HNAlgoliaClient:
         api_url: Optional[URL] = get_hn_api_url(url)
         while api_url is not None:
             response = self.http_client.get(api_url.to_string())
-            response.raise_for_status()
+            try:
+                response.raise_for_status()
+            except requests.exceptions.RequestException:
+                log.error("got bad response %d from algolia: '%s'", response.status_code, response.content)
+                raise DiscussionAPIError(response)
             document = response.json()
             yield from extract_hn_discussions(document)
             api_url = hn_turn_page(api_url, document)
