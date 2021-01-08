@@ -55,6 +55,7 @@ from quarchive.data.functions import (
     create_share_grant,
     get_share_grant_by_token,
 )
+from quarchive.data.discussion_functions import get_discussions_by_url
 from quarchive.search import parse_search_str
 from quarchive.value_objects import (
     Bookmark,
@@ -557,6 +558,31 @@ def backlinks(username: str, url_uuid: UUID) -> flask.Response:
             prev_page_exists=qb.has_previous_page(),
             next_page_exists=qb.has_next_page(),
             search_query=False,
+        )
+    )
+
+
+@web_blueprint.route(
+    "/<username>/bookmarks/<uuid:url_uuid>/discussions", methods=["GET"]
+)
+def discussions(username: str, url_uuid: UUID) -> flask.Response:
+    owner = get_user_or_fail(db.session, username)
+    require_access_or_fail(
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.READ
+    )
+    (bookmark_view,) = (
+        BookmarkViewQueryBuilder(db.session, owner).only_url(url_uuid).execute()
+    )
+
+    discussion_views = get_discussions_by_url(db.session, bookmark_view.bookmark.url)
+    print(discussion_views)
+    return flask.make_response(
+        flask.render_template(
+            "discussions.html",
+            page_title=f'Discussions on "{bookmark_view.title()}"',
+            bookmark_view=bookmark_view,
+            discussion_views=discussion_views,
+            Archive=Archive,
         )
     )
 

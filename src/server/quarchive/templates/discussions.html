@@ -1,0 +1,38 @@
+{# -*- mode: jinja2 -*- #}
+{% extends "base.html" %}
+
+{% block main %}
+  <h1>Discussions of '{{bookmark_view.title()}}'</h1>
+  {% for discussion_view in discussion_views %}
+    {{ render_discussion_view(discussion_view) }}
+  {% endfor %}
+{% endblock %}
+
+{% macro render_discussion_view(discussion_view) %}
+<div class="bookmark">
+  <div class="bookmark-row">
+    <div class="bookmark-icon-column">
+      {{ render_icon(discussion_view) }}
+    </div>
+    <div  class="bookmark-rest-column">
+      <p class="bookmark-link">
+        <a class="bookmark-title" href="{{discussion_view.url().to_string()}}">{{discussion_view.title()}}</a>
+      </p>
+      <p class="bookmark-details">
+        {{ discussion_view.discussion.comment_count }} comments,
+        <em>started at <span
+                 class="bookmark-created"
+                 title="{{discussion_view.discussion.created_at}}"
+                 >{{discussion_view.discussion.created_at|datetimeformat('h:mm a on EEE d MMM YYYY')}}</span></em>
+      </p>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+
+{% macro render_icon(discussion_view) %}
+  <div class="bookmark-icon">
+    <img src="{{ url_for('static', filename=discussion_view.icon_path()) }}" alt="icon for discussion site">
+  </div>
+{% endmacro %}

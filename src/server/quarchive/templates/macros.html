@@ -11,7 +11,7 @@
   <div class="bookmark">
     <div class="bookmark-row">
       <div class="bookmark-icon-column">
-        {{ render_icon(bookmark_view.bookmark.url, bookmark_view.icon_uuid) }}
+        {{ render_icon(bookmark_view.icon_uuid) }}
       </div>
       <div class="bookmark-rest-column">
         <p class="bookmark-link">
@@ -51,7 +51,7 @@
           {% endif %}
           {{ render_archives(bookmark, owner) }}
           {{ render_links(bookmark_view) }}
-          {{ render_discussions(bookmark_view.discussion_digest) }}
+          {{ render_discussions(bookmark_view, owner) }}
           {% if as_owner %}
             {{ render_share(bookmark, owner) }}
           {% endif %}
@@ -64,9 +64,9 @@
   </div>
 {% endmacro %}
 
-{% macro render_discussions(discussion_digest) %}
-  {% set digest = discussion_digest %}
-  <a class="bookmark-meta" href="#">
+{% macro render_discussions(bookmark_view, owner) %}
+  {% set digest = bookmark_view.discussion_digest %}
+  <a class="bookmark-meta" href="{{ url_for('quarchive.discussions', username=owner.username, url_uuid=bookmark_view.bookmark.url.url_uuid) }}">
      {%- if digest.comment_count == 0 -%}
        no comments
      {%- elif digest.comment_count == 1 -%}
@@ -116,12 +116,12 @@ by <a href="{{ url_for('quarchive.user_page', username=owner.username) }}">{{ ow
 {% endmacro %}
 
 
-{% macro render_icon(url, icon_uuid) -%}
+{% macro render_icon(icon_uuid) -%}
   <div class="bookmark-icon">
       {% if icon_uuid %}
         <img
           src="{{url_for('quarchive-icons.icon_by_uuid', icon_uuid=icon_uuid)}}"
-          alt=""
+          alt="icon for bookmark"
           >
       {% else %}
         <div class="fallback-icon"></div>

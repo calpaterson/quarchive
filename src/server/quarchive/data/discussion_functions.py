@@ -1,17 +1,19 @@
 """Data functions related to discussions"""
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Iterable, Tuple, Optional
 from logging import getLogger
 from uuid import UUID
 
-from sqlalchemy import and_
+from sqlalchemy import and_, case
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select, literal, Select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from quarchive.value_objects import DiscussionSource, URL, Discussion
 from .models import (
+    DomainIcon,
     SQLABookmark,
     SQLDiscussionSource,
     SQLDiscussionFetch,
@@ -75,17 +77,6 @@ class DiscussionFrontier:
         )
 
 
-# def sql_discussion_to_discussion(url: URL, sql_discussion: SQLDiscussion) -> Discussion:
-#     return Discussion(
-#         external_id = sql_discussion.external_discussion_id,
-#         source = DiscussionSource(sql_discussion.discussion_source_id),
-#         url = url,
-#         title=sql_discussion.title,
-#         created_at=sql_discussion.created_at,
-#         comment_count=sql_discussion.comment_count,
-#     )
-
-
 def upsert_discussions(session: Session, discussions: Iterable[Discussion]) -> None:
     stmt_values = []
     urls = set()
@@ -139,3 +130,50 @@ def record_discussion_fetch(
         },
     )
     session.execute(upsert_stmt)
+
+
+def sql_discussion_to_discussion(url: URL, sql_discussion: SQLDiscussion) -> Discussion:
+    return Discussion(
+        external_id=sql_discussion.external_discussion_id,
+        source=DiscussionSource(sql_discussion.discussion_source_id),
+        url=url,
+        title=sql_discussion.title,
+        created_at=sql_discussion.created_at,
+        comment_count=sql_discussion.comment_count,
+    )
+
+
+def get_discussions_by_url(session: Session, url: URL) -> Iterable["DiscussionView"]:
+    sql_discussions = (
+        session.query(SQLDiscussion)
+        .filter(SQLDiscussion.url_uuid == url.url_uuid)
+        .order_by(SQLDiscussion.comment_count.desc())
+    )
+    for sql_d in sql_discussions:
+        discussion = sql_discussion_to_discussion(url, sql_d)
+        yield DiscussionView(discussion=discussion)
+
+
+@dataclass
+class DiscussionView:
+    discussion: Discussion
+
+    def title(self) -> str:
+        return self.discussion.title
+
+    def url(self) -> URL:
+        if self.discussion.source == DiscussionSource.HN:
+            return URL.from_string(
+                f"https://news.ycombinator.com/item?id={self.discussion.external_id}"
+            )
+        else:
+            return URL.from_string(
+                f"https://old.reddit.com/{self.discussion.external_id}"
+            )
+
+    def icon_path(self) -> str:
+        if self.discussion.source == DiscussionSource.HN:
+            filename = "hn.png"
+        else:
+            filename = "reddit.png"
+        return f"icons/{filename}"

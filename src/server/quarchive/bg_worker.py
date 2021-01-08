@@ -167,7 +167,11 @@ def on_bookmark_created(message: PickleMessage, ctx: missive.HandlingContext):
             ),
             environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
         )
-    session.commit()
+    for source in DiscussionSource:
+        publish_message(
+            FetchDiscussionsCommand(url_uuid=url.url_uuid, source=source),
+            environ["QM_RABBITMQ_BG_WORKER_TOPIC"],
+        )
 
     ctx.ack()
 

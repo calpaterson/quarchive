@@ -3,7 +3,7 @@ import secrets
 from logging import getLogger
 from typing import Any, Iterable, Optional, Set, Tuple, Dict
 from uuid import UUID, uuid4
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 import pytz
@@ -17,7 +17,6 @@ from sqlalchemy.dialects.postgresql import (
     insert as pg_insert,
 )
 from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.sql.expression import select, literal
 
 from quarchive.accesscontrol import (
     AccessObject,
@@ -27,9 +26,7 @@ from quarchive.accesscontrol import (
 )
 from quarchive.html_metadata import HTMLMetadata
 from quarchive.value_objects import (
-    DiscussionSource,
     Bookmark,
-    Discussion,
     Request,
     URL,
     User,
@@ -50,9 +47,6 @@ from .models import (
     SQLABookmark,
     SQLAUrl,
     SQLAccessObject,
-    SQLDiscussion,
-    SQLDiscussionSource,
-    SQLDiscussionFetch,
     SQLShareGrant,
     SQLUser,
     Tag,
