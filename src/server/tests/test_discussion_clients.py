@@ -22,7 +22,7 @@ def test_hn_client_no_results(http_client, requests_mock):
     client = HNAlgoliaClient(http_client)
     requests_mock.add(
         responses.GET,
-        re.compile("https://hn.algolia.com/api/v1/search.*"),
+        re.compile(r"https://hn\.algolia\.com/api/v1/search.*"),
         json=make_algolia_resp(hits=[]),
     )
     discussions = list(client.discussions_for_url(random_url()))
@@ -118,7 +118,7 @@ def test_reddit_client(http_client, requests_mock):
 
     requests_mock.add(
         responses.GET,
-        re.compile(f"^https://api.reddit.com/search.*"),
+        re.compile(fr"^https://api\.reddit\.com/search.*"),
         json=make_reddit_search_response(
             children=[
                 make_reddit_link(id=expected_id, num_comments=10, url=url.to_string())
