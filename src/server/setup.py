@@ -23,7 +23,7 @@ setup(
         "flask-sqlalchemy~=2.4.1",
         "flask~=1.1.1",
         "kombu~=5.0.0",
-        "lxml~=4.4.2",
+        "lxml~=4.6.2",
         "missive~=0.8.0",
         "passlib~=1.7.2",
         "psycopg2~=2.8.4",
