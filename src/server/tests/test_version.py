@@ -8,4 +8,5 @@ def test_version():
     pattern.
 
     """
-    assert re.match(r"^\d{4}.\d{2}.\d$", get_version())
+    # Pip does not allow leading zeros
+    assert re.match(r"^[1-9]\d{3}\.[1-9]\d?\.[1-9]\d*$", get_version())
