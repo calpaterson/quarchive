@@ -180,7 +180,7 @@ def extract_hn_discussions(response_body: Mapping) -> Iterator[Discussion]:
     log.debug("hn search api returned: %s", response_body)
     for hit in response_body["hits"]:
         yield Discussion(
-            comment_count=hit.get("num_comments", 0),
+            comment_count=hit.get("num_comments", 0) or 0,
             created_at=datetime.utcfromtimestamp(hit["created_at_i"]),
             external_id=hit["objectID"],
             title=hit.get("title", ""),

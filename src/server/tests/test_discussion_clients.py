@@ -14,7 +14,7 @@ from quarchive.discussion_clients import (
 import pytest
 import responses
 from .conftest import random_url
-from .utils import make_algolia_resp
+from .utils import make_algolia_resp, make_algolia_hit
 
 
 def test_hn_client_no_results(http_client, requests_mock):
@@ -26,6 +26,18 @@ def test_hn_client_no_results(http_client, requests_mock):
     )
     discussions = list(client.discussions_for_url(random_url()))
     assert discussions == []
+
+
+def test_hn_client_null_comments(http_client, requests_mock):
+    """Test that when the comments field is 'null' (happens rarely) that we extract that as 0"""
+    client = HNAlgoliaClient(http_client)
+    requests_mock.add(
+        responses.GET,
+        re.compile(r"https://hn\.algolia\.com/api/v1/search.*"),
+        json=make_algolia_resp(hits=[make_algolia_hit(num_comments=None)]),
+    )
+    (discussion,) = list(client.discussions_for_url(random_url()))
+    assert discussion.comment_count == 0
 
 
 @pytest.mark.parametrize(
