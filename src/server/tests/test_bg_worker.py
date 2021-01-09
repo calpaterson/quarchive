@@ -13,7 +13,7 @@ import responses
 from missive import TestAdapter
 from freezegun import freeze_time
 
-from quarchive.discussions import get_hn_api_url
+from quarchive.discussion_clients import get_hn_api_url
 from quarchive import file_storage
 from quarchive.value_objects import (
     URL,

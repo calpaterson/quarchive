@@ -10,7 +10,7 @@ import missive
 import missive.dlq.sqlite
 from missive.adapters.rabbitmq import RabbitMQAdapter
 
-from quarchive import discussions
+from quarchive import discussion_clients
 from quarchive.io import RewindingIO
 from quarchive.config import load_config
 from quarchive.value_objects import (
@@ -62,7 +62,7 @@ def create_session_cls(proc_ctx: missive.ProcessingContext[PickleMessage]):
 def create_http_clients(proc_ctx):
     http_client = requests.Session()
     proc_ctx.state.http_client = http_client
-    proc_ctx.state.reddit_client = discussions.RedditDiscussionClient(
+    proc_ctx.state.reddit_client = discussion_clients.RedditDiscussionClient(
         http_client, environ["QM_REDDIT_CLIENT_ID"], environ["QM_REDDIT_CLIENT_SECRET"],
     )
 
@@ -104,7 +104,7 @@ def get_http_client(ctx: missive.HandlingContext) -> requests.Session:
 
 def get_reddit_client(
     ctx: missive.HandlingContext,
-) -> discussions.RedditDiscussionClient:
+) -> discussion_clients.RedditDiscussionClient:
     return ctx.state.reddit_client
 
 
@@ -209,16 +209,18 @@ def on_discussion_crawl_requested(message: PickleMessage, ctx: missive.HandlingC
         # FIXME: improve this...
         raise RuntimeError("url does not exist!")
     log.info("fetching discussions for %s from %s", url, event.source)
-    client: Union[discussions.HNAlgoliaClient, discussions.RedditDiscussionClient]
+    client: Union[
+        discussion_clients.HNAlgoliaClient, discussion_clients.RedditDiscussionClient
+    ]
     if event.source == DiscussionSource.HN:
-        client = discussions.HNAlgoliaClient(http_client)
+        client = discussion_clients.HNAlgoliaClient(http_client)
     else:
         client = get_reddit_client(ctx)
 
     try:
         upsert_discussions(session, client.discussions_for_url(url))
         record_discussion_fetch(session, url, event.source)
-    except discussions.DiscussionAPIError as e:
+    except discussion_clients.DiscussionAPIError as e:
         log.error(
             "got bad response (%s) from %s: %s",
             e.response_status(),

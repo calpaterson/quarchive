@@ -2,10 +2,8 @@ from typing import Mapping
 from datetime import datetime, timedelta
 import re
 
-import requests
-
 from quarchive.value_objects import URL, Discussion, DiscussionSource
-from quarchive.discussions import (
+from quarchive.discussion_clients import (
     get_hn_api_url,
     RedditTokenClient,
     RedditDiscussionClient,
