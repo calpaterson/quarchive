@@ -174,7 +174,10 @@ def requests_mock_session():
     rather than actually making a request to some third party server.
 
     """
-    requests_mock = responses.RequestsMock()
+    # assert_all_requests_are_fired is well intentioned but makes test failures
+    # harder to debug and does not - usually - catch problems that aren't
+    # caught elsewhere, so, on balance, turn it of
+    requests_mock = responses.RequestsMock(assert_all_requests_are_fired=False)
     with requests_mock:
         yield requests_mock
 

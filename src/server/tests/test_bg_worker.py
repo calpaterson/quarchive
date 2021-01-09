@@ -87,10 +87,6 @@ def test_bookmark_created(session, bg_worker, mock_s3, requests_mock, test_user)
     requests_mock.add(
         responses.GET, url=url.to_string(), body="Hello!", status=200, stream=True,
     )
-    # Hack added to avoid a mess
-    requests_mock.add(
-        responses.GET, url=re.compile(".*(algolia|reddit).*"), body="{}", status=500,
-    )
 
     bg_worker.send(
         PickleMessage.from_obj(

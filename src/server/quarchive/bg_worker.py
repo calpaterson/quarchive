@@ -214,9 +214,20 @@ def on_discussion_crawl_requested(message: PickleMessage, ctx: missive.HandlingC
         client = discussions.HNAlgoliaClient(http_client)
     else:
         client = get_reddit_client(ctx)
-    upsert_discussions(session, client.discussions_for_url(url))
-    record_discussion_fetch(session, url, event.source)
-    session.commit()
+
+    try:
+        upsert_discussions(session, client.discussions_for_url(url))
+        record_discussion_fetch(session, url, event.source)
+    except discussions.DiscussionAPIError as e:
+        log.error(
+            "got bad response (%s) from %s: %s",
+            e.response_status(),
+            e.source,
+            e.response_text(),
+        )
+        session.rollback()
+    else:
+        session.commit()
     ctx.ack()
 
 

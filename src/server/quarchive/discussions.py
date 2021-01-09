@@ -1,11 +1,8 @@
 from datetime import datetime, timedelta
 from uuid import getnode
 from hashlib import blake2b
-import itertools
-from typing import List
-
-from urllib.parse import quote_plus, urlencode, parse_qs
 from typing import Optional, Iterator, Mapping, Iterable
+from urllib.parse import quote_plus, urlencode, parse_qs
 from logging import getLogger
 
 import requests
@@ -23,9 +20,28 @@ log = getLogger(__name__)
 
 ALGOLIA_BASE_URL = URL.from_string("https://hn.algolia.com/api/v1/search")
 
+
 class DiscussionAPIError(Exception):
-    def __init__(self, response):
-        self.response = response
+    def __init__(
+        self,
+        source: DiscussionSource,
+        requests_exc: requests.exceptions.RequestException,
+    ):
+        self.source = source
+        self.requests_exc = requests_exc
+
+    def response_text(self) -> str:
+        if self.requests_exc.response is None:
+            return f"<no response {self.requests_exc}>"
+        else:
+            return self.requests_exc.response.content
+
+    def response_status(self) -> Optional[int]:
+        if self.requests_exc.response is not None:
+            return self.requests_exc.response.status_code
+        else:
+            return None
+
 
 class RedditTokenClient:
     ACCESS_TOKEN_URL = "https://www.reddit.com/api/v1/access_token"
@@ -57,32 +73,27 @@ class RedditTokenClient:
     def fetch_token(self):
         """Fetch a new token from the api"""
         log.info("fetching a new reddit access token")
-        response = self.http_client.post(
-            url=self.ACCESS_TOKEN_URL,
-            auth=(self.client_id, self.client_secret),
-            data={
-                "grant_type": "https://oauth.reddit.com/grants/installed_client",
-                "device_id": self.get_device_id(),
-                "scope": "read",
-            },
-            # FIXME: These fields should be set globally somehow
-            headers={"User-Agent": REDDIT_USER_AGENT},
-            timeout=30,
-        )
+        try:
+            response = self.http_client.post(
+                url=self.ACCESS_TOKEN_URL,
+                auth=(self.client_id, self.client_secret),
+                data={
+                    "grant_type": "https://oauth.reddit.com/grants/installed_client",
+                    "device_id": self.get_device_id(),
+                    "scope": "read",
+                },
+                # FIXME: These fields should be set globally somehow
+                headers={"User-Agent": REDDIT_USER_AGENT},
+                timeout=30,
+            )
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            raise DiscussionAPIError(DiscussionSource.REDDIT, e)
         log.debug(
             "got %d response from reddit access token api: %s",
             response.status_code,
             response.content,
         )
-        try:
-            response.raise_for_status()
-        except requests.exceptions.RequestException:
-            log.error(
-                "got bad response %d from reddit access token api",
-                response.status_code,
-                response.content,
-            )
-            raise
         doc = response.json()
         self._token = doc["access_token"]
         self.expiry = datetime.utcnow() + timedelta(seconds=doc["expires_in"])
@@ -123,34 +134,29 @@ class RedditDiscussionClient:
         # FIXME: Should step across pages here
         token = self.token_client.get_token()
         log.info("getting reddit discussions for %s", url)
-        response = self.http_client.get(
-            self.API_SEARCH_URL,
-            auth=("bearer", token),
-            params={
-                "q": f"url:{url.to_string()}",
-                "include_facts": "false",
-                "limit": 100,
-                "sort": "comments",
-                "type": "link",
-                "sr_detail": "false",
-            },
-            headers={"User-Agent": REDDIT_USER_AGENT},
-            timeout=30,
-        )
+        try:
+            response = self.http_client.get(
+                self.API_SEARCH_URL,
+                auth=("bearer", token),
+                params={
+                    "q": f"url:{url.to_string()}",
+                    "include_facts": "false",
+                    "limit": 100,
+                    "sort": "comments",
+                    "type": "link",
+                    "sr_detail": "false",
+                },
+                headers={"User-Agent": REDDIT_USER_AGENT},
+                timeout=30,
+            )
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            raise DiscussionAPIError(DiscussionSource.REDDIT, e)
         log.debug(
             "got %d response from reddit search api: %s",
             response.status_code,
             response.content,
         )
-        try:
-            response.raise_for_status()
-        except requests.exceptions.RequestException:
-            log.error(
-                "got bad response %d from reddit search api",
-                response.status_code,
-                response.content,
-            )
-            raise DiscussionAPIError(response)
         doc = response.json()
         for child in doc["data"]["children"]:
             kind = child["kind"]
@@ -202,12 +208,12 @@ class HNAlgoliaClient:
         log.info("getting HN discussions for %s", url)
         api_url: Optional[URL] = get_hn_api_url(url)
         while api_url is not None:
-            response = self.http_client.get(api_url.to_string())
+            response = None
             try:
+                response = self.http_client.get(api_url.to_string())
                 response.raise_for_status()
-            except requests.exceptions.RequestException:
-                log.error("got bad response %d from algolia: '%s'", response.status_code, response.content)
-                raise DiscussionAPIError(response)
+            except requests.exceptions.RequestException as e:
+                raise DiscussionAPIError(DiscussionSource.REDDIT, e)
             document = response.json()
             yield from extract_hn_discussions(document)
             api_url = hn_turn_page(api_url, document)

@@ -82,7 +82,7 @@ def test_get_reddit_token_failure(http_client, requests_mock):
         json={"error": "bad bytes"},
     )
     token_client = RedditTokenClient(http_client, client_id="", client_secret="")
-    with pytest.raises(requests.exceptions.RequestException):
+    with pytest.raises(DiscussionAPIError):
         token_client.get_token()
 
 
@@ -136,6 +136,7 @@ def test_reddit_client(http_client, requests_mock):
         url=url,
     )
 
+
 def test_reddit_client_non_200(session, http_client, requests_mock):
     url = random_url()
 
@@ -149,7 +150,7 @@ def test_reddit_client_non_200(session, http_client, requests_mock):
     requests_mock.add(
         responses.GET,
         re.compile(fr"^https://api\.reddit\.com/search.*"),
-        status=429, # Reddit sends this to tell us to back off
+        status=429,  # Reddit sends this to tell us to back off
     )
     with pytest.raises(DiscussionAPIError):
         list(reddit_client.discussions_for_url(url))
