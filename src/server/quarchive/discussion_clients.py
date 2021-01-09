@@ -70,7 +70,7 @@ class RedditTokenClient:
         )
         return device_id
 
-    def fetch_token(self):
+    def fetch_token(self) -> None:
         """Fetch a new token from the api"""
         log.info("fetching a new reddit access token")
         try:
@@ -79,7 +79,7 @@ class RedditTokenClient:
                 auth=(self.client_id, self.client_secret),
                 data={
                     "grant_type": "https://oauth.reddit.com/grants/installed_client",
-                    "device_id": self.get_device_id(),
+                    "device_id": self.device_id,
                     "scope": "read",
                 },
                 # FIXME: These fields should be set globally somehow
