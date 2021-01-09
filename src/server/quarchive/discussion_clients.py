@@ -124,7 +124,7 @@ class RedditDiscussionClient:
         return Discussion(
             external_id=child_data["id"],
             source=DiscussionSource.REDDIT,
-            url=URL.from_string(child_data["url"]),
+            url=URL.from_string(child_data["url"], coerce_canonicalisation=True),
             comment_count=child_data["num_comments"],
             created_at=datetime.utcfromtimestamp(child_data["created_utc"]),
             title=f'{child_data["subreddit_name_prefixed"]}: {child_data["title"]}',
