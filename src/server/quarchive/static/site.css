@@ -142,12 +142,15 @@ p.bookmark-date {
     margin-bottom: 0;
 }
 
-.bookmark blockquote {
+.bookmark .bookmark-description {
+    margin-left: 1.5em;
+    margin-right: 1.5em;
+}
+
+.bookmark .bookmark-description blockquote {
     color: var(--light);
-    margin-top: 0.2em;
-    margin-bottom: 0.2em;
-    margin-left: 1em;
     border-left: 0.2em solid var(--light);
+    margin-left: 1em;
     padding-left: 1em;
     font-style: oblique;
 }
