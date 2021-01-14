@@ -55,13 +55,14 @@
 
     <fieldset>
       <legend>Tags</legend>
+      {% set tags_formaction = url_for('quarchive.edit_bookmark_form', username=owner.username, url_uuid=url_uuid) %}
       <p>
         {% if not tags %}
           (no tags set)
         {% else %}
           Tags:
           {% for tag in tags|sort %}
-            {{ macros.render_tag(get_current_user(), tag) }}{{ render_remove_tag_button(tag) }}{% if not loop.last %},{% endif %}
+            {{ macros.render_tag(get_current_user(), tag) }}{{ macros.render_remove_tag_button(tag, "edit-bookmark-form", tags_formaction) }}{% if not loop.last %},{% endif %}
           {% endfor %}
         {% endif %}
       </p>
@@ -85,6 +86,7 @@
           <button
             form="edit-bookmark-form"
             formmethod="GET"
+            formaction="{{ tags_formaction }}"
             >Add to list</button>
       </p>
       <p>
@@ -109,11 +111,3 @@
   </form>
 {% endblock %}
 
-{% macro render_remove_tag_button(tag) %}
-  <button
-    class="remove-tag-button"
-    name="remove-tag"
-    form="edit-bookmark-form"
-    formmethod="GET"
-    value="{{tag}}"
-    >(x)</button>{% endmacro %}

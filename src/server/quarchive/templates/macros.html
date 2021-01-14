@@ -4,6 +4,16 @@
    href="{{ url_for('quarchive.user_tag', username=user.username, tag=tag) }}"
    >{{ tag }}</a>{% endmacro %}
 
+{% macro render_remove_tag_button(tag, form_name, form_action) %}
+  <button
+    class="remove-tag-button"
+    name="remove-tag"
+    form="{{ form_name }}"
+    formaction="{{ form_action }}"
+    formmethod="GET"
+    value="{{tag}}"
+    >(x)</button>{% endmacro %}
+
 {# FIXME: render differently for owner and non-owner #}
 {% macro render_bookmark(bookmark_view, as_owner=True) -%}
   {% set bookmark = bookmark_view.bookmark %}

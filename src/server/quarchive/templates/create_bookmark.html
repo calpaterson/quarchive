@@ -48,15 +48,16 @@
 
     <fieldset>
       <legend>Tags</legend>
+      {% set tags_formaction = url_for('quarchive.create_bookmark_form', username=owner.username) %}
     <p>
-      {% if not tags %}
-        (no tags set)
-      {% else %}
-        Tags:
-        {% for tag in tags %}
-          {{ macros.render_tag(get_current_user(), tag) }}{% if not loop.last %},{% endif %}
-        {% endfor %}
-      {% endif %}
+        {% if not tags %}
+          (no tags set)
+        {% else %}
+          Tags:
+          {% for tag in tags|sort %}
+            {{ macros.render_tag(get_current_user(), tag) }}{{ macros.render_remove_tag_button(tag, "create-bookmark-form", tags_formaction) }}{% if not loop.last %},{% endif %}
+          {% endfor %}
+        {% endif %}
     </p>
     <p>
       <input id="tags" name="tags" type="text" hidden value="{{ ",".join(tags or "") }}">
@@ -78,7 +79,7 @@
       <button
         form="create-bookmark-form"
         formmethod="GET"
-        formaction="{{ url_for('quarchive.create_bookmark_form', username=owner.username) }}"
+        formaction="{{ tags_formaction }}"
         >Add to list</button>
     </p>
     <p>
