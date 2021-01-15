@@ -1,7 +1,7 @@
 from os import environ
 import secrets
 from logging import getLogger
-from typing import Any, Iterable, Optional, Set, Tuple, Dict
+from typing import Any, Iterable, Optional, Set, Tuple, Dict, cast
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
 from dataclasses import dataclass
@@ -566,9 +566,11 @@ def create_crawl_request(session: Session, crawl_uuid: UUID, request: Request):
     session.add(crawl_request)
 
 
-def mark_crawl_request_with_response(session: Session, crawl_uuid: UUID):
+def mark_crawl_request_with_response(session: Session, crawl_uuid: UUID) -> None:
     """Mark the crawl request as having gotten a response"""
-    crawl_request = session.query(CrawlRequest).get(crawl_uuid)
+    # Can't be null here - we have a uuid.  If it is null that's a programming
+    # error and don't except anything to catch that.
+    crawl_request = cast(CrawlRequest, session.query(CrawlRequest).get(crawl_uuid))
     crawl_request.got_response = True
 
 
@@ -712,13 +714,16 @@ def record_index_error(session: Session, crawl_uuid: UUID, message: str) -> None
 
 
 def icon_at_url(session: Session, url: URL) -> Optional[UUID]:
-    """Return True if we think we already have an icon from that URL."""
+    """Return icon_uuid if we think we already have an icon from that URL."""
     rv = (
         session.query(IconSource.icon_uuid)
         .filter(IconSource.url_uuid == url.url_uuid)
         .first()
     )
-    return rv
+    if rv is not None:
+        return rv[0]
+    else:
+        return None
 
 
 def upsert_icon_for_url(session, page_url: URL, icon_uuid: UUID) -> None:
