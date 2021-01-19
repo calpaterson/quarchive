@@ -25,6 +25,12 @@ log = getLogger(__name__)
 
 
 class DiscussionFrontier:
+    """Frontier for discussions.
+
+    This class represents all discussions that need to be fetched because
+    they've not been checked before, or the last check was too long ago.
+
+    """
     def __init__(
         self,
         session: Session,
@@ -39,14 +45,21 @@ class DiscussionFrontier:
         self.test_mode = test_mode
 
         self.b = SQLABookmark.__table__
-        self.ds = SQLDiscussionSource.__table__
         self.df = SQLDiscussionFetch.__table__
+        self.ds = SQLDiscussionSource.__table__
         self.u = SQLAUrl.__table__
 
     def _build_frontier_query(self) -> Select:
-        """Query out members of the frontier.  This is used directly by iter
-        and also used as a subquery by contains and size."""
-        query = (
+        """Query for members of the frontier.  This is used directly by iter
+        and also used as a subquery by contains and size.
+
+        A (url, source) tuple is in the frontier if:
+        1. It's been bookmarked by someone
+        2. That tuple hasn't been fetched within the last two weeks
+        3. (If test mode is off) the domain doesn't include 'example.com'
+
+        """
+        frontier = (
             select([self.b.c.url_uuid, self.ds.c.discussion_source_id])
             .select_from(
                 self.b.join(self.u, self.u.c.url_uuid == self.b.c.url_uuid)
@@ -69,10 +82,11 @@ class DiscussionFrontier:
             )
         )
         if not self.test_mode:
-            query = query.where(~self.u.c.netloc.like("%example.com"))
-        return query
+            frontier = frontier.where(~self.u.c.netloc.like("%example.com"))
+        return frontier
 
     def contains(self, url_uuid: UUID, source: DiscussionSource) -> bool:
+        """Return true if the given url and source are currently in the frontier."""
         query = self._build_frontier_query().where(
             and_(
                 self.b.c.url_uuid == url_uuid,
@@ -83,12 +97,14 @@ class DiscussionFrontier:
         return self.session.execute(select([exists(query)])).scalar()
 
     def size(self) -> int:
+        """Return the frontier's total size"""
         query = select([func.count()]).select_from(self._build_frontier_query().alias())
         return self.session.execute(query).scalar()
 
     def iter(
         self, limit: Optional[int] = None
     ) -> Iterable[Tuple[UUID, DiscussionSource]]:
+        """Iterate the frontier, up to the optional limit."""
         query = self._build_frontier_query()
         if limit is not None:
             query = query.limit(limit)
