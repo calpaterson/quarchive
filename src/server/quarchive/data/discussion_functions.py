@@ -6,14 +6,13 @@ from typing import Iterable, Tuple, Optional
 from logging import getLogger
 from uuid import UUID
 
-from sqlalchemy import and_, case
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.expression import select, literal, Select
+from sqlalchemy.sql.expression import select, literal, Select, exists
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from quarchive.value_objects import DiscussionSource, URL, Discussion
 from .models import (
-    DomainIcon,
     SQLABookmark,
     SQLDiscussionSource,
     SQLDiscussionFetch,
@@ -26,12 +25,18 @@ log = getLogger(__name__)
 
 
 class DiscussionFrontier:
-    def __init__(self, session: Session, cutoff: Optional[datetime] = None):
+    def __init__(
+        self,
+        session: Session,
+        cutoff: Optional[datetime] = None,
+        test_mode: bool = False,
+    ):
         self.session = session
         if cutoff is None:
             self.cutoff = datetime.utcnow() - timedelta(days=31)
         else:
             self.cutoff = cutoff
+        self.test_mode = test_mode
 
         self.b = SQLABookmark.__table__
         self.ds = SQLDiscussionSource.__table__
@@ -39,10 +44,12 @@ class DiscussionFrontier:
         self.u = SQLAUrl.__table__
 
     def _build_frontier_query(self) -> Select:
+        """Query out members of the frontier.  This is used directly by iter
+        and also used as a subquery by contains and size."""
         query = (
             select([self.b.c.url_uuid, self.ds.c.discussion_source_id])
             .select_from(
-                self.u.join(self.b)
+                self.b.join(self.u, self.u.c.url_uuid == self.b.c.url_uuid)
                 .join(self.ds, literal(True))
                 .outerjoin(
                     self.df,
@@ -50,21 +57,34 @@ class DiscussionFrontier:
                         self.df.c.url_uuid == self.b.c.url_uuid,
                         self.df.c.discussion_source_id
                         == self.ds.c.discussion_source_id,
-                        self.df.c.status_code == 200,
-                        self.df.c.retrieved > self.cutoff,
                     ),
                 )
             )
-            .where(~self.u.c.netloc.like("%example.com"))
-            .where(self.df.c.url_uuid.is_(None))
+            .where(
+                and_(
+                    self.df.c.url_uuid.is_(None),
+                    func.coalesce(self.df.c.retrieved, datetime(1970, 1, 1))
+                    < self.cutoff,
+                )
+            )
         )
+        if not self.test_mode:
+            query = query.where(~self.u.c.netloc.like("%example.com"))
         return query
 
-    def contains_url_uuid(self, url_uuid: UUID) -> bool:
-        ...
+    def contains(self, url_uuid: UUID, source: DiscussionSource) -> bool:
+        query = self._build_frontier_query().where(
+            and_(
+                self.b.c.url_uuid == url_uuid,
+                self.ds.c.discussion_source_id == source.value,
+            )
+        )
+
+        return self.session.execute(select([exists(query)])).scalar()
 
     def size(self) -> int:
-        ...
+        query = select([func.count()]).select_from(self._build_frontier_query().alias())
+        return self.session.execute(query).scalar()
 
     def iter(
         self, limit: Optional[int] = None
