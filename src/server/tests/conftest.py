@@ -223,7 +223,7 @@ class ExtendedUser(value_objects.User):
 def make_bookmark(**kwargs) -> sut.Bookmark:
     epoch_start = datetime(1970, 1, 1, tzinfo=timezone.utc)
     bookmark_defaults: Mapping[str, Any] = {
-        "url": sut.URL.from_string("http://example.com/" + random_string()),
+        "url": random_url(),  # FIXME: random_url()
         "title": "Example",
         "created": epoch_start,
         "updated": epoch_start,
