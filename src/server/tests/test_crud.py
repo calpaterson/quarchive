@@ -202,7 +202,13 @@ def test_creating_a_bookmark_junk_url(test_user, signed_in_client, session):
 jan_1 = datetime(2018, 1, 1, tzinfo=timezone.utc)
 mifid2_start_date = datetime(2018, 1, 3, tzinfo=timezone.utc)
 
-tag_params = [
+edit_params = [
+    ("deleted", "deleted", False, "on", True),
+    ("deleted", "deleted", True, None, False),
+    ("unread", "unread", False, "on", True),
+    ("unread", "unread", True, None, False),
+    ("title", "title", "example", "Something else", "Something else"),
+    ("description", "description", "example desc", "A desc", "A desc"),
     pytest.param(
         "tag_triples",
         "tags",
@@ -224,16 +230,7 @@ tag_params = [
 
 @freeze_time("2018-01-03")
 @pytest.mark.parametrize(
-    "obj_attr, form_attr, obj_start, form_value, obj_end",
-    [
-        ("deleted", "deleted", False, "on", True),
-        ("deleted", "deleted", True, None, False),
-        ("unread", "unread", False, "on", True),
-        ("unread", "unread", True, None, False),
-        ("title", "title", "example", "Something else", "Something else"),
-        ("description", "description", "example desc", "A desc", "A desc"),
-    ]
-    + tag_params,
+    "obj_attr, form_attr, obj_start, form_value, obj_end", edit_params,
 )
 def test_editing_a_bookmark(
     signed_in_client,
