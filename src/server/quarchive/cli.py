@@ -82,6 +82,14 @@ def fetch_frontier(limit: Optional[int]):
     log.info("requested %d fetches", count)
 
 
+@discussions.command(help="Output a count of the frontier")
+def count_frontier():
+    Session = get_session_cls()
+    with contextlib.closing(Session()) as session:
+        frontier = DiscussionFrontier(session)
+        log.info("%d items in the frontier", frontier.size())
+
+
 @discussions.command(help="Fetch discussions for a url")
 @click.argument("url")
 def fetch(url: str):
