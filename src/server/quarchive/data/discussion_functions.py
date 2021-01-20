@@ -6,7 +6,7 @@ from typing import Iterable, Tuple, Optional
 from logging import getLogger
 from uuid import UUID
 
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select, literal, Select, exists
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -31,6 +31,7 @@ class DiscussionFrontier:
     they've not been checked before, or the last check was too long ago.
 
     """
+
     def __init__(
         self,
         session: Session,
@@ -45,6 +46,7 @@ class DiscussionFrontier:
         self.test_mode = test_mode
 
         self.b = SQLABookmark.__table__
+        self.d = SQLDiscussion.__table__
         self.df = SQLDiscussionFetch.__table__
         self.ds = SQLDiscussionSource.__table__
         self.u = SQLAUrl.__table__
@@ -59,9 +61,23 @@ class DiscussionFrontier:
         3. (If test mode is off) the domain doesn't include 'example.com'
 
         """
+        last_discussions = (
+            select(
+                [
+                    self.d.c.discussion_source_id,
+                    self.d.c.url_uuid,
+                    func.max(self.d.c.created_at).label("most_recent"),
+                ]
+            )
+            .select_from(self.d)
+            .group_by(self.d.c.discussion_source_id, self.d.c.url_uuid)
+            .alias()
+        )
+
+        now = datetime.utcnow()
+
         frontier = (
-            select([self.b.c.url_uuid, self.ds.c.discussion_source_id])
-            .select_from(
+            select([self.b.c.url_uuid, self.ds.c.discussion_source_id]).select_from(
                 self.b.join(self.u, self.u.c.url_uuid == self.b.c.url_uuid)
                 .join(self.ds, literal(True))
                 .outerjoin(
@@ -72,12 +88,32 @@ class DiscussionFrontier:
                         == self.ds.c.discussion_source_id,
                     ),
                 )
+                .outerjoin(
+                    last_discussions,
+                    and_(
+                        self.b.c.url_uuid == last_discussions.c.url_uuid,
+                        self.df.c.discussion_source_id
+                        == last_discussions.c.discussion_source_id,
+                    ),
+                )
             )
+            # Include something in the frontier if any of the following are true:
+            # 1. It's never been retrieved before
+            # 2. It was retrieved before the cutoff
+            # 3. The time between now and the retrieval is greater than the
+            #    time between the retrieval and the last discussion
             .where(
-                and_(
-                    self.df.c.url_uuid.is_(None),
-                    func.coalesce(self.df.c.retrieved, datetime(1970, 1, 1))
-                    < self.cutoff,
+                or_(
+                    self.df.c.url_uuid.is_(None),  # never retrieved
+                    or_(  # if retrieved
+                        self.df.c.retrieved < self.cutoff,  # not before cutoff
+                        and_(  # if there is a discussion
+                            ~last_discussions.c.url_uuid.is_(None),
+                            ~self.df.c.retrieved.is_(None),
+                            now - self.df.c.retrieved
+                            > self.df.c.retrieved - last_discussions.c.most_recent,
+                        ),
+                    ),
                 )
             )
         )
