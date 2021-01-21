@@ -43,7 +43,7 @@ setup(
             "cssselect~=1.1.0",
             "freezegun~=0.3.12",
             "hypothesis~=4.50.6",
-            "moto~=1.3.16",
+            "moto[s3]~=1.3.16",
             "pytest-env~=0.6.2",
             "pytest-flask~=1.1.0",
             "pytest-xdist~=2.2.0",
