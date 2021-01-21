@@ -48,4 +48,4 @@ def publish_message(message: Event, routing_key: str) -> None:
     producer.publish(
         pickle.dumps(message, protocol=PICKLE_PROTOCOL), routing_key=routing_key
     )
-    log.info("published %s message to with %s", message, routing_key)
+    log.debug("published %s message to with %s", message, routing_key)
