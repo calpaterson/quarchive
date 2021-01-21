@@ -24,7 +24,7 @@ setup(
         "flask==1.1.1",
         "kombu==5.0.2",
         "lxml~=4.6.2",
-        "missive==0.8.0",
+        "missive==0.8.1",
         "passlib~=1.7.2",
         "psycopg2==2.8.6",
         "pyappcache[memcache]==0.2",
