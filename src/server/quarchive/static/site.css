@@ -82,6 +82,7 @@ nav > a {
 .about-screenshot img {
     display: block;
     margin: 2em auto;
+    max-width: 90%;
 }
 
 .about-h1 {
@@ -97,11 +98,22 @@ nav > a {
     display: flex;
 }
 
+@media (max-width: 800px) {
+  .about-row {
+    flex-direction: column;
+  }
+}
+
 .about-column {
-    width: 23em;
     flex: auto;
     margin-left: 1em;
     margin-right: 1em;
+}
+
+@media (min-width: 800px) {
+    .about-column{
+        width: 23em;
+    }
 }
 
 .about-last-word {
