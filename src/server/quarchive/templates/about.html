@@ -1,13 +1,64 @@
 {% extends "base.html" %}
 {% block main %}
-  <h1>About Quarchive</h1>
-  <p>
-    Quarchive is...
-    <ul>
-      <li>"traditional "Web 2.0" social bookmarking, with small improvements"</li>
-      <li><a href="https://github.com/calpaterson/quarchive">Open source software</a></li>
-      <li>created by <a href="http://calpaterson.com/">Cal Paterson</a></li>
-      <li>...in public alpha</li>
-    </ul>
-  </p>
+<div class="about-screenshot">
+  <img src="{{ url_for('static', filename='images/screenshot.png') }}">
+</div>
+<h1 class="about-h1">About Quarchive</h1>
+<div class="about-caption">
+  Quarchive is a bookmarking site, showing metadata around your browser bookmarks
+</div>
+<div class="about-row">
+  <div class="about-column">
+    <h2>Full text search</h2>
+    <p>
+      Quarchive crawls and indexes your all your bookmarks, allowing you to
+      search your bookmarks - even when the term you're searching for doesn't
+      appear in the title.
+    </p>
+  </div>
+  <div class="about-column">
+    <h2>Completely private by default</h2>
+    <p>
+      All bookmarks are <strong>completely private by default</strong> but
+      there are ways to share your view of a bookmark via a magic link if you
+      want.
+    </p>
+  </div>
+  <div class="about-column">
+    <h2>See discussions</h2>
+    <p>
+      Quarchive shows reddit threads referring to your bookmarks, so you can
+      more easily find people talking about things you are interested in.
+    </p>
+  </div>
+</div>
+<div class="about-row">
+  <div class="about-column">
+    <h2>Add bookmarks from mobile browsers</h2>
+    <p>
+      As Quarchive is sync-based and hooks into the built-in browser bookmarks
+      subsystem it will automatically pick up any bookmarks made in a mobile
+      browser (so long as you have browser-level sync enabled).
+    </p>
+  </div>
+  <div class="about-column">
+    <h2>Backlinks</h2>
+    <p>
+      Some of the most interesting metadata is links between bookmarks.
+      Quarchive shows these, so you can more easily find related pages.
+      Helpful for finding where you found something from.
+    </p>
+  </div>
+  <div class="about-column">
+    <h2>Free and Open source</h2>
+    <p>
+      The source code for Quarchive (both the server and browser extension)
+      is <a href="https://github.com/calpaterson/quarchive">freely available on
+      Github</a>.
+    </p>
+  </div>
+</div>
+<div class="about-last-word">
+  Quarchive is free to use but currently in beta - so beware of bugs!
+</div>
 {% endblock %}

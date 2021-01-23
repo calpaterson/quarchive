@@ -79,6 +79,36 @@ nav > a {
     color: var(--fresh);
 }
 
+.about-screenshot img {
+    display: block;
+    margin: 2em auto;
+}
+
+.about-h1 {
+    text-align: center;
+}
+
+.about-caption {
+    margin: 1em;
+    text-align: center;
+}
+
+.about-row {
+    display: flex;
+}
+
+.about-column {
+    width: 23em;
+    flex: auto;
+    margin-left: 1em;
+    margin-right: 1em;
+}
+
+.about-last-word {
+    margin: 2em;
+    text-align: center
+}
+
 p.bookmark-date {
     margin-bottom: 0.5em;
     font-size: larger;
