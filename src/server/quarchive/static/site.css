@@ -41,6 +41,11 @@ a:visited {
     float: right;
 }
 
+.nav-links > a {
+    margin-left: 0.1em;
+    margin-right: 0.1em;
+}
+
 .nav-links a:visited {
     color: var(--light);
 }
@@ -114,6 +119,10 @@ nav > a {
     .about-column{
         width: 23em;
     }
+}
+
+.about-column > p {
+    text-align: justify;
 }
 
 .about-last-word {
@@ -195,6 +204,11 @@ p.bookmark-date {
     margin-left: 1em;
     padding-left: 1em;
     font-style: oblique;
+}
+
+.bookmark-meta {
+    margin-left: 0.1em;
+    margin-right: 0.1em;
 }
 
 .bookmark-details a.bookmark-meta:link {
