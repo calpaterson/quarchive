@@ -131,7 +131,6 @@ by <a href="{{ url_for('quarchive.user_page', username=owner.username) }}">{{ ow
       {% if icon_uuid %}
         <img
           src="{{url_for('quarchive-icons.icon_by_uuid', icon_uuid=icon_uuid)}}"
-          alt="icon for bookmark"
           >
       {% else %}
         <div class="fallback-icon"></div>
