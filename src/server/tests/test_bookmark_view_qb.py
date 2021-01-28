@@ -145,3 +145,38 @@ def test_discussion_digests(session, test_user):
         DiscussionSource.HN,
         DiscussionSource.REDDIT,
     }
+
+
+def test_doubling_issue(session, test_user):
+    """Test to check that a row doubling issue between tags and discussions has not been regressed.
+
+    This is for bug #65.
+    """
+    epoch_start = datetime(2018, 1, 3)
+    bm = make_bookmark(
+        tag_triples=set([("a", epoch_start, False), ("b", epoch_start, False)])
+    )
+    set_bookmark(session, test_user.user_uuid, bm)
+
+    discussions = [
+        Discussion(
+            external_id=str(random_numeric_id()),
+            source=DiscussionSource.REDDIT,
+            url=bm.url,
+            comment_count=1,
+            created_at=datetime(2018, 1, 3),
+            title="example",
+        ),
+        Discussion(
+            external_id=str(random_numeric_id()),
+            source=DiscussionSource.HN,
+            url=bm.url,
+            comment_count=0,
+            created_at=datetime(2018, 1, 3),
+            title="example",
+        ),
+    ]
+
+    upsert_discussions(session, discussions)
+    bookmarks = list(f for f in BookmarkViewQueryBuilder(session, test_user).execute())
+    assert len(bookmarks) == 1

@@ -101,7 +101,6 @@ class BookmarkViewQueryBuilder:
                 discussion_digests.c.source_ids,
             )
             .join(SQLABookmark, SQLAUrl.url_uuid == SQLABookmark.url_uuid)
-            .options(joinedload(SQLABookmark.bookmark_tag_objs))
             .outerjoin(link_counts, link_counts.c.url_uuid == SQLABookmark.url_uuid)
             .outerjoin(
                 backlink_counts, backlink_counts.c.url_uuid == SQLABookmark.url_uuid
