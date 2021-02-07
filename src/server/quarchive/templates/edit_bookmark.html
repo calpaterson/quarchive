@@ -7,7 +7,7 @@
   <form
     id="edit-bookmark-form"
     method="POST"
-    action="{{  url_for('quarchive.edit_bookmark', url_uuid=url_uuid, username=owner.username, redirect_to=request.url) }}"
+    action="{{ url_for('quarchive.edit_bookmark', url_uuid=url_uuid, username=owner.username, redirect_to=request.url) }}"
     >
 
     <h1>Edit "{{ title }}"</h1>
@@ -78,7 +78,7 @@
           >
 
           <datalist id="user-tags">
-            {% for tag, _ in tags_with_count %}
+            {% for tag in user_tags %}
               <option value="{{ tag }}">
             {% endfor %}
           </datalist>

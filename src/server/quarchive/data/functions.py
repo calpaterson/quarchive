@@ -450,6 +450,24 @@ def tags_with_count(session, user: User) -> Iterable[Tuple[str, int]]:
     yield from query
 
 
+def user_tags(session, user: User) -> Iterable[str]:
+    """Return an iterable of all tags that a user is currently using."""
+    query = (
+        session.query(Tag.tag_name)
+        .join(BookmarkTag)
+        .join(
+            SQLABookmark,
+            and_(
+                SQLABookmark.user_uuid == BookmarkTag.user_uuid,
+                SQLABookmark.url_uuid == BookmarkTag.url_uuid,
+            ),
+        )
+        .filter(BookmarkTag.user_uuid == user.user_uuid)
+        .filter(~SQLABookmark.deleted)
+    )
+    yield from query
+
+
 def bookmark_from_sqla(url: URL, sqla_obj: SQLABookmark) -> Bookmark:
     return Bookmark(
         url=url,

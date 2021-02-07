@@ -71,7 +71,7 @@
         >
 
         <datalist id="user-tags">
-          {% for tag, _ in tags_with_count %}
+          {% for tag in user_tags %}
             <option value="{{ tag }}">
           {% endfor %}
         </datalist>

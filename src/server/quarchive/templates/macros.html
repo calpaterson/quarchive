@@ -18,14 +18,15 @@
 {% macro render_bookmark(bookmark_view, as_owner=True) -%}
   {% set bookmark = bookmark_view.bookmark %}
   {% set owner = bookmark_view.owner %}
-  <div class="bookmark">
+  {% set bookmark_anchor = "-".join(["bookmark", owner.username, bookmark.url.url_uuid.__str__()]) %}
+  <div  class="bookmark">
     <div class="bookmark-row">
       <div class="bookmark-icon-column">
         {{ render_icon(bookmark_view.icon_uuid) }}
       </div>
       <div class="bookmark-rest-column">
         <p class="bookmark-link">
-          <a class="bookmark-title" href="{{bookmark.url.to_string()}}">{{bookmark_view.title()}}</a>
+          <a id="{{ bookmark_anchor }}" class="bookmark-title" href="{{bookmark.url.to_string()}}">{{bookmark_view.title()}}</a>
           <a
             class="netloc"
             href="{{ url_for('quarchive.user_netloc', username=owner.username, netloc=bookmark.url.netloc) }}"
@@ -69,6 +70,19 @@
           {% for tag in bookmark.current_tags()|sort %}{{ render_tag(owner, tag) }}{% if not loop.last %},{% endif %}
         {% endfor %}
         </p>
+        {% if as_owner %}
+          <div class="bookmark-quick-add-tag">
+            <form method="POST" action={{ url_for('quarchive.quick_add_tag', username=owner.username, url_uuid=bookmark.url.url_uuid, redirect_to=request.url + "#" + bookmark_anchor) }}>
+              <input
+                name="tag"
+                type="text"
+                pattern="^[a-z\-]+$"
+                title="Lowercase letters and hyphens"
+                {# list="user-tags" #}
+                ><button>Quick add tag</button>
+            </form>
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>

@@ -49,6 +49,7 @@ from quarchive.data.functions import (
     set_bookmark,
     set_user_timezone,
     tags_with_count,
+    user_tags as user_tags_data_fn,
     user_from_user_uuid,
     user_from_username_if_exists,
     username_exists,
@@ -225,12 +226,18 @@ def share_grant_to_url(session: Session, share_grant: ShareGrant) -> str:
         raise NotImplementedError("no implementation for other kinds of access obj")
 
 
+def is_good_status_code(status_code: int) -> bool:
+    """Returns true if the passes status code (broadly) indicates success -
+    either 2xx or 3xx."""
+    return status_code >= 200 and status_code < 400
+
+
 def observe_redirect_to(handler: V) -> V:
     @wraps(handler)
     def wrapper(*args, **kwargs):
         response = handler(*args, **kwargs)
-        if response.status_code == 200 and "redirect_to" in flask.request.args:
-            redirection = flask.make_response("redirecting",)
+        if is_good_status_code(response.status_code) and "redirect_to" in flask.request.args:
+            redirection = flask.make_response("Redirecting...")
             redirection.headers["Location"] = flask.request.args["redirect_to"]
             return redirection, 303
         else:
@@ -441,7 +448,7 @@ def create_bookmark_form(username: str) -> flask.Response:
     )
     template_kwargs: Dict[str, Any] = {"page_title": "Create bookmark"}
     template_kwargs.update(form_fields_from_querystring(flask.request.args))
-    template_kwargs["tags_with_count"] = tags_with_count(db.session, owner)
+    template_kwargs["user_tags"] = user_tags_data_fn(db.session, owner)
     template_kwargs["owner"] = owner
 
     return flask.make_response(
@@ -474,7 +481,7 @@ def edit_bookmark_form(username: str, url_uuid: UUID) -> flask.Response:
     # Then update it from the querystring
     template_kwargs.update(form_fields_from_querystring(flask.request.args))
 
-    template_kwargs["tags_with_count"] = tags_with_count(db.session, owner)
+    template_kwargs["user_tags"] = user_tags_data_fn(db.session, owner)
     template_kwargs["deleted"] = bookmark.deleted
 
     return flask.make_response(
@@ -541,7 +548,6 @@ def backlinks(username: str, url_uuid: UUID) -> flask.Response:
     bookmark = get_bookmark_by_url_uuid_or_fail(db.session, owner.user_uuid, url_uuid)
 
     page = int(flask.request.args.get("page", "1"))
-    user = get_current_user()
     qb = (
         BookmarkViewQueryBuilder(db.session, owner, page=page)
         .backlinks(url_uuid)
@@ -830,6 +836,26 @@ def user_page(username: str) -> flask.Response:
             current_timezone=user.timezone.zone,
         )
     )
+
+
+@web_blueprint.route("/<username>/bookmarks/<uuid:url_uuid>/quick-add-tag", methods=["POST"])
+@observe_redirect_to
+def quick_add_tag(username: str, url_uuid: UUID) -> flask.Response:
+    owner = get_user_or_fail(db.session, username)
+    require_access_or_fail(
+        BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.WRITE
+    )
+    bookmark = get_bookmark_by_url_uuid_or_fail(db.session, owner.user_uuid, url_uuid)
+    tag = flask.request.form["tag"]
+    set_bookmark(db.session, owner.user_uuid, bookmark.with_tag(tag))
+    db.session.commit()
+    flask.flash(f"Tagged '{bookmark.title}' with '{tag}'")
+    response = flask.make_response("Redirecting...", 303)
+    response.headers["Location"] = flask.url_for(
+        "quarchive.edit_bookmark_form", url_uuid=url_uuid, username=owner.username,
+    )
+    return response
+
 
 
 @web_blueprint.route("/users/<username>", methods=["POST"])

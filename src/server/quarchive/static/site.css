@@ -130,6 +130,10 @@ nav > a {
     text-align: center
 }
 
+:target {
+    background: yellow;
+}
+
 p.bookmark-date {
     margin-bottom: 0.5em;
     font-size: larger;
@@ -217,6 +221,17 @@ p.bookmark-date {
 
 .bookmark-details a.bookmark-meta:visited {
     color: inherit;
+}
+
+.bookmark-quick-add-tag {
+    font-size: small;
+    margin-top: 0.1em;
+    margin-left: 0.25em;
+}
+
+.bookmark-quick-add-tag button {
+    margin-left: 0.8em;
+    margin-right: 0.8em;
 }
 
 .netloc {

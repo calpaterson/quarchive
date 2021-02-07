@@ -1,7 +1,7 @@
 import itertools
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from logging import getLogger
 from typing import Any, FrozenSet, Mapping, Optional, Set, Tuple, ClassVar, Union
 from urllib.parse import urlsplit, urlunsplit, urljoin
@@ -151,6 +151,19 @@ class Bookmark:
     def current_tags(self) -> FrozenSet[str]:
         """Returns all current tags of the bookmark"""
         return frozenset(tt[0] for tt in self.tag_triples if not tt[2])
+
+    def with_tag(self, tag: str) -> "Bookmark":
+        now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        return Bookmark(
+            url=self.url,
+            created=self.created,
+            updated=now,
+            title=self.title,
+            description=self.description,
+            unread=self.unread,
+            deleted=self.deleted,
+            tag_triples=Bookmark.merge_tag_triples(self.tag_triples, frozenset([(tag, now, False)]))
+        )
 
     def merge(self, other: "Bookmark") -> "Bookmark":
         more_recent: "Bookmark" = sorted(
