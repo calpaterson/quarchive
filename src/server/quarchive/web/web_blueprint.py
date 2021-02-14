@@ -236,7 +236,10 @@ def observe_redirect_to(handler: V) -> V:
     @wraps(handler)
     def wrapper(*args, **kwargs):
         response = handler(*args, **kwargs)
-        if is_good_status_code(response.status_code) and "redirect_to" in flask.request.args:
+        if (
+            is_good_status_code(response.status_code)
+            and "redirect_to" in flask.request.args
+        ):
             redirection = flask.make_response("Redirecting...")
             redirection.headers["Location"] = flask.request.args["redirect_to"]
             return redirection, 303
@@ -392,6 +395,7 @@ def my_bookmarks(current_user: User) -> flask.Response:
             prev_page_exists=prev_page_exists,
             next_page_exists=next_page_exists,
             search_query=flask.request.args.get("q", ""),
+            user_tags=user_tags_data_fn(db.session, current_user),
         )
     )
 
@@ -525,6 +529,11 @@ def links(username: str, url_uuid: UUID) -> flask.Response:
         .order_by_created()
     )
     title = f"Links from '{bookmark.title}'"
+    current_user = get_current_user()
+    if current_user is not None:
+        user_tags = user_tags_data_fn(db.session, current_user)
+    else:
+        user_tags = []
     return flask.make_response(
         flask.render_template(
             "bookmarks.html",
@@ -535,6 +544,7 @@ def links(username: str, url_uuid: UUID) -> flask.Response:
             prev_page_exists=qb.has_previous_page(),
             next_page_exists=qb.has_next_page(),
             search_query=False,
+            user_tags=user_tags,
         )
     )
 
@@ -554,6 +564,12 @@ def backlinks(username: str, url_uuid: UUID) -> flask.Response:
         .order_by_created()
     )
     title = f"Links to '{bookmark.title}'"
+
+    current_user = get_current_user()
+    if current_user is not None:
+        user_tags = user_tags_data_fn(db.session, current_user)
+    else:
+        user_tags = []
     return flask.make_response(
         flask.render_template(
             "bookmarks.html",
@@ -564,6 +580,7 @@ def backlinks(username: str, url_uuid: UUID) -> flask.Response:
             prev_page_exists=qb.has_previous_page(),
             next_page_exists=qb.has_next_page(),
             search_query=False,
+            user_tags=user_tags,
         )
     )
 
@@ -632,12 +649,18 @@ def view_bookmark(username: str, url_uuid: UUID) -> flask.Response:
         BookmarkAccessObject(user_uuid=owner.user_uuid, url_uuid=url_uuid), Access.READ,
     )
     qb = BookmarkViewQueryBuilder(db.session, owner).only_url(url_uuid)
+    current_user = get_current_user()
+    if current_user is not None:
+        user_tags = user_tags_data_fn(db.session, current_user)
+    else:
+        user_tags = []
     return flask.make_response(
         flask.render_template(
             "bookmarks.html",
             bookmark_views=qb.execute(),
             search_query=False,
             pagination=False,
+            user_tags=user_tags,
         )
     )
 
@@ -838,7 +861,9 @@ def user_page(username: str) -> flask.Response:
     )
 
 
-@web_blueprint.route("/<username>/bookmarks/<uuid:url_uuid>/quick-add-tag", methods=["POST"])
+@web_blueprint.route(
+    "/<username>/bookmarks/<uuid:url_uuid>/quick-add-tag", methods=["POST"]
+)
 @observe_redirect_to
 def quick_add_tag(username: str, url_uuid: UUID) -> flask.Response:
     owner = get_user_or_fail(db.session, username)
@@ -855,7 +880,6 @@ def quick_add_tag(username: str, url_uuid: UUID) -> flask.Response:
         "quarchive.edit_bookmark_form", url_uuid=url_uuid, username=owner.username,
     )
     return response
-
 
 
 @web_blueprint.route("/users/<username>", methods=["POST"])
@@ -889,6 +913,7 @@ def user_tag(current_user: User, username: str, tag: str) -> flask.Response:
             bookmark_views=bookmark_views,
             tag=tag,
             page_title="Tagged as '%s'" % tag,
+            user_tags=user_tags_data_fn(db.session, current_user),
         )
     )
 
@@ -905,6 +930,7 @@ def user_netloc(current_user: User, username: str, netloc: str) -> flask.Respons
             bookmark_views=bookmark_views,
             netloc=netloc,
             page_title="Bookmarks from '%s'" % netloc,
+            user_tags=user_tags_data_fn(db.session, current_user),
         )
     )
 

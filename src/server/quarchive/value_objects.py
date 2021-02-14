@@ -162,7 +162,9 @@ class Bookmark:
             description=self.description,
             unread=self.unread,
             deleted=self.deleted,
-            tag_triples=Bookmark.merge_tag_triples(self.tag_triples, frozenset([(tag, now, False)]))
+            tag_triples=Bookmark.merge_tag_triples(
+                self.tag_triples, frozenset([(tag, now, False)])
+            ),
         )
 
     def merge(self, other: "Bookmark") -> "Bookmark":
