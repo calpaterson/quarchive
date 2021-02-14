@@ -46,7 +46,9 @@ def test_tags_page(signed_in_client, test_user):
     bm2 = make_bookmark(
         url=URL.from_string("http://example.com/digimon"),
         title="Digimon",
-        tag_triples=frozenset([("digimon", epoch_start, False)]),
+        tag_triples=frozenset(
+            [("digimon", epoch_start, False), ("animals", epoch_start, True)]
+        ),
     )
 
     sync_bookmarks(signed_in_client, test_user, [bm1, bm2])

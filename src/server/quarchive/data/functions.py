@@ -444,10 +444,11 @@ def tags_with_count(session, user: User) -> Iterable[Tuple[str, int]]:
         )
         .filter(BookmarkTag.user_uuid == user.user_uuid)
         .filter(~SQLABookmark.deleted)
+        .filter(~BookmarkTag.deleted)
         .group_by(Tag.tag_name)
         .order_by(func.count(Tag.tag_name).desc())
     )
-    yield from query
+    return query
 
 
 def user_tags(session, user: User) -> Iterable[str]:
@@ -464,8 +465,10 @@ def user_tags(session, user: User) -> Iterable[str]:
         )
         .filter(BookmarkTag.user_uuid == user.user_uuid)
         .filter(~SQLABookmark.deleted)
+        .filter(~BookmarkTag.deleted)
     )
-    yield from query
+    for (tag,) in query:
+        yield tag
 
 
 def bookmark_from_sqla(url: URL, sqla_obj: SQLABookmark) -> Bookmark:

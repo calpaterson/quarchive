@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from quarchive.data.functions import (
     most_recent_successful_bookmark_crawls,
     set_bookmark,
+    user_tags,
 )
 from quarchive.value_objects import URL
 from quarchive.data.models import CrawlRequest, CrawlResponse, SQLAUrl
@@ -61,3 +62,18 @@ def test_most_recent_successful_crawls(session, test_user):
     assert crawl_req_2.crawl_uuid in rv
     assert crawl_req_3.crawl_uuid not in rv
     assert crawl_req_3.crawl_uuid not in rv
+
+
+def test_user_tags(session, test_user):
+    epoch_start = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    bm_1 = make_bookmark(
+        tag_triples=frozenset([("a", epoch_start, False), ("b", epoch_start, False)])
+    )
+    bm_2 = make_bookmark(
+        tag_triples=frozenset([("b", epoch_start, False), ("c", epoch_start, True)])
+    )
+    set_bookmark(session, test_user.user_uuid, bm_1)
+    set_bookmark(session, test_user.user_uuid, bm_2)
+
+    expected = set(["a", "b"])
+    assert set(user_tags(session, test_user)) == expected
