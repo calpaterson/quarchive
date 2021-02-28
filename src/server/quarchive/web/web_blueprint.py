@@ -129,12 +129,22 @@ def set_api_key_cookie_if_necessary(response: flask.Response) -> flask.Response:
 
 @web_blueprint.before_request
 def put_user_in_g() -> None:
-    user_uuid: Optional[UUID] = flask.session.get("user_uuid")
+    app_logger = flask.current_app.logger
+    user_uuid: Optional[Any] = flask.session.get("user_uuid")
     if user_uuid is not None:
-        set_current_user(user_from_user_uuid(db.session, get_cache(), user_uuid))
-        flask.current_app.logger.debug("currently signed in as: %s", get_current_user())
+        if not isinstance(user_uuid, UUID):
+            del flask.session["user_uuid"]
+            app_logger.warning("cleared a corrupt user_uuid cookie: %s", user_uuid)
+        else:
+            user = user_from_user_uuid(db.session, get_cache(), user_uuid)
+            if user is None:
+                del flask.session["user_uuid"]
+                app_logger.warning("cleared a corrupt user_uuid cookie: %s", user_uuid)
+            else:
+                set_current_user(user)
+                app_logger.debug("currently signed in as: %s", get_current_user())
     else:
-        flask.current_app.logger.debug("not signed in")
+        app_logger.debug("not signed in")
 
 
 def sign_in_required(
@@ -217,6 +227,9 @@ def share_grant_to_url(session: Session, share_grant: ShareGrant) -> str:
     access_obj = share_grant.access_object
     if isinstance(access_obj, BookmarkAccessObject):
         user = user_from_user_uuid(session, get_cache(), access_obj.user_uuid)
+        # FIXME: Can this really happen?
+        if user is None:
+            raise RuntimeError("user not found")
         return flask.url_for(
             "quarchive.view_bookmark",
             username=user.username,

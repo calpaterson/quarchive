@@ -178,7 +178,7 @@ def user_from_username_if_exists(
     return user
 
 
-def user_from_user_uuid(session, cache: Cache, user_uuid: UUID) -> User:
+def user_from_user_uuid(session, cache: Cache, user_uuid: UUID) -> Optional[User]:
     # FIXME: This should return a nullable type as the user for this user uuid
     # may have been deleted (among other things)
     key = UserUUIDToUserKey(user_uuid)
@@ -186,7 +186,7 @@ def user_from_user_uuid(session, cache: Cache, user_uuid: UUID) -> User:
     if user is not None:
         return user
 
-    username, email, timezone, registered = (
+    row = (
         session.query(
             SQLUser.username,
             UserEmail.email_address,
@@ -195,8 +195,12 @@ def user_from_user_uuid(session, cache: Cache, user_uuid: UUID) -> User:
         )
         .outerjoin(UserEmail)
         .filter(SQLUser.user_uuid == user_uuid)
-        .one()
+        .one_or_none()
     )
+    if row is None:
+        return row
+    else:
+        username, email, timezone, registered = row
     user = User(
         user_uuid=user_uuid,
         username=username,

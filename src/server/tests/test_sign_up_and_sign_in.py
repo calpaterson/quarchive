@@ -1,3 +1,4 @@
+from uuid import uuid4
 from typing import Sequence, Any
 from http.cookies import SimpleCookie
 
@@ -111,6 +112,14 @@ def test_sign_in_success(client, test_user):
 
     assert flask.session["user_uuid"] == test_user.user_uuid
     assert get_current_user() == test_user.as_user()
+
+
+@pytest.mark.parametrize("cookie_value", [uuid4(), "nonsense"])
+def test_corrupt_cookie_gets_deleted(client, cookie_value):
+    with client.session_transaction() as flask_session:
+        flask_session["user_uuid"] = cookie_value
+    response = client.get(flask.url_for("quarchive.about"))
+    assert response.status_code == 200
 
 
 def test_sign_in_wrong_password(client, test_user):
