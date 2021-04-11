@@ -35,6 +35,17 @@ def quarchive_cli(log_level) -> None:
     configure_logging(log_level)
 
 
+@quarchive_cli.command()
+def anonymise_data():
+    """Clear out all user-specific data, useful for after restoring from a
+    production dump locally."""
+    Session = get_session_cls()
+    with contextlib.closing(Session()) as session:
+        session.execute("truncate user_emails")
+        session.execute("update users set password = ''")
+        session.commit()
+
+
 @quarchive_cli.command(help="Start web server")
 def web() -> None:
     app = init_app()
