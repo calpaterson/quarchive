@@ -37,7 +37,7 @@ jobs:
       with:
         python-version: 3.7
     - name: Install postgresql server dev requirements
-      run: sudo apt-get update && sudo apt-get install -y postgresql-server-dev-all libsystemd-dev pngcrush
+      run: sudo apt-get update && sudo apt-get install -y libsystemd-dev pngcrush
     - name: Use cache of pip downloads
       uses: actions/cache@v1
       with:
