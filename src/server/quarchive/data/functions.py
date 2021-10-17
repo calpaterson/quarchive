@@ -71,7 +71,7 @@ class UserUUIDToUserKey(Key[User]):
     def __init__(self, user_uuid: UUID):
         self._user_uuid = user_uuid
 
-    def as_segments(self):
+    def cache_key_segments(self):
         return [str(self._user_uuid)]
 
 
@@ -79,7 +79,7 @@ class UsernameToUserKey(Key[User]):
     def __init__(self, username: str):
         self._username = username
 
-    def as_segments(self):
+    def cache_key_segments(self):
         return [self._username]
 
 
@@ -87,7 +87,7 @@ class UsernameToApiKey(Key[bytes]):
     def __init__(self, username: str):
         self._username = username
 
-    def as_segments(self):
+    def cache_key_segments(self):
         return [self._username, "api_key"]
 
 

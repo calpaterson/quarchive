@@ -27,7 +27,7 @@ setup(
         "missive==0.8.1",
         "passlib~=1.7.4",
         "psycopg2==2.8.6",
-        "pyappcache[memcache]==0.2",
+        "pyappcache[memcache]==0.9",
         "pyhash==0.9.3",
         "python-dateutil~=2.8.1",
         "python-magic~=0.4.22",
