@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 import pytz
 from pyappcache.cache import Cache
-from pyappcache.keys import Key
+from pyappcache.keys import BaseKey
 from sqlalchemy import and_, cast as sa_cast, func, types as satypes, create_engine
 from sqlalchemy.sql.expression import case
 from sqlalchemy.dialects.postgresql import (
@@ -67,7 +67,7 @@ def get_session_cls() -> sessionmaker:
     return Session
 
 
-class UserUUIDToUserKey(Key[User]):
+class UserUUIDToUserKey(BaseKey[User]):
     def __init__(self, user_uuid: UUID):
         self._user_uuid = user_uuid
 
@@ -75,7 +75,7 @@ class UserUUIDToUserKey(Key[User]):
         return [str(self._user_uuid)]
 
 
-class UsernameToUserKey(Key[User]):
+class UsernameToUserKey(BaseKey[User]):
     def __init__(self, username: str):
         self._username = username
 
@@ -83,7 +83,7 @@ class UsernameToUserKey(Key[User]):
         return [self._username]
 
 
-class UsernameToApiKey(Key[bytes]):
+class UsernameToApiKey(BaseKey[bytes]):
     def __init__(self, username: str):
         self._username = username
 
