@@ -9,6 +9,7 @@ from uuid import UUID
 import click
 from dateutil.parser import isoparse
 
+from .cache import get_cache
 from .messaging import message_lib
 from .messaging.publication import publish_message
 from .data.functions import merge_bookmarks
@@ -59,7 +60,7 @@ def pinboard_import(user_uuid: UUID, json_file, as_of: datetime, log_level):
     app = init_app()
     with app.app_context():
         generator = (pinboard_bookmark_to_bookmark(b) for b in document)
-        merge_result = merge_bookmarks(db.session, user_uuid, generator)
+        merge_result = merge_bookmarks(db.session, get_cache(), user_uuid, generator)
         log.info("added %d bookmarks", len(merge_result.added))
         log.info("changed %d bookmarks", len(merge_result.changed))
         db.session.commit()

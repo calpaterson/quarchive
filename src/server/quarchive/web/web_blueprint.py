@@ -443,7 +443,7 @@ def create_bookmark(username: str) -> flask.Response:
         created=creation_time,
         tag_triples=tag_triples,
     )
-    url_uuid = set_bookmark(db.session, owner.user_uuid, bookmark)
+    url_uuid = set_bookmark(db.session, get_cache(), owner.user_uuid, bookmark)
     db.session.commit()
     publish_message(
         message_lib.BookmarkCreated(user_uuid=owner.user_uuid, url_uuid=url.url_uuid),
@@ -649,7 +649,7 @@ def edit_bookmark(username: str, url_uuid: UUID) -> flask.Response:
 
     merged_bookmark = updated_bookmark.merge(existing_bookmark)
 
-    set_bookmark(db.session, owner.user_uuid, merged_bookmark)
+    set_bookmark(db.session, get_cache(), owner.user_uuid, merged_bookmark)
     db.session.commit()
     flask.flash("Edited: %s" % merged_bookmark.title)
     return flask.make_response("ok")
@@ -885,7 +885,7 @@ def quick_add_tag(username: str, url_uuid: UUID) -> flask.Response:
     )
     bookmark = get_bookmark_by_url_uuid_or_fail(db.session, owner.user_uuid, url_uuid)
     tag = flask.request.form["tag"]
-    set_bookmark(db.session, owner.user_uuid, bookmark.with_tag(tag))
+    set_bookmark(db.session, get_cache(), owner.user_uuid, bookmark.with_tag(tag))
     db.session.commit()
     flask.flash(f"Tagged '{bookmark.title}' with '{tag}'")
     response = flask.make_response("Redirecting...", 303)

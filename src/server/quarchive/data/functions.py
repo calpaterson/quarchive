@@ -4,6 +4,7 @@ from logging import getLogger
 from typing import Any, Iterable, Optional, Set, Tuple, Dict, cast
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
+from time import monotonic_ns
 from dataclasses import dataclass
 
 import pytz
@@ -24,6 +25,7 @@ from quarchive.accesscontrol import (
     ShareGrant,
     BookmarkAccessObject,
 )
+from .cache_namespaces import UserBookmarksNamespaceKey
 from quarchive.html_metadata import HTMLMetadata
 from quarchive.value_objects import (
     Bookmark,
@@ -350,7 +352,9 @@ def get_url_by_url_uuid(session: Session, url_uuid: UUID) -> Optional[URL]:
     return None
 
 
-def set_bookmark(session: Session, user_uuid: UUID, bookmark: Bookmark) -> UUID:
+def set_bookmark(
+    session: Session, cache: Cache, user_uuid: UUID, bookmark: Bookmark
+) -> UUID:
     url = bookmark.url
     if len(bookmark.tag_triples) > 0:
         tag_names, tag_updates, tag_deleted = zip(*bookmark.tag_triples)
@@ -380,6 +384,9 @@ def set_bookmark(session: Session, user_uuid: UUID, bookmark: Bookmark) -> UUID:
         )
     )
 
+    ub_cache_ns = UserBookmarksNamespaceKey(user_uuid)
+    cache.set(ub_cache_ns, monotonic_ns())
+
     return url.url_uuid
 
 
@@ -390,7 +397,10 @@ class MergeResult:
 
 
 def merge_bookmarks(
-    session: Session, user_uuid: UUID, recieved_bookmarks: Iterable[Bookmark]
+    session: Session,
+    cache: Cache,
+    user_uuid: UUID,
+    recieved_bookmarks: Iterable[Bookmark],
 ) -> MergeResult:
     added_bookmarks: Set[Bookmark] = set()
     changed_bookmarks: Set[Bookmark] = set()
@@ -401,7 +411,7 @@ def merge_bookmarks(
         if existing is None:
             # If it doesn't exist in our db, we create it - but client already
             # knows
-            set_bookmark(session, user_uuid, recieved)
+            set_bookmark(session, cache, user_uuid, recieved)
             log.debug("added: %s", recieved)
             added_bookmarks.add(recieved)
         else:
@@ -414,7 +424,7 @@ def merge_bookmarks(
                     existing,
                     merged,
                 )
-                set_bookmark(session, user_uuid, merged)
+                set_bookmark(session, cache, user_uuid, merged)
             else:
                 log.debug("no change to %s", recieved)
             if merged != recieved:
@@ -506,13 +516,15 @@ def get_all_urls_as_5_tuples(
         yield (uuid, (s, n, p, q, f))
 
 
-def delete_bookmark(session, user_uuid: UUID, url_uuid: UUID):
+def delete_bookmark(session, cache, user_uuid: UUID, url_uuid: UUID):
     """Delete a bookmark by user_uuid and url_uuid.  For test purposes only"""
     log.warning("deleting bookmark: %s %s", user_uuid, url_uuid)
     query = session.query(SQLABookmark).filter(
         SQLABookmark.url_uuid == url_uuid, SQLABookmark.user_uuid == user_uuid
     )
     query.delete(synchronize_session="fetch")
+
+    cache.set(UserBookmarksNamespaceKey(user_uuid), monotonic_ns)
 
 
 def delete_url(session, url_uuid: UUID):
@@ -703,6 +715,8 @@ def upsert_metadata(session: Session, crawl_uuid: UUID, metadata: HTMLMetadata) 
         else:
             canonical_url_obj.canonical_url_uuid = metadata.canonical.url_uuid
 
+    # FIXME: invalidate caches for all users with this bookmark?
+
 
 def upsert_links(session: Session, url: URL, links: Set[URL]) -> None:
     current: Set[UUID] = set(
@@ -733,6 +747,8 @@ def upsert_links(session: Session, url: URL, links: Set[URL]) -> None:
         [Link(from_url_uuid=url.url_uuid, to_url_uuid=r) for r in to_be_added]
     )
 
+    # FIXME: invalidate caches for all users with this bookmark?
+
 
 def record_index_error(session: Session, crawl_uuid: UUID, message: str) -> None:
     session.add(IndexingError(crawl_uuid=crawl_uuid, description=message))
@@ -761,6 +777,8 @@ def upsert_icon_for_url(session, page_url: URL, icon_uuid: UUID) -> None:
     else:
         url_icon.icon_uuid = icon_uuid
 
+    # FIXME: invalidate caches for all users with this bookmark?
+
 
 def have_icon_by_hash(session: Session, hash_bytes: bytes) -> bool:
     return session.query(
@@ -782,6 +800,8 @@ def upsert_icon(session, icon_url: URL, hash_bytes: bytes) -> UUID:
         session.add(IconSource(icon_uuid=icon.icon_uuid, url_uuid=icon_url.url_uuid))
     return icon.icon_uuid
 
+    # FIXME: invalidate caches for all users with this bookmark?
+
 
 def record_page_icon(
     session: Session, icon_url: URL, page_url: URL, hash_bytes: bytes
@@ -792,6 +812,8 @@ def record_page_icon(
     session.add(url_icon)
     return icon_uuid
 
+    # FIXME: invalidate caches for all users with this bookmark?
+
 
 def record_domain_icon(session: Session, icon_url: URL, hash_bytes: bytes) -> UUID:
     icon_uuid = upsert_icon(session, icon_url, hash_bytes)
@@ -800,6 +822,8 @@ def record_domain_icon(session: Session, icon_url: URL, hash_bytes: bytes) -> UU
     )
     session.add(domain_icon)
     return icon_uuid
+
+    # FIXME: invalidate caches for all users with this bookmark?
 
 
 def create_share_grant(

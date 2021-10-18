@@ -16,23 +16,23 @@ from quarchive.data.functions import (
 from .conftest import make_bookmark, random_bytes, random_string, random_numeric_id
 
 
-def test_simple_bookmark(session, test_user):
+def test_simple_bookmark(session, cache, test_user):
     bm = make_bookmark()
-    set_bookmark(session, test_user.user_uuid, bm)
+    set_bookmark(session, cache, test_user.user_uuid, bm)
 
     (found,) = list(BookmarkViewQueryBuilder(session, test_user).execute())
     assert found.bookmark == bm
 
 
-def test_links_and_backlinks(session, test_user):
+def test_links_and_backlinks(session, cache, test_user):
     bm1 = make_bookmark()
     bm2 = make_bookmark()
     bm3 = make_bookmark()
     bm4 = make_bookmark()
-    set_bookmark(session, test_user.user_uuid, bm1)
-    set_bookmark(session, test_user.user_uuid, bm2)
-    set_bookmark(session, test_user.user_uuid, bm3)
-    set_bookmark(session, test_user.user_uuid, bm4)
+    set_bookmark(session, cache, test_user.user_uuid, bm1)
+    set_bookmark(session, cache, test_user.user_uuid, bm2)
+    set_bookmark(session, cache, test_user.user_uuid, bm3)
+    set_bookmark(session, cache, test_user.user_uuid, bm4)
     upsert_links(session, bm1.url, {bm2.url, bm3.url})
     upsert_links(session, bm4.url, {bm1.url})
 
@@ -66,9 +66,9 @@ def test_links_and_backlinks(session, test_user):
         pytest.param(False, id="no canonical url"),
     ],
 )
-def test_icon_uuids_url_icon(session, test_user, canonical_url):
+def test_icon_uuids_url_icon(session, cache, test_user, canonical_url):
     bm1 = make_bookmark()
-    set_bookmark(session, test_user.user_uuid, bm1)
+    set_bookmark(session, cache, test_user.user_uuid, bm1)
     if canonical_url:
         canonical_url = bm1.url.follow("canonical.html")
         upsert_url(session, canonical_url)
@@ -88,9 +88,9 @@ def test_icon_uuids_url_icon(session, test_user, canonical_url):
     assert bm1_view.icon_uuid == icon_uuid
 
 
-def test_discussion_digests_no_discussions(session, test_user):
+def test_discussion_digests_no_discussions(session, cache, test_user):
     bm = make_bookmark()
-    set_bookmark(session, test_user.user_uuid, bm)
+    set_bookmark(session, cache, test_user.user_uuid, bm)
 
     (bm1_view,) = (f for f in BookmarkViewQueryBuilder(session, test_user).execute())
     assert bm1_view.discussion_digest.comment_count == 0
@@ -98,9 +98,9 @@ def test_discussion_digests_no_discussions(session, test_user):
     assert bm1_view.discussion_digest.sources == set()
 
 
-def test_discussion_digests(session, test_user):
+def test_discussion_digests(session, cache, test_user):
     bm = make_bookmark()
-    set_bookmark(session, test_user.user_uuid, bm)
+    set_bookmark(session, cache, test_user.user_uuid, bm)
 
     discussions = [
         Discussion(
@@ -147,7 +147,7 @@ def test_discussion_digests(session, test_user):
     }
 
 
-def test_doubling_issue(session, test_user):
+def test_doubling_issue(session, cache, test_user):
     """Test to check that a row doubling issue between tags and discussions has not been regressed.
 
     This is for bug #65.
@@ -156,7 +156,7 @@ def test_doubling_issue(session, test_user):
     bm = make_bookmark(
         tag_triples=set([("a", epoch_start, False), ("b", epoch_start, False)])
     )
-    set_bookmark(session, test_user.user_uuid, bm)
+    set_bookmark(session, cache, test_user.user_uuid, bm)
 
     discussions = [
         Discussion(

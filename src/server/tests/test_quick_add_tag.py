@@ -6,9 +6,9 @@ from .conftest import make_bookmark
 from .utils import sync_bookmarks
 
 
-def test_quick_add_tag(session, signed_in_client, test_user):
+def test_quick_add_tag(session, cache, signed_in_client, test_user):
     bm = make_bookmark()
-    set_bookmark(session, test_user.user_uuid, bm)
+    set_bookmark(session, cache, test_user.user_uuid, bm)
 
     response = signed_in_client.post(
         flask.url_for(

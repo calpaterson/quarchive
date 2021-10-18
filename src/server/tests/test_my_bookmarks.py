@@ -3,6 +3,7 @@ from typing import List
 from uuid import uuid4
 from datetime import datetime, timezone
 
+from pyappcache.cache import Cache
 from sqlalchemy.orm import Session
 import flask
 from lxml import etree
@@ -137,10 +138,14 @@ def test_my_bookmarks_search(
 
 
 def make_fulltext_indexed_bookmark(
-    session: Session, user: sut.User, bookmark: sut.Bookmark, full_text: str
+    session: Session,
+    cache: Cache,
+    user: sut.User,
+    bookmark: sut.Bookmark,
+    full_text: str,
 ):
     # FIXME: this really shows the need for a library of common db functions
-    url_uuid = sut.set_bookmark(session, user.user_uuid, bookmark)
+    url_uuid = sut.set_bookmark(session, cache, user.user_uuid, bookmark)
     crawl_uuid = uuid4()
     body_uuid = uuid4()
 
@@ -166,15 +171,15 @@ def make_fulltext_indexed_bookmark(
     session.add_all([crawl_req, crawl_resp, fulltext_obj])
 
 
-def test_full_text_search(app, signed_in_client, session, test_user):
+def test_full_text_search(app, signed_in_client, session, test_user, cache):
     star_wars_bm = make_bookmark(title="star wars")
     star_trek_bm = make_bookmark(title="star trek")
 
     make_fulltext_indexed_bookmark(
-        session, test_user, star_wars_bm, "wookies live on planet kashyyyk"
+        session, cache, test_user, star_wars_bm, "wookies live on planet kashyyyk"
     )
     make_fulltext_indexed_bookmark(
-        session, test_user, star_trek_bm, "red shirts usually perish"
+        session, cache, test_user, star_trek_bm, "red shirts usually perish"
     )
     session.commit()
 

@@ -18,6 +18,7 @@ from passlib.context import CryptContext
 import pytz
 
 import quarchive as sut
+from quarchive.cache import get_cache
 from quarchive import (
     value_objects,
     bg_worker as bg_worker_module,
@@ -77,6 +78,11 @@ def config():
 @pytest.fixture(scope="function")
 def session(app, config):
     return sut.db.session
+
+
+@pytest.fixture()
+def cache(app, config):
+    return get_cache()
 
 
 @pytest.fixture(scope="session")

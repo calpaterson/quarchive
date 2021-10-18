@@ -83,7 +83,7 @@ def test_pinboard_with_note(session, test_user):
 
 
 @pytest.mark.pinboard_import
-def test_pinboard_uses_merge(session, tmpdir, test_user):
+def test_pinboard_uses_merge(session, cache, tmpdir, test_user):
     runner = CliRunner()
 
     existing_bookmark = make_bookmark(
@@ -91,7 +91,7 @@ def test_pinboard_uses_merge(session, tmpdir, test_user):
         updated=datetime(2018, 2, 1, tzinfo=timezone.utc),
         description="as of 2018-02",
     )
-    sut.set_bookmark(session, test_user.user_uuid, existing_bookmark)
+    sut.set_bookmark(session, cache, test_user.user_uuid, existing_bookmark)
     session.commit()
 
     pinboard_bookmarks = [

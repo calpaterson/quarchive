@@ -10,7 +10,7 @@ from .conftest import make_bookmark
 
 
 @pytest.fixture()
-def bad_scheme_bookmark(session, test_user):
+def bad_scheme_bookmark(session, cache, test_user):
     url_uuid = uuid5(UUID_URL_NAMESPACE, "about:blank")
     bad_scheme_url = sut.URL(
         url_uuid=url_uuid,
@@ -22,18 +22,18 @@ def bad_scheme_bookmark(session, test_user):
     )
 
     bookmark = make_bookmark(url=bad_scheme_url, tag_triples=frozenset())
-    bookmark_uuid = sut.set_bookmark(session, test_user.user_uuid, bookmark)
+    bookmark_uuid = sut.set_bookmark(session, cache, test_user.user_uuid, bookmark)
     session.commit()
 
     yield
     # teardown is required to avoid leaving a dirty db around
-    delete_bookmark(session, test_user.user_uuid, bookmark_uuid)
+    delete_bookmark(session, cache, test_user.user_uuid, bookmark_uuid)
     delete_url(session, url_uuid)
     session.commit()
 
 
 @pytest.fixture()
-def bad_uuid_bookmark(session, test_user):
+def bad_uuid_bookmark(session, cache, test_user):
     url_uuid = UUID("f" * 32)
     bad_uuid_url = sut.URL(
         url_uuid=url_uuid,
@@ -44,18 +44,18 @@ def bad_uuid_bookmark(session, test_user):
         fragment="",
     )
     bookmark = make_bookmark(url=bad_uuid_url, tag_triples=frozenset())
-    bookmark_uuid = sut.set_bookmark(session, test_user.user_uuid, bookmark)
+    bookmark_uuid = sut.set_bookmark(session, cache, test_user.user_uuid, bookmark)
     session.commit()
 
     yield
     # teardown is required to avoid leaving a dirty db around
-    delete_bookmark(session, test_user.user_uuid, bookmark_uuid)
+    delete_bookmark(session, cache, test_user.user_uuid, bookmark_uuid)
     delete_url(session, url_uuid)
     session.commit()
 
 
 @pytest.fixture()
-def bad_canonicalisation_bookmark(session, test_user):
+def bad_canonicalisation_bookmark(session, cache, test_user):
     # Needs a trailing slash
     url_uuid = uuid5(UUID_URL_NAMESPACE, "http://example.com")
     bad_uuid_url = sut.URL(
@@ -67,21 +67,21 @@ def bad_canonicalisation_bookmark(session, test_user):
         fragment="",
     )
     bookmark = make_bookmark(url=bad_uuid_url, tag_triples=frozenset())
-    bookmark_uuid = sut.set_bookmark(session, test_user.user_uuid, bookmark)
+    bookmark_uuid = sut.set_bookmark(session, cache, test_user.user_uuid, bookmark)
     session.commit()
 
     yield
     # teardown is required to avoid leaving a dirty db around
-    delete_bookmark(session, test_user.user_uuid, bookmark_uuid)
+    delete_bookmark(session, cache, test_user.user_uuid, bookmark_uuid)
     delete_url(session, url_uuid)
     session.commit()
 
 
-def test_url_recheck_with_all_valid(session, test_user):
+def test_url_recheck_with_all_valid(session, cache, test_user):
     runner = CliRunner()
 
     bookmark = make_bookmark()
-    sut.set_bookmark(session, test_user.user_uuid, bookmark)
+    sut.set_bookmark(session, cache, test_user.user_uuid, bookmark)
     session.commit()
 
     result = runner.invoke(sut.url_recheck)

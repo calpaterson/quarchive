@@ -69,10 +69,11 @@ def test_create_bookmark_form_add_tag(
     expected_tags,
     session,
     test_user,
+    cache,
 ):
     if viewfunc == "quarchive.edit_bookmark_form":
         bookmark = make_bookmark()
-        sut.set_bookmark(session, test_user.user_uuid, bookmark)
+        sut.set_bookmark(session, cache, test_user.user_uuid, bookmark)
         url = bookmark.url.to_string()
     else:
         url = "http://example.com"

@@ -13,9 +13,9 @@ from .conftest import make_bookmark, random_numeric_id, random_url
 from .utils import sync_bookmarks
 
 
-def test_discussions(signed_in_client, test_user, session):
+def test_discussions(signed_in_client, test_user, session, cache):
     bm = make_bookmark()
-    set_bookmark(session, test_user.user_uuid, bm)
+    set_bookmark(session, cache, test_user.user_uuid, bm)
 
     discussions = [
         Discussion(

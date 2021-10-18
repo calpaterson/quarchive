@@ -110,7 +110,9 @@ def sync(current_user: User) -> Tuple[flask.Response, int]:
         )
 
     try:
-        merge_result = merge_bookmarks(db.session, user_uuid, recieved_bookmarks)
+        merge_result = merge_bookmarks(
+            db.session, get_cache(), user_uuid, recieved_bookmarks
+        )
     except BadCanonicalisationException as e:
         log.error(
             "bad canonicalised url ('%s') from version %s, user %s",
