@@ -16,6 +16,7 @@ import flask
 import moto
 from passlib.context import CryptContext
 import pytz
+import pytest
 
 import quarchive as sut
 from quarchive.cache import get_cache
@@ -30,7 +31,7 @@ from quarchive import logging as q_logging
 from quarchive.data import models as sut_models
 from quarchive.messaging import publication, receipt
 
-import pytest
+from .null_cache import NullCache
 
 log = getLogger(__name__)
 
@@ -80,9 +81,15 @@ def session(app, config):
     return sut.db.session
 
 
-@pytest.fixture()
-def cache(app, config):
-    return get_cache()
+caches = [
+    pytest.param(get_cache(), id="memcache"),
+    pytest.param(NullCache(), id="nullcache"),
+]
+
+
+@pytest.fixture(params=caches)
+def cache(app, config, request):
+    return request.param
 
 
 @pytest.fixture(scope="session")
