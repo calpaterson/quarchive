@@ -103,7 +103,9 @@ class SQLABookmark(Base):
     __tablename__ = "bookmarks"
 
     url_uuid = Column(PGUUID, ForeignKey("urls.url_uuid"), primary_key=True)
-    user_uuid = Column(PGUUID, ForeignKey("users.user_uuid"), primary_key=True)
+    user_uuid = Column(
+        PGUUID, ForeignKey("users.user_uuid"), primary_key=True, index=True
+    )
 
     title = Column(satypes.String, nullable=False, index=True)
     description = Column(satypes.String, nullable=False, index=True)
