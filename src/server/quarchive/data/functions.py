@@ -214,13 +214,23 @@ def user_from_user_uuid(session, cache: Cache, user_uuid: UUID) -> Optional[User
     return user
 
 
-def is_correct_password(session, crypt_context, user, password) -> bool:
+def is_correct_password(session, crypt_context, user: User, password: str) -> bool:
     (db_password,) = (
         session.query(SQLUser.password)
         .filter(SQLUser.user_uuid == user.user_uuid)
         .one()
     )
     return crypt_context.verify(password, db_password)
+
+
+def set_password(
+    session: Session, crypt_context: Any, user: User, new_password: str
+) -> None:
+    new_password_hashed = crypt_context.hash(new_password)
+    session.query(SQLUser).filter(SQLUser.user_uuid == user.user_uuid).update(
+        dict(password=new_password_hashed)
+    )
+    log.warning("set password for %s", user)
 
 
 def create_user(

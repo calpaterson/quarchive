@@ -46,6 +46,7 @@ from quarchive.data.functions import (
     get_api_key,
     get_bookmark_by_url_uuid,
     is_correct_password,
+    set_password,
     set_bookmark,
     set_user_timezone,
     tags_with_count,
@@ -903,10 +904,21 @@ def user_page_post(username: str) -> Tuple[flask.Response, int]:
     elif user != get_current_user():
         flask.abort(403, "not allowed to edit the profiles of others")
     else:
+        crypt_context = flask.current_app.config["CRYPT_CONTEXT"]
+
+        if flask.request.form.get("old-password") and flask.request.form.get(
+            "new-password"
+        ):
+            old_password = flask.request.form["old-password"]
+            if is_correct_password(db.session, crypt_context, user, old_password):
+                new_password = flask.request.form["new-password"]
+                set_password(db.session, crypt_context, user, new_password)
+            else:
+                flask.abort(403, "wrong old password")
         set_user_timezone(db.session, get_cache(), user, flask.request.form["timezone"])
         db.session.commit()
         put_user_in_g()
-        flask.flash("User updated successfully")
+        flask.flash("Settings updated")
         response = flask.make_response("Redirecting...")
         response.headers["Location"] = flask.url_for(
             "quarchive.user_page", username=username

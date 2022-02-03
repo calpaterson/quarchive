@@ -9,14 +9,31 @@
 
       <h2>Settings</h2>
       <form method="POST">
+        <h3>Change email address</h3>
         <p>
-          <label for="email-address">Email address</label>
+          <label for="email-address">New email address</label>
         </p>
         <p>
           <input type="email"
                  placeholder="{{ 'no email set' if not user.email }}"
+                 name="change-email-address"
                  value="{{ user.email or '' }}" disabled>
-          <span class="input-copy">Can't be changed with this form at the moment, sorry - see the <a href="{{url_for('quarchive.faq', _anchor='faq-change-user-data')}}">FAQ!</a></span>
+          <span class="input-copy">Email address can't be changed with this form at the moment, sorry - see the <a href="{{url_for('quarchive.faq', _anchor='faq-change-user-data')}}">FAQ!</a></span>
+        </p>
+        <h3>Change password</h3>
+        <p>
+          <label for="old-password">Old password</label>
+        </p>
+        <p>
+          <input name="old-password" type="password">
+        </p>
+        <p>
+          <label for="new-password">New password</label>
+        </p>
+        <p>
+          <input name="new-password" type="password">
+        </p>
+        <h3>Date and time</h3>
         <p>
           <label for="timezone">Timezone</label>
         </p>
