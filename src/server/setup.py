@@ -14,7 +14,7 @@ setup(
         "PyYaml==5.4.1",
         "argon2_cffi==20.1.0",
         "attrs==20.3.0",
-        "babel==2.9.0",
+        "babel==2.9.1",
         "bcrypt==3.2.0",
         "boto3==1.11.0",
         "click==7.1.2",
