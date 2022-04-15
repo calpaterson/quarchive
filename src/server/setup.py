@@ -22,6 +22,7 @@ setup(
         "flask-cors==3.0.10",
         "flask-sqlalchemy==2.5.1",
         "flask==1.1.1",
+        "itsdangerous==2.0.1",
         "kombu==5.0.2",
         "lxml==4.6.3",
         "missive==0.8.1",
