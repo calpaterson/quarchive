@@ -10,7 +10,7 @@ setup(
     zip_safe=False,
     install_requires=[
         "Flask-Babel~=2.0.0",
-        "Pillow~=8.3.2",
+        "Pillow~=9.0.1,>9.0.0",
         "PyYaml~=5.4.1",
         "argon2_cffi~=20.1.0",
         "attrs~=20.3.0",
