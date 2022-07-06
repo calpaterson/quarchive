@@ -24,7 +24,7 @@ setup(
         "flask==1.1.1",
         "itsdangerous==2.0.1",
         "kombu==5.0.2",
-        "lxml==4.6.3",
+        "lxml==4.9.1",
         "missive==0.8.1",
         "passlib==1.7.4",
         "psycopg2==2.8.6",
