@@ -36,7 +36,7 @@ setup(
         "requests==2.25.0",
         "sqlalchemy==1.3.22",
         "systemd-python==234",
-        "werkzeug==1.0.1",
+        "werkzeug==2.2.3",
     ],
     extras_require={
         "tests": [
