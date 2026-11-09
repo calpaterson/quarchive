@@ -210,7 +210,7 @@ class HNAlgoliaClient:
         while api_url is not None:
             response = None
             try:
-                response = self.http_client.get(api_url.to_string())
+                response = self.http_client.get(api_url.to_string(), timeout=30)
                 response.raise_for_status()
             except requests.exceptions.RequestException as e:
                 raise DiscussionAPIError(DiscussionSource.REDDIT, e)
